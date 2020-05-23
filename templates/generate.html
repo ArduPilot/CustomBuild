@@ -1,0 +1,13 @@
+<!doctype html>
+<title>AP Terrain Generator</title>
+<h1>AP Terrain Generator</h1>
+<p>File is being processed. This may take up to {{ waittime }} minutes.</p>
+
+{% if error %}
+  <p>Error: {{ error }}!</p>
+{% else %}
+  <p>When finished, you can download from: <a href="{{ urlkey }}" download="terrain.zip">Link To Download</a></p>
+  <p>This should be unzipped to the autopilot's SD card, within in the "terrain" folder.</p>
+{% endif %}
+
+<footer>{{uuidkey}}</footer>
