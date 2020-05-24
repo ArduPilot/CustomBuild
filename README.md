@@ -32,3 +32,11 @@ The downloadable files are stored in ./outputTer
 Each user request is given a UUID, which is incorporated into the folder/filename of the terrain files.
 
 To run the unit tests, type ``pytest``
+
+## Deployment
+
+Use gunicorn for deployment:
+
+``pip install gunicorn``
+
+``gunicorn app:app``
