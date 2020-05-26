@@ -287,11 +287,6 @@ def makeTerrain(downloader, radius, lat, lon, spacing, uuid, folder):
 
     print("Doing " + folderthis)
 
-    # progress tracking. Extra 10% is for zip compression at the end
-    #numtotal = (len(range(-radius, radius))**2)*1.1
-    #print(numtotal)
-    #numpercent = 0
-
     for dx in range(-radius, radius):
         for dy in range(-radius, radius):
             (lat2,lon2) = add_offset(lat*1e7, lon*1e7, dx*1000.0, dy*1000.0)
@@ -302,10 +297,7 @@ def makeTerrain(downloader, radius, lat, lon, spacing, uuid, folder):
                 #numpercent += 1
                 continue
             done.add(tag)
-            #print("At {0:.2f}%".format(numpercent*100/numtotal))
             create_degree(downloader, lat_int, lon_int, folderthis, spacing)
-            #numpercent += 1
 
-    #print("At Final {0:.2f}%".format(numpercent*100/numtotal))
     create_degree(downloader, lat, lon, folderthis, spacing)
     #numpercent += 1
