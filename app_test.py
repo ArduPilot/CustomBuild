@@ -28,7 +28,6 @@ def test_homepage(client):
     assert b'<input type="text" id="lat" name="lat" value="-35.363261">' in rv.data
     assert b'<input type="text" id="long" name="long" value="149.165230">' in rv.data
     assert b'<input type="number" id="radius" name="radius" value="100" min="1" max="400">' in rv.data
-    assert b'<input type="number" id="spacing" name="spacing" value="100"  min="50" max="500">' in rv.data
     assert b'<input type="submit" value="Submit" method="post">' in rv.data
 
 def test_status(client):
@@ -68,7 +67,6 @@ def test_badinput(client):
         lat='I am bad data',
         long='echo test',
         radius='1',
-        spacing='100'
     ), follow_redirects=True)
 
     assert b'<title>AP Terrain Generator</title>' in rv.data
@@ -80,7 +78,6 @@ def test_badinput(client):
         lat='206.56',
         long='-400',
         radius='1',
-        spacing='100'
     ), follow_redirects=True)
 
     assert b'<title>AP Terrain Generator</title>' in rv.data
@@ -94,7 +91,6 @@ def test_simplegen(client):
         lat='-35.363261',
         long='149.165230',
         radius='1',
-        spacing='200'
     ), follow_redirects=True)
 
     assert b'<title>AP Terrain Generator</title>' in rv.data
@@ -129,7 +125,6 @@ def test_multigen(client):
         lat='-35.363261',
         long='149.165230',
         radius='1',
-        spacing='200'
     ), follow_redirects=True)
     time.sleep(0.1)
 
@@ -137,7 +132,6 @@ def test_multigen(client):
         lat='-35.363261',
         long='147.165230',
         radius='1',
-        spacing='200'
     ), follow_redirects=True)
     time.sleep(0.1)
 
@@ -145,7 +139,6 @@ def test_multigen(client):
         lat='-30.363261',
         long='137.165230',
         radius='1',
-        spacing='200'
     ), follow_redirects=True)
     time.sleep(0.1)
 
@@ -164,7 +157,7 @@ def test_multigen(client):
     allUuidComplete = []
     while len(allUuid) != len(allUuidComplete):
         time.sleep(1)
-        if time.time() - startime > 50:
+        if time.time() - startime > 120:
             break
         else:
             # check if done

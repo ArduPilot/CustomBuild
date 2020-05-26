@@ -73,13 +73,11 @@ def generate():
             lat = float(request.form['lat'])
             lon = float(request.form['long'])
             radius = int(request.form['radius'])
-            spacing = int(request.form['spacing'])
             assert lat < 90
             assert lon < 180
             assert lat > -90
             assert lon > -180
             radius = clamp(radius, 1, 400)
-            spacing = clamp(spacing, 50, 500)
         except:
             print("Bad data")
             return render_template('generate.html', error = "Error with input")
@@ -88,7 +86,7 @@ def generate():
         uuidkey = str(uuid.uuid1())
 
         # Add this job to the processing queue
-        x.terQ.put((radius, lat, lon, spacing, uuidkey, 'outputTer'))
+        x.terQ.put((radius, lat, lon, 100, uuidkey, 'outputTer'))
         #x.terStats[uuidkey] = "In Queue, pos={0}".format(terQ.qsize())
         x.addStatus(uuidkey, "In Queue, pos={0}".format(x.terQ.qsize()))
 
