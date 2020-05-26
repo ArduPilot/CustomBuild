@@ -3,8 +3,8 @@
 create ardupilot terrain database files
 '''
 
-import math, struct, os, sys, shutil
-import crc16, time, struct, zipfile
+import math, struct, os
+import crc16, time, struct
 
 # MAVLink sends 4x4 grids
 TERRAIN_GRID_MAVLINK_SIZE = 4
@@ -284,9 +284,8 @@ def makeTerrain(downloader, radius, lat, lon, spacing, uuid, folder):
         pass
 
     folderthis = os.path.join(os.getcwd(), folder + "-tmp", uuid)
-    zipthis = os.path.join(os.getcwd(), folder, uuid + '.zip')
 
-    print("Doing " + folderthis + " -> " + zipthis)
+    print("Doing " + folderthis)
 
     # progress tracking. Extra 10% is for zip compression at the end
     #numtotal = (len(range(-radius, radius))**2)*1.1
@@ -310,23 +309,3 @@ def makeTerrain(downloader, radius, lat, lon, spacing, uuid, folder):
     #print("At Final {0:.2f}%".format(numpercent*100/numtotal))
     create_degree(downloader, lat, lon, folderthis, spacing)
     #numpercent += 1
-
-    # compress
-    terrain_zip = zipfile.ZipFile(zipthis, 'w')
-    
-     
-    print("At Compress ")
-    #numpercent  = numpercent * 1.1
-    for folder, subfolders, files in os.walk(folderthis):
-        for file in files:
-            terrain_zip.write(os.path.join(folder, file), file, compress_type = zipfile.ZIP_DEFLATED)
-     
-    terrain_zip.close()
-
-    #remove old folder
-    try:
-        shutil.rmtree(folderthis)
-    except OSError as e:
-        print("Error: %s : %s" % (folderthis, e.strerror))
-
-    print("At Done")

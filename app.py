@@ -3,6 +3,8 @@ import threading
 import time
 import queue
 import os
+import zipfile
+import shutil
 
 from flask import Flask
 from flask import render_template
@@ -42,8 +44,33 @@ class TerGenThread(threading.Thread):
                 (radius, lat, lon, spacing, uuidkey, outfolder) = self.terQ.get()
                 print("Starting request: " + str(uuidkey))
                 self.terStats[uuidkey] = "Processing"
+                # generate terrain
                 makeTerrain(self.downloader, radius, lat, lon, spacing, uuidkey, outfolder)
+                
+                self.terStats[uuidkey] = "Compressing"
+                #compress into single file for user
+                folderthis = os.path.join(os.getcwd(), outfolder + "-tmp", uuidkey)
+                zipthis = os.path.join(os.getcwd(), outfolder, uuidkey + '.zip')
+                terrain_zip = zipfile.ZipFile(zipthis, 'w')
+                 
+                print("At Compress ")
+                #numpercent  = numpercent * 1.1
+                for folder, subfolders, files in os.walk(folderthis):
+                    for file in files:
+                        terrain_zip.write(os.path.join(folder, file), file, compress_type = zipfile.ZIP_DEFLATED)
+                 
+                terrain_zip.close()
+
+                #remove old folder
+                try:
+                    shutil.rmtree(folderthis)
+                except OSError as e:
+                    print("Error: %s : %s" % (folderthis, e.strerror))
+
+                print("At Done")
+
                 del self.terStats[uuidkey]
+
         print("Exiting Terrain Generator")
 
 # Terrain generator checker
