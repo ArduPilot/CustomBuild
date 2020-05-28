@@ -171,16 +171,24 @@ class DataFile(object):
             EW = 'W'
         else:
             EW = 'E'
-        name = folder + "/%c%02u%c%03u.DAT" % (NS, min(abs(int(lat)), 99),
-                                        EW, min(abs(int(lon)), 999))
+        self.name = folder + "/%c%02u%c%03u.DAT" % (NS, min(abs(int(lat)), 99),
+                                             EW, min(abs(int(lon)), 999))
+        self.tmpname = folder + "/%c%02u%c%03u.DAT.tmp" % (NS, min(abs(int(lat)), 99),
+                                             EW, min(abs(int(lon)), 999))
         try:
             os.mkdir(folder)
         except Exception:
             pass
-        if not os.path.exists(name):
-            self.fh = open(name, 'w+b')
+        if not os.path.exists(self.name):
+            self.fh = open(self.tmpname, 'w+b')
         else:
-            self.fh = open(name, 'r+b')
+            self.fh = open(self.name, 'r+b')
+
+    def finalise(self):
+        '''finalise file after writing'''
+        self.fh.close()
+        #and rename
+        os.rename(self.tmpname, self.name)
 
     def seek_offset(self, block):
         '''seek to right offset'''
@@ -271,6 +279,8 @@ def create_degree(downloader, lat, lon, folder, grid_spacing):
                     altitude = tiles[tile_idx].getAltitudeFromLatLon(lat_e7*1.0e-7, lon_e7*1.0e-7)
                     grid.fill(gx, gy, altitude)
         dfile.write(grid)
+
+    dfile.finalise()
 
 def makeTerrain(downloader, radius, lat, lon, spacing, uuid, folder):
     #GRID_SPACING = spacing
