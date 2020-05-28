@@ -6,6 +6,8 @@ create ardupilot terrain database files
 import math, struct, os
 import crc16, time, struct
 
+from MAVProxy.modules.mavproxy_map import srtm
+
 # MAVLink sends 4x4 grids
 TERRAIN_GRID_MAVLINK_SIZE = 4
 
@@ -262,8 +264,12 @@ def create_degree(downloader, lat, lon, folder, grid_spacing):
                     if waited:
                         print("downloaded %d,%d" % (lat2_int, lon2_int))
                     tiles[tile_idx] = tile
-                altitude = tiles[tile_idx].getAltitudeFromLatLon(lat_e7*1.0e-7, lon_e7*1.0e-7)
-                grid.fill(gx, gy, altitude)
+                if isinstance(tile, srtm.SRTMOceanTile):
+                    # if it's a blank ocean tile, there's a quicker way to generate the tile
+                    grid.fill(gx, gy, 0)
+                else:
+                    altitude = tiles[tile_idx].getAltitudeFromLatLon(lat_e7*1.0e-7, lon_e7*1.0e-7)
+                    grid.fill(gx, gy, altitude)
         dfile.write(grid)
 
 def makeTerrain(downloader, radius, lat, lon, spacing, uuid, folder):
