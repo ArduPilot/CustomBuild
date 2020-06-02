@@ -15,11 +15,11 @@ import crc16
 from terrain_gen import TERRAIN_GRID_BLOCK_SIZE_Y, east_blocks, IO_BLOCK_SIZE, TERRAIN_GRID_FORMAT_VERSION, GridBlock
 
 # IO block size is 2048
-# CRC the last 1821 bytes of this
-# Last 22 bytes is the header
+# Actual size is 1821 bytes
+# Last 227 bytes is filling
 def check_filled(block, lat_int, lon_int, grid_spacing):
     '''check a block for validity'''
-    if len(block) != IO_BLOCK_SIZE:
+    if len(block) != IO_BLOCK_SIZE - 227:
         print("Bad size {0} of {1}".format(len(block), IO_BLOCK_SIZE))
         return False
     (bitmap, lat, lon, crc, version, spacing) = struct.unpack("<QiiHHH", block[:22])
@@ -67,20 +67,22 @@ if __name__ == '__main__':
                     lon_int = -lon_int
                 with gzip.open(os.path.join(targetFolder, file), 'rb') as f:
                     tile = f.read()
-                print("Checking {0}, {1}".format(lat_int, lon_int))
+                #print("Checking {0}, {1}".format(lat_int, lon_int))
             except:
                 print("Bad gzip: " + file)
             # 2. Is it a valid dat file?
             if (tile):
                 total_blocks = east_blocks(lat_int*1e7, lon_int*1e7, grid_spacing) * TERRAIN_GRID_BLOCK_SIZE_Y
                 # 2a. Are the correct number of blocks present?
-                # TODO: Why is there an extra 1821 bytes at the end on the file??? (2048-1821 = 227)
+                # There is an extra 1821 bytes at the end on the file (2048-1821 = 227), as the 
+                # terrain blocks only take up 1821 bytes.
                 if (len(tile)+227) != (total_blocks * IO_BLOCK_SIZE):
                     print("Bad number of blocks: {0}, {1} vs {2}".format(file, len(tile), total_blocks * IO_BLOCK_SIZE))
                 # 2b. Does each block have the correct CRC and fields?
                 for blocknum in range(total_blocks):
-                    block = tile[(blocknum * IO_BLOCK_SIZE):((blocknum + 1)* IO_BLOCK_SIZE)]
+                    block = tile[(blocknum * IO_BLOCK_SIZE):((blocknum + 1)* IO_BLOCK_SIZE)-227]
                     if not check_filled(block, lat_int, lon_int, 100):
                         print("Bad data in block {0} of {1}".format(blocknum, total_blocks))
             else:
                 print("Bad tile: " + file)
+    print("Done!")
