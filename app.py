@@ -44,6 +44,10 @@ def compressFiles(fileList, uuidkey, outfolder):
         os.makedirs(os.path.join(this_path, outfolder))
     except OSError:
         pass
+    try:
+        os.makedirs(os.path.join(this_path, "processedTerrain"))
+    except OSError:
+        pass
 
     try:
         with zipfile.ZipFile(zipthis, 'w') as terrain_zip:
