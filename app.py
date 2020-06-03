@@ -15,6 +15,9 @@ from terrain_gen import add_offset
 # The output folder for all gzipped terrain requests
 app = Flask(__name__, static_url_path='/terrain', static_folder='outputTer',)
 
+# Directory of this file
+this_path = os.path.dirname(os.path.realpath(__file__))
+
 def clamp(n, smallest, largest):
     return max(smallest, min(n, largest))
 
@@ -32,13 +35,13 @@ def getDatFile(lat, lon):
 
 def compressFiles(fileList, uuidkey, outfolder):
     # create a zip file comprised of dat.gz tiles
-    zipthis = os.path.join(os.getcwd(), outfolder, uuidkey + '.zip')
-    foldertmp = os.path.join(os.getcwd(), outfolder + "-tmp", uuidkey)
+    zipthis = os.path.join(this_path, outfolder, uuidkey + '.zip')
+    foldertmp = os.path.join(this_path, outfolder + "-tmp", uuidkey)
 
     # create tmp and output dirs if needed
     os.makedirs(foldertmp)
     try:
-        os.makedirs(os.path.join(os.getcwd(), outfolder))
+        os.makedirs(os.path.join(this_path, outfolder))
     except OSError:
         pass
 
@@ -113,13 +116,13 @@ def generate():
                 done.add(tag)
                 # make sure tile is inside the 60deg latitude limit
                 if (abs(lat_int) < 60):
-                    filelist.append(os.path.join(os.getcwd(), "processedTerrain", getDatFile(lat_int, lon_int)))
+                    filelist.append(os.path.join(this_path, "processedTerrain", getDatFile(lat_int, lon_int)))
                 else:
                     outsideLat = True
 
         # make sure tile is inside the 60deg latitude limit
         if (abs(lat_int) < 60):
-            filelist.append(os.path.join(os.getcwd(), "processedTerrain", getDatFile(lat_int, lon_int)))
+            filelist.append(os.path.join(this_path, "processedTerrain", getDatFile(lat_int, lon_int)))
         else:
             outsideLat = True
 
@@ -140,4 +143,7 @@ def generate():
     else:
         print("Bad get")
         return render_template('generate.html', error="Need to use POST, not GET")
+
+if __name__ == "__main__":
+    app.run()
 

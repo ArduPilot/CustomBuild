@@ -26,11 +26,8 @@ To install dependencies:
 To run:
 
 ```
-export FLASK_APP=app.py
-flask run
+python3 app.py
 ```
-
-The cached terrain files are stored in ./srtmcache
 
 The unzipped processed files are temporarily stored in ./outputTer-tmp. These are deleted upon the zipping into a single
 downloadable file
@@ -40,13 +37,5 @@ The downloadable files are stored in ./outputTer
 Each user request is given a UUID, which is incorporated into the folder/filename of the terrain files.
 
 To run the unit tests, type ``pytest``
-
-## Deployment
-
-Use gunicorn for deployment:
-
-``pip install gunicorn``
-
-``gunicorn app:app``
 
 
