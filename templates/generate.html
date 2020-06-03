@@ -9,4 +9,12 @@
   <p>This should be unzipped to the autopilot's SD card, within in the "terrain" folder.</p>
 {% endif %}
 
+{% if outsideLat %}
+  <p>Tiles outside of +60 to -60 latitude were requested, which are not covered by the terrain database. These tiles are not included in the generated zip file.</p>
+{% else %}
+<p></p>
+{% endif %}
+
+<br />
+
 <footer>{{uuidkey}}</footer>

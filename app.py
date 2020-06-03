@@ -96,6 +96,9 @@ def generate():
         # UUID for this terrain generation
         uuidkey = str(uuid.uuid1())
 
+        # Flag for if user wanted a tile outside +-60deg latitude
+        outsideLat = None
+
         # get a list of files required to cover area
         filelist = []
         done = set()
@@ -108,11 +111,18 @@ def generate():
                 if tag in done:
                     continue
                 done.add(tag)
-                #create_degree(downloader, lat_int, lon_int, folderthis, spacing)
-                filelist.append(os.path.join(os.getcwd(), "processedTerrain", getDatFile(lat_int, lon_int)))
+                # make sure tile is inside the 60deg latitude limit
+                if (abs(lat_int) < 60):
+                    filelist.append(os.path.join(os.getcwd(), "processedTerrain", getDatFile(lat_int, lon_int)))
+                else:
+                    outsideLat = True
 
-        #create_degree(downloader, lat, lon, folderthis, spacing)
-        filelist.append(os.path.join(os.getcwd(), "processedTerrain", getDatFile(lat_int, lon_int)))
+        # make sure tile is inside the 60deg latitude limit
+        if (abs(lat_int) < 60):
+            filelist.append(os.path.join(os.getcwd(), "processedTerrain", getDatFile(lat_int, lon_int)))
+        else:
+            outsideLat = True
+
         # remove duplicates
         filelist = list(dict.fromkeys(filelist))
         print(filelist)
@@ -123,7 +133,7 @@ def generate():
         
         if success:
             print("Generated " + "/terrain/" + uuidkey + ".zip")
-            return render_template('generate.html', urlkey="/terrain/" + uuidkey + ".zip", uuidkey=uuidkey)
+            return render_template('generate.html', urlkey="/terrain/" + uuidkey + ".zip", uuidkey=uuidkey, outsideLat=outsideLat)
         else:
             print("Failed " + "/terrain/" + uuidkey + ".zip")
             return render_template('generate.html', error="Cannot generate terrain", uuidkey=uuidkey)
