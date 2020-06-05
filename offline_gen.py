@@ -101,7 +101,7 @@ if __name__ == '__main__':
     tileID = []
     i = 0
     for long in range(-180, 180):
-        for lat in range (-args.latitude, args.latitude):
+        for lat in range (-(args.latitude+1), args.latitude+1):
             tileID.append([lat, long, i]) 
             i += 1
 
