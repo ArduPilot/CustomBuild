@@ -6,6 +6,7 @@ import sys
 import urllib.request
 import gzip
 from io import BytesIO
+import time
 
 from flask import Flask
 from flask import render_template
@@ -13,11 +14,14 @@ from flask import request
 
 from terrain_gen import add_offset
 
-# The output folder for all gzipped terrain requests
-app = Flask(__name__, static_url_path='/terrain', static_folder='outputTer',)
-
 # Directory of this file
 this_path = os.path.dirname(os.path.realpath(__file__))
+
+# Where the user requested tile are stored
+output_path = os.path.join(this_path, 'outputTer')
+
+# The output folder for all gzipped terrain requests
+app = Flask(__name__, static_url_path='/terrain', static_folder=output_path,)
 
 def clamp(n, smallest, largest):
     return max(smallest, min(n, largest))
@@ -36,11 +40,11 @@ def getDatFile(lat, lon):
 
 def compressFiles(fileList, uuidkey, outfolder):
     # create a zip file comprised of dat.gz tiles
-    zipthis = os.path.join(this_path, outfolder, uuidkey + '.zip')
+    zipthis = os.path.join(outfolder, uuidkey + '.zip')
 
     # create output dirs if needed
     try:
-        os.makedirs(os.path.join(this_path, outfolder))
+        os.makedirs(outfolder)
     except OSError:
         pass
     try:
@@ -130,9 +134,14 @@ def generate():
         filelist = list(dict.fromkeys(filelist))
         print(filelist)
 
-
         #compress
-        success = compressFiles(filelist, uuidkey, 'outputTer')
+        success = compressFiles(filelist, uuidkey, output_path)
+
+        # as a cleanup, remove any generated terrain older than 24H
+        for f in os.listdir(output_path):
+            if os.stat(os.path.join(output_path ,f)).st_mtime < time.time() - 24 * 60 * 60:
+                print("Removing old file: " + str(os.path.join(output_path, f)))
+                os.remove(os.path.join(output_path, f))
         
         if success:
             print("Generated " + "/terrain/" + uuidkey + ".zip")
