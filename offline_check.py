@@ -23,13 +23,19 @@ def check_filled(block, lat_int, lon_int, grid_spacing):
         print("Bad size {0} of {1}".format(len(block), IO_BLOCK_SIZE))
         return False
     (bitmap, lat, lon, crc, version, spacing) = struct.unpack("<QiiHHH", block[:22])
-    if (version != TERRAIN_GRID_FORMAT_VERSION or
-        abs(lat_int - (lat/1E7)) > 2 or
-        abs(lon_int - (lon/1E7)) > 2 or
-        spacing != 100 or
-        bitmap != (1<<56)-1):
-        print("Bad fields")
+    if (version != TERRAIN_GRID_FORMAT_VERSION):
+        print("Bad version: " + str(version))
         return False
+    if abs(lat_int - (lat/1E7)) > 2 or abs(lon_int - (lon/1E7)) > 2:
+        print("Bad lat/lon: {0}, {1}".format((lat/1E7), (lon/1E7)))
+        return False
+    if spacing != 100:
+        print("Bad spacing: " + str(spacing))
+        return False
+    if bitmap != (1<<56)-1:
+        print("Bad bitmap")
+        return False
+
     block = block[:16] + struct.pack("<H", 0) + block[18:]
     crc2 = crc16.crc16xmodem(block[:1821])
     if crc2 != crc:
@@ -54,7 +60,7 @@ if __name__ == '__main__':
 
     #for each file in folder
     for file in os.listdir(targetFolder):
-        if file.endswith("DAT.gz"):
+        if file.endswith("DAT.gz") or file.endswith("DAT"):
             # It's a compressed tile
             # 1. Check it's a valid gzip
             tile = None
@@ -65,11 +71,15 @@ if __name__ == '__main__':
                 lon_int = int(os.path.basename(file)[4:7])
                 if os.path.basename(file)[3:4] == "W":
                     lon_int = -lon_int
-                with gzip.open(os.path.join(targetFolder, file), 'rb') as f:
-                    tile = f.read()
-                #print("Checking {0}, {1}".format(lat_int, lon_int))
-            except:
-                print("Bad gzip: " + file)
+                if file.endswith("DAT.gz"):
+                    with gzip.open(os.path.join(targetFolder, file), 'rb') as f:
+                        tile = f.read()
+                else:
+                    with open(os.path.join(targetFolder, file), 'rb') as f:
+                        tile = f.read()
+            except Exception as e:
+                print("Bad file: " + file)
+                print(e)
             # 2. Is it a valid dat file?
             if (tile):
                 total_blocks = east_blocks(lat_int*1e7, lon_int*1e7, grid_spacing) * TERRAIN_GRID_BLOCK_SIZE_Y
