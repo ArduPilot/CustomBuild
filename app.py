@@ -5,6 +5,7 @@ import shutil
 import sys
 import urllib.request
 import gzip
+from io import BytesIO
 
 from flask import Flask
 from flask import render_template
@@ -36,10 +37,8 @@ def getDatFile(lat, lon):
 def compressFiles(fileList, uuidkey, outfolder):
     # create a zip file comprised of dat.gz tiles
     zipthis = os.path.join(this_path, outfolder, uuidkey + '.zip')
-    foldertmp = os.path.join(this_path, outfolder + "-tmp", uuidkey)
 
-    # create tmp and output dirs if needed
-    os.makedirs(foldertmp)
+    # create output dirs if needed
     try:
         os.makedirs(os.path.join(this_path, outfolder))
     except OSError:
@@ -59,17 +58,14 @@ def compressFiles(fileList, uuidkey, outfolder):
                     with open(fn, 'b+w') as f:
                         f.write(g.read())
 
-                # need to decompress file
-                datfile = os.path.join(foldertmp, os.path.basename(fn)[:-3])
-                with gzip.open(fn, 'r') as f_in, open(datfile, 'wb') as f_out:
-                    shutil.copyfileobj(f_in, f_out)
+                # need to decompress file and pass to zip
+                with gzip.open(fn, 'r') as f_in:
+                    myio = BytesIO(f_in.read())
                     print("Decomp " + os.path.basename(fn))
 
-                # and add file to zip
-                terrain_zip.write(datfile, os.path.basename(datfile), compress_type = zipfile.ZIP_DEFLATED)
+                    # and add file to zip
+                    terrain_zip.writestr(os.path.basename(fn)[:-3], myio.read(), compress_type = zipfile.ZIP_DEFLATED)
 
-            # remove cache (decompressed files)
-            shutil.rmtree(foldertmp)
     except Exception as ex:
         print("Unexpected error: {0}".format(ex))
         return False
