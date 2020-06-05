@@ -56,7 +56,7 @@ def compressFiles(fileList, uuidkey, outfolder):
                 if not os.path.exists(fn):
                     #download if required
                     print("Downloading " + os.path.basename(fn))
-                    g = urllib.request.urlopen('https://firmware.ardupilot.org/terrain/files/' +
+                    g = urllib.request.urlopen('https://firmware.ardupilot.org/terrain/tiles/' +
                                                os.path.basename(fn))
                     print("Downloaded " + os.path.basename(fn))
                     with open(fn, 'b+w') as f:
