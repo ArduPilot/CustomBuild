@@ -55,6 +55,7 @@ def compressFiles(fileList, uuidkey, outfolder):
             for fn in fileList:
                 if not os.path.exists(fn):
                     #download if required
+                    print("Downloading " + os.path.basename(fn))
                     g = urllib.request.urlopen('https://firmware.ardupilot.org/terrain/files/' +
                                                os.path.basename(fn))
                     print("Downloaded " + os.path.basename(fn))
@@ -117,14 +118,14 @@ def generate():
                     continue
                 done.add(tag)
                 # make sure tile is inside the 60deg latitude limit
-                if abs(lat_int) < 60:
+                if abs(lat_int) <= 60:
                     filelist.append(os.path.join(this_path, "processedTerrain",
                                                  getDatFile(lat_int, lon_int)))
                 else:
                     outsideLat = True
 
         # make sure tile is inside the 60deg latitude limit
-        if abs(lat_int) < 60:
+        if abs(lat_int) <= 60:
             filelist.append(os.path.join(this_path, "processedTerrain",
                                          getDatFile(lat_int, lon_int)))
         else:

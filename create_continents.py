@@ -39,6 +39,8 @@ print("Continents are: " + str(continents.keys()))
 
 # Add the files
 for continent in continents:
+    if os.path.exists(os.path.join(args.outfolder, continent + ".zip")):
+        os.remove(os.path.join(args.outfolder, continent + ".zip"))
     print("Processing: " + continent)
     files = continents[continent]
     compressFiles(files, continent, args.outfolder)
