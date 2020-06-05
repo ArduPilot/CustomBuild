@@ -1,8 +1,6 @@
 import os
 import time
-
 import pytest
-import uuid
 
 from app import app
 
@@ -15,17 +13,6 @@ def createFile(name, size):
 @pytest.fixture
 def client():
     app.config['TESTING'] = True
-
-    # create fake pre-gen terrain files if they don't exist
-    #preGen = ['S35E149.DAT', 'S35E147.DAT', 'S30E137.DAT', 'S31E136.DAT', 'S31E137.DAT', 'S31E138.DAT',
-    #          'S30E136.DAT', 'S30E137.DAT', 'S30E138.DAT', 'S29E136.DAT', 'S29E137.DAT', 'S29E138.DAT']
-    #for fileSingle in preGen:
-    #    full = os.path.join(os.getcwd(), "processedTerrain", fileSingle)
-    #    print(full)
-    #    if not os.path.exists(full):
-    #        print("Making fake file: " + full)
-    #        createFile(full, 1024 * 1024)
-
     with app.test_client() as client:
         yield client
 
@@ -97,7 +84,7 @@ def test_simplegen(client):
     assert b'Tiles outside of +60 to -60 latitude were requested' not in rv.data
     assert b'download="terrain.zip"' in rv.data
 
-    uuidkey = (rv.data.split(b"footer")[1][1:-2]).decode("utf-8") 
+    uuidkey = (rv.data.split(b"footer")[1][1:-2]).decode("utf-8")
     assert uuidkey != ""
 
     #file should be ready for download and around 2MB in size
@@ -119,7 +106,7 @@ def test_simplegenoutside(client):
     assert b'Tiles outside of +60 to -60 latitude were requested' in rv.data
     assert b'download="terrain.zip"' in rv.data
 
-    uuidkey = (rv.data.split(b"footer")[1][1:-2]).decode("utf-8") 
+    uuidkey = (rv.data.split(b"footer")[1][1:-2]).decode("utf-8")
     assert uuidkey != ""
 
     #file should be ready for download and around 2MB in size
@@ -157,7 +144,7 @@ def test_multigen(client):
         assert b'<title>AP Terrain Generator</title>' in rv.data
         assert b'Error' not in rv.data
         assert b'download="terrain.zip"' in rv.data
-        uuidkey = (rv.data.split(b"footer")[1][1:-2]).decode("utf-8") 
+        uuidkey = (rv.data.split(b"footer")[1][1:-2]).decode("utf-8")
         assert uuidkey != ""
         allUuid.append(uuidkey)
 
@@ -166,6 +153,3 @@ def test_multigen(client):
         rdown = client.get('/terrain/' + uukey + ".zip", follow_redirects=True)
         assert b'404 Not Found' not in rdown.data
         assert len(rdown.data) > (0.7*1024*1024)
-
-
-

@@ -1,8 +1,6 @@
 import uuid
 import os
 import zipfile
-import shutil
-import sys
 import urllib.request
 import gzip
 from io import BytesIO
@@ -57,7 +55,8 @@ def compressFiles(fileList, uuidkey, outfolder):
             for fn in fileList:
                 if not os.path.exists(fn):
                     #download if required
-                    g = urllib.request.urlopen('https://firmware.ardupilot.org/terrain/files/' + os.path.basename(fn))
+                    g = urllib.request.urlopen('https://firmware.ardupilot.org/terrain/files/' +
+                                               os.path.basename(fn))
                     print("Downloaded " + os.path.basename(fn))
                     with open(fn, 'b+w') as f:
                         f.write(g.read())
@@ -68,14 +67,13 @@ def compressFiles(fileList, uuidkey, outfolder):
                     print("Decomp " + os.path.basename(fn))
 
                     # and add file to zip
-                    terrain_zip.writestr(os.path.basename(fn)[:-3], myio.read(), compress_type = zipfile.ZIP_DEFLATED)
+                    terrain_zip.writestr(os.path.basename(fn)[:-3], myio.read(),
+                                         compress_type=zipfile.ZIP_DEFLATED)
 
     except Exception as ex:
         print("Unexpected error: {0}".format(ex))
         return False
-        
-     
-    #terrain_zip.close()
+
     return True
 
 @app.route('/')
@@ -98,7 +96,7 @@ def generate():
             radius = clamp(radius, 1, 400)
         except:
             print("Bad data")
-            return render_template('generate.html', error = "Error with input")
+            return render_template('generate.html', error="Error with input")
 
         # UUID for this terrain generation
         uuidkey = str(uuid.uuid1())
@@ -119,14 +117,16 @@ def generate():
                     continue
                 done.add(tag)
                 # make sure tile is inside the 60deg latitude limit
-                if (abs(lat_int) < 60):
-                    filelist.append(os.path.join(this_path, "processedTerrain", getDatFile(lat_int, lon_int)))
+                if abs(lat_int) < 60:
+                    filelist.append(os.path.join(this_path, "processedTerrain",
+                                                 getDatFile(lat_int, lon_int)))
                 else:
                     outsideLat = True
 
         # make sure tile is inside the 60deg latitude limit
-        if (abs(lat_int) < 60):
-            filelist.append(os.path.join(this_path, "processedTerrain", getDatFile(lat_int, lon_int)))
+        if abs(lat_int) < 60:
+            filelist.append(os.path.join(this_path, "processedTerrain",
+                                         getDatFile(lat_int, lon_int)))
         else:
             outsideLat = True
 
@@ -139,20 +139,21 @@ def generate():
 
         # as a cleanup, remove any generated terrain older than 24H
         for f in os.listdir(output_path):
-            if os.stat(os.path.join(output_path ,f)).st_mtime < time.time() - 24 * 60 * 60:
+            if os.stat(os.path.join(output_path, f)).st_mtime < time.time() - 24 * 60 * 60:
                 print("Removing old file: " + str(os.path.join(output_path, f)))
                 os.remove(os.path.join(output_path, f))
-        
+
         if success:
             print("Generated " + "/terrain/" + uuidkey + ".zip")
-            return render_template('generate.html', urlkey="/terrain/" + uuidkey + ".zip", uuidkey=uuidkey, outsideLat=outsideLat)
+            return render_template('generate.html', urlkey="/terrain/" + uuidkey + ".zip",
+                                   uuidkey=uuidkey, outsideLat=outsideLat)
         else:
             print("Failed " + "/terrain/" + uuidkey + ".zip")
-            return render_template('generate.html', error="Cannot generate terrain", uuidkey=uuidkey)
+            return render_template('generate.html', error="Cannot generate terrain",
+                                   uuidkey=uuidkey)
     else:
         print("Bad get")
         return render_template('generate.html', error="Need to use POST, not GET")
 
 if __name__ == "__main__":
     app.run()
-
