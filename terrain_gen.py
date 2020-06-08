@@ -30,6 +30,8 @@ TERRAIN_GRID_BLOCK_SIZE_Y = (TERRAIN_GRID_MAVLINK_SIZE*TERRAIN_GRID_BLOCK_MUL_Y)
 TERRAIN_GRID_FORMAT_VERSION = 1
 
 IO_BLOCK_SIZE = 2048
+IO_BLOCK_DATA_SIZE = 1821
+IO_BLOCK_TRAILER_SIZE = IO_BLOCK_SIZE - IO_BLOCK_DATA_SIZE
 
 #GRID_SPACING = 100
 
@@ -91,7 +93,7 @@ def pos_from_file_offset(lat_degrees, lon_degrees, file_offset, grid_spacing):
                                   grid_idx_y * TERRAIN_GRID_BLOCK_SPACING_Y * float(grid_spacing))
 
     return (lat_e7, lon_e7)
-            
+
 class GridBlock(object):
     def __init__(self, lat_int, lon_int, lat, lon, grid_spacing):
         '''
@@ -203,6 +205,7 @@ class DataFile(object):
         for gx in range(TERRAIN_GRID_BLOCK_SIZE_X):
             buf += struct.pack("<%uh" % TERRAIN_GRID_BLOCK_SIZE_Y, *block.height[gx])
         buf += struct.pack("<HHhb", block.grid_idx_x, block.grid_idx_y, block.lon_degrees, block.lat_degrees)
+        buf += struct.pack("%uB" % IO_BLOCK_TRAILER_SIZE, *[0]*IO_BLOCK_TRAILER_SIZE)
         return buf
 
     def write(self, block):
@@ -210,7 +213,7 @@ class DataFile(object):
         self.seek_offset(block)
         block.crc = 0
         buf = self.pack(block)
-        block.crc = crc16.crc16xmodem(buf)
+        block.crc = crc16.crc16xmodem(buf[:IO_BLOCK_DATA_SIZE])
         buf = self.pack(block)
         self.fh.write(buf)
 
@@ -244,10 +247,13 @@ def create_degree(downloader, lat, lon, folder, grid_spacing):
 
     print("Creating for %d %d" % (lat_int, lon_int))
 
-    total_blocks = east_blocks(lat_int*1e7, lon_int*1e7, grid_spacing) * TERRAIN_GRID_BLOCK_SIZE_Y
+    blocknum = -1
 
-    for blocknum in range(total_blocks):
+    while True:
+        blocknum += 1
         (lat_e7, lon_e7) = pos_from_file_offset(lat_int, lon_int, blocknum * IO_BLOCK_SIZE, grid_spacing)
+        if lat_e7*1.0e-7 - lat_int >= 1.0:
+            break
         lat = lat_e7 * 1.0e-7
         lon = lon_e7 * 1.0e-7
         grid = GridBlock(lat_int, lon_int, lat, lon, grid_spacing)
@@ -282,38 +288,3 @@ def create_degree(downloader, lat, lon, folder, grid_spacing):
 
     dfile.finalise()
 
-def makeTerrain(downloader, radius, lat, lon, spacing, uuid, folder):
-    #GRID_SPACING = spacing
-
-    done = set()
-
-    #create folder if required
-    try:
-        # Create target Directory
-        os.mkdir(os.path.join(os.getcwd(), folder))
-    except FileExistsError:
-        pass
-
-    try:
-        os.mkdir(os.path.join(os.getcwd(), folder + "-tmp"))
-    except FileExistsError:
-        pass
-
-    folderthis = os.path.join(os.getcwd(), folder + "-tmp", uuid)
-
-    print("Doing " + folderthis)
-
-    for dx in range(-radius, radius):
-        for dy in range(-radius, radius):
-            (lat2,lon2) = add_offset(lat*1e7, lon*1e7, dx*1000.0, dy*1000.0)
-            lat_int = int(round(lat2 * 1.0e-7))
-            lon_int = int(round(lon2 * 1.0e-7))
-            tag = (lat_int, lon_int)
-            if tag in done:
-                #numpercent += 1
-                continue
-            done.add(tag)
-            create_degree(downloader, lat_int, lon_int, folderthis, spacing)
-
-    create_degree(downloader, lat, lon, folderthis, spacing)
-    #numpercent += 1
