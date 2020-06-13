@@ -126,7 +126,7 @@ if __name__ == '__main__':
                     lat_max *= 1.0e-7
                     lon_min *= 1.0e-7
                     lon_max *= 1.0e-7
-                    if abs(lat_max-lat_min) < 0.99 or abs(lon_max-lon_min) < 1.00 or abs(lat_max-lat_min) > 1.01 or abs(lon_max-lon_min) > 1.05:
+                    if abs(lat_max-lat_min) < 0.99 or abs(lon_max-lon_min) < 1.00 or abs(lat_max-lat_min) > 1.01 or abs(lon_max-lon_min) > 1.07:
                         print(file)
                         print("Bad tile")                                
                         print("Tile covers ({0},{1}) to ({2},{3})".format(lat_min, lon_min, lat_max, lon_max))
