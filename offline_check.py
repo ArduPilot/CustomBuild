@@ -68,7 +68,7 @@ if __name__ == '__main__':
         if file.endswith("DAT.gz") or file.endswith("DAT"):
             # It's a compressed tile
             # 1. Check it's a valid gzip
-            print(file)
+            #print(file)
             tile = None
             try:
                 lat_int = int(os.path.basename(file)[1:3])
@@ -101,7 +101,9 @@ if __name__ == '__main__':
                     total_blocks = int(len(tile) / IO_BLOCK_SIZE)
                 else:
                     print("Bad file size: {0}. {1} extra bytes at end".format(file, len(tile), len(tile) % IO_BLOCK_SIZE))
-                print("Has {0} blocks".format(total_blocks))
+                if total_blocks > 4000 or total_blocks < 1000:
+                    print(file)
+                    print("Error: Has {0} blocks".format(total_blocks))
                 # 2b. Does each block have the correct CRC and fields?
                 if total_blocks != 0:
                     lat_min = 90 * 1.0e7
@@ -112,6 +114,7 @@ if __name__ == '__main__':
                         block = tile[(blocknum * IO_BLOCK_SIZE):((blocknum + 1)* IO_BLOCK_SIZE)-227]
                         ret = check_filled(block, lat_int, lon_int, 100)
                         if not ret:
+                            print(file)
                             print("Bad data in block {0} of {1}".format(blocknum, total_blocks))
                         else:
                             (lat, lon) = ret
@@ -123,8 +126,11 @@ if __name__ == '__main__':
                     lat_max *= 1.0e-7
                     lon_min *= 1.0e-7
                     lon_max *= 1.0e-7
-                    print("Tile covers ({0},{1}) to ({2},{3})".format(lat_min, lon_min, lat_max, lon_max))
-                    print("Tile size is ({0:.4f}, {1:.4f}) degrees".format(lat_max-lat_min, lon_max-lon_min))
+                    if abs(lat_max-lat_min) < 0.99 or abs(lon_max-lon_min) < 1.01 or abs(lat_max-lat_min) > 1.01 or abs(lon_max-lon_min) > 1.05:
+                        print(file)
+                        print("Bad tile")                                
+                        print("Tile covers ({0},{1}) to ({2},{3})".format(lat_min, lon_min, lat_max, lon_max))
+                        print("Tile size is ({0:.4f}, {1:.4f}) degrees".format(lat_max-lat_min, lon_max-lon_min))
             else:
                 print("Bad tile: " + file)
     print("Done!")
