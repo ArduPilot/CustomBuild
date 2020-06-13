@@ -101,7 +101,7 @@ if __name__ == '__main__':
                     total_blocks = int(len(tile) / IO_BLOCK_SIZE)
                 else:
                     print("Bad file size: {0}. {1} extra bytes at end".format(file, len(tile), len(tile) % IO_BLOCK_SIZE))
-                if total_blocks > 4000 or total_blocks < 1000:
+                if total_blocks > 6000 or total_blocks < 900:
                     print(file)
                     print("Error: Has {0} blocks".format(total_blocks))
                 # 2b. Does each block have the correct CRC and fields?
