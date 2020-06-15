@@ -1,12 +1,12 @@
 <!doctype html>
-<title>AP Terrain Generator</title>
-<h1>AP Terrain Generator</h1>
+<title>ArduPilot Terrain Generator</title>
+<h1>ArduPilot Terrain Generator</h1>
 
 {% if error %}
   <p>Error: {{ error }}!</p>
 {% else %}
   <p>Terrain Generation complete. You can download from: <a href="{{ urlkey }}" download="terrain.zip">here</a>.</p>
-  <p>This should be unzipped to the autopilot's SD card, within in the "terrain" folder.</p>
+  <p>This should be unzipped to the autopilot's SD card, within in the "APM/terrain" folder.</p>
 {% endif %}
 
 {% if outsideLat %}
