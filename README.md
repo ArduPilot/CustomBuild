@@ -21,7 +21,7 @@ This website uses the flask library.
 
 To install dependencies:
 
-``pip install flask wheel numpy mavproxy crc16 pytest``
+``pip install flask wheel uwsgi numpy mavproxy crc16 pytest``
 
 To run:
 

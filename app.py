@@ -16,7 +16,10 @@ from terrain_gen import add_offset
 this_path = os.path.dirname(os.path.realpath(__file__))
 
 # Where the user requested tile are stored
-output_path = os.path.join(this_path, 'outputTer')
+output_path = os.path.join(this_path, '..', 'userRequestTerrain')
+
+# Where the data database is
+tile_path = os.path.join(this_path, '..', 'data', 'tiles')
 
 # The output folder for all gzipped terrain requests
 app = Flask(__name__, static_url_path='/terrain', static_folder=output_path,)
@@ -36,17 +39,17 @@ def getDatFile(lat, lon):
         EW = 'E'
     return "%c%02u%c%03u.DAT.gz" % (NS, min(abs(int(lat)), 99), EW, min(abs(int(lon)), 999))
 
-def compressFiles(fileList, uuidkey, outfolder):
+def compressFiles(fileList, uuidkey):
     # create a zip file comprised of dat.gz tiles
-    zipthis = os.path.join(outfolder, uuidkey + '.zip')
+    zipthis = os.path.join(output_path, uuidkey + '.zip')
 
     # create output dirs if needed
     try:
-        os.makedirs(outfolder)
+        os.makedirs(output_path)
     except OSError:
         pass
     try:
-        os.makedirs(os.path.join(this_path, "processedTerrain"))
+        os.makedirs(tile_path)
     except OSError:
         pass
 
@@ -56,7 +59,7 @@ def compressFiles(fileList, uuidkey, outfolder):
                 if not os.path.exists(fn):
                     #download if required
                     print("Downloading " + os.path.basename(fn))
-                    g = urllib.request.urlopen('https://firmware.ardupilot.org/terrain/tiles/' +
+                    g = urllib.request.urlopen('https://terrain.ardupilot.org/data/tiles/' +
                                                os.path.basename(fn))
                     print("Downloaded " + os.path.basename(fn))
                     with open(fn, 'b+w') as f:
@@ -119,15 +122,13 @@ def generate():
                 done.add(tag)
                 # make sure tile is inside the 60deg latitude limit
                 if abs(lat_int) <= 60:
-                    filelist.append(os.path.join(this_path, "processedTerrain",
-                                                 getDatFile(lat_int, lon_int)))
+                    filelist.append(tile_path, getDatFile(lat_int, lon_int)))
                 else:
                     outsideLat = True
 
         # make sure tile is inside the 60deg latitude limit
         if abs(lat_int) <= 60:
-            filelist.append(os.path.join(this_path, "processedTerrain",
-                                         getDatFile(lat_int, lon_int)))
+            filelist.append(os.path.join(tile_path, getDatFile(lat_int, lon_int)))
         else:
             outsideLat = True
 
@@ -136,7 +137,7 @@ def generate():
         print(filelist)
 
         #compress
-        success = compressFiles(filelist, uuidkey, output_path)
+        success = compressFiles(filelist, uuidkey)
 
         # as a cleanup, remove any generated terrain older than 24H
         for f in os.listdir(output_path):
