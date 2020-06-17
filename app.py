@@ -122,7 +122,7 @@ def generate():
                 done.add(tag)
                 # make sure tile is inside the 60deg latitude limit
                 if abs(lat_int) <= 60:
-                    filelist.append(tile_path, getDatFile(lat_int, lon_int)))
+                    filelist.append(os.path.join(tile_path, getDatFile(lat_int, lon_int)))
                 else:
                     outsideLat = True
 
