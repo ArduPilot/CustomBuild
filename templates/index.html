@@ -1,25 +1,119 @@
 <!doctype html>
-<title>ArduPilot Terrain Generator</title>
-<h1>ArduPilot Terrain Generator</h1>
 
-<p>Use this to generate terrain to put on your SD card. The generated terrain is based on the SRTM data and has 100m horizontal resolution. It covers all areas between 0 and 60 degrees North/South latitude.</p>
+<head>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+        integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+        crossorigin="" />
+    <!-- Make sure you put this AFTER Leaflet's CSS -->
+    <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+        integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+        crossorigin=""></script>
+    <style type="text/css">
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            width: 100%
+        }
 
-<p>Multiple generated files can be combined on the SD card.</p>
+        #wrapper {
+            min-height: 100%;
+        }
 
-<p>Compatible with Ardupilot Plane 4.0.6+ and Copter 4.0.4+</p>
- 
-<h2>Terrain Options</h2>
- <form action="/generate" method="post">
-  <label for="lat">Centre Latitude:</label><br>
-  <input type="text" id="lat" name="lat" value="-35.363261"><br>
-  <label for="long">Centre Longitude:</label><br>
-  <input type="text" id="long" name="long" value="149.165230"><br>
-  <label for="radius">Radius (km):</label><br>
-  <input type="number" id="radius" name="radius" value="100" min="1" max="400"><br>
-  <br>
-  <input type="submit" value="Generate" method="post">
- </form> 
+        #mapid {
+            height: 100%;
+            width: 100%;
+        }
 
+        #menu {
+            position: absolute;
+            z-index: 2000;
+            width: 28%;
+            background-color: azure;
+            margin: 5px;
+            margin-top: 7%;
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        #radius {
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="menu">
+        <title>ArduPilot Terrain Generator</title>
+        <h1>ArduPilot Terrain Generator</h1>
+
+        <p>Use this to generate terrain to put on your SD card. The generated terrain is based on the SRTM data and has
+            100m
+            horizontal resolution. It covers all areas between 0 and 60 degrees North/South latitude.</p>
+
+        <p>Multiple generated files can be combined on the SD card.</p>
+
+        <p>Compatible with Ardupilot Plane 4.0.6+ and Copter 4.0.4+</p>
+
+        <h2>Terrain Options</h2>
+        <form action="/generate" method="post">
+            <label for="lat">Centre Latitude:</label><br>
+            <input type="text" id="lat" name="lat" value="-35.363261" oninput="plotCircleCoords(true);"><br>
+            <label for="long">Centre Longitude:</label><br>
+            <input type="text" id="long" name="long" value="149.165230" oninput="plotCircleCoords(true);"><br>
+            <label id="radius-label" for="radius">Radius (km):</label><br>
+            <input type="range" id="radius" name="radius" value="100" min="1" max="400"
+                oninput="plotCircleCoords(false);"><br>
+            <br>
+            <input type="submit" value="Generate" method="post">
+        </form>
+    </div>
+    <div class="wrapper">
+        <div id="mapid" style="position: absolute;height: 100%;"></div>
+    </div>
+</body>
 <br />
+<script>
+    var circle;
+    var mymap = L.map('mapid').setView([51.505, -0.09], 5);
+    L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(mymap);
 
+    mymap.on('click', function (e) {
+        document.getElementById("lat").value = Math.max(-60, Math.min(60, e.latlng.lat))
+        var longitude = e.latlng.lng
+        // leaflet allows infinite longitudes, this wraps it to [-180, 180]
+        while (longitude > 180) {
+            longitude -= 360
+        }
+        while (longitude < -180) {
+            longitude += 360
+        }
+        document.getElementById("long").value = longitude
+        plotCircleCoords(true)
+    });
+
+    function plotCircleCoords(center) {
+        if (circle !== undefined) {
+            circle.removeFrom(mymap)
+        }
+        var lat = document.getElementById("lat").value
+        var lon = document.getElementById("long").value
+        var distance = document.getElementById("radius").value;
+        document.getElementById("radius-label").innerText = "Radius (" + distance + " km):"
+        circle = circle = L.circle([lat, lon], {
+            color: 'red',
+            fillColor: '#f03',
+            fillOpacity: 0.5,
+            radius: distance * 1000
+        }).addTo(mymap);
+        if (center) {
+            mymap.setView([lat, lon])
+        }
+    }
+    plotCircleCoords(true)
+
+
+</script>
 <footer>Created by Stephen Dade, <a href=https://github.com/stephendade/terraingen>Source Code<a>.</footer>
