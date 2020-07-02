@@ -21,12 +21,12 @@ def test_homepage(client):
 
     rv = client.get('/')
     # assert all the controls are there
-    assert b'<title>AP Terrain Generator</title>' in rv.data
+    assert b'<title>ArduPilot Terrain Generator</title>' in rv.data
     assert b'<form action="/generate" method="post">' in rv.data
     assert b'<input type="text" id="lat" name="lat" value="-35.363261">' in rv.data
     assert b'<input type="text" id="long" name="long" value="149.165230">' in rv.data
     assert b'<input type="number" id="radius" name="radius" value="100" min="1" max="400">' in rv.data
-    assert b'<input type="submit" value="Submit" method="post">' in rv.data
+    assert b'<input type="submit" value="Generate" method="post">' in rv.data
 
 def test_badinput(client):
     """Test bad inputs"""
@@ -34,7 +34,7 @@ def test_badinput(client):
     rv = client.post('/generate', data=dict(
     ), follow_redirects=True)
 
-    assert b'<title>AP Terrain Generator</title>' in rv.data
+    assert b'<title>ArduPilot Terrain Generator</title>' in rv.data
     assert b'Error' in rv.data
     assert b'Link To Download' not in rv.data
 
@@ -44,7 +44,7 @@ def test_badinput(client):
         long='149.165230',
     ), follow_redirects=True)
 
-    assert b'<title>AP Terrain Generator</title>' in rv.data
+    assert b'<title>ArduPilot Terrain Generator</title>' in rv.data
     assert b'Error' in rv.data
     assert b'Link To Download' not in rv.data
 
@@ -55,7 +55,7 @@ def test_badinput(client):
         radius='1',
     ), follow_redirects=True)
 
-    assert b'<title>AP Terrain Generator</title>' in rv.data
+    assert b'<title>ArduPilot Terrain Generator</title>' in rv.data
     assert b'Error' in rv.data
     assert b'download="terrain.zip"' not in rv.data
 
@@ -66,7 +66,7 @@ def test_badinput(client):
         radius='1',
     ), follow_redirects=True)
 
-    assert b'<title>AP Terrain Generator</title>' in rv.data
+    assert b'<title>ArduPilot Terrain Generator</title>' in rv.data
     assert b'Error' in rv.data
     assert b'download="terrain.zip"' not in rv.data
 
@@ -79,7 +79,7 @@ def test_simplegen(client):
         radius='1',
     ), follow_redirects=True)
 
-    assert b'<title>AP Terrain Generator</title>' in rv.data
+    assert b'<title>ArduPilot Terrain Generator</title>' in rv.data
     assert b'Error' not in rv.data
     assert b'Tiles outside of +60 to -60 latitude were requested' not in rv.data
     assert b'download="terrain.zip"' in rv.data
@@ -96,12 +96,12 @@ def test_simplegenoutside(client):
     """Test that a small piece of terrain can be generated with partial outside +-60latitude"""
 
     rv = client.post('/generate', data=dict(
-        lat='-58.363261',
+        lat='-59.363261',
         long='149.165230',
         radius='200',
     ), follow_redirects=True)
 
-    assert b'<title>AP Terrain Generator</title>' in rv.data
+    assert b'<title>ArduPilot Terrain Generator</title>' in rv.data
     assert b'Error' not in rv.data
     assert b'Tiles outside of +60 to -60 latitude were requested' in rv.data
     assert b'download="terrain.zip"' in rv.data
@@ -141,7 +141,7 @@ def test_multigen(client):
     # Assert reponse is OK and get UUID for each ter gen
     allUuid = []
     for rv in [rva, rvb, rvc]:
-        assert b'<title>AP Terrain Generator</title>' in rv.data
+        assert b'<title>ArduPilot Terrain Generator</title>' in rv.data
         assert b'Error' not in rv.data
         assert b'download="terrain.zip"' in rv.data
         uuidkey = (rv.data.split(b"footer")[1][1:-2]).decode("utf-8")
