@@ -23,9 +23,9 @@ def test_homepage(client):
     # assert all the controls are there
     assert b'<title>ArduPilot Terrain Generator</title>' in rv.data
     assert b'<form action="/generate" method="post">' in rv.data
-    assert b'<input type="text" id="lat" name="lat" value="-35.363261">' in rv.data
-    assert b'<input type="text" id="long" name="long" value="149.165230">' in rv.data
-    assert b'<input type="number" id="radius" name="radius" value="100" min="1" max="400">' in rv.data
+    assert b'<input type="text" id="lat" name="lat" value="-35.363261" oninput="plotCircleCoords(true);">' in rv.data
+    assert b'<input type="text" id="long" name="long" value="149.165230" oninput="plotCircleCoords(true);">' in rv.data
+    assert b'<input type="range" id="radius" name="radius" value="100" min="1" max="400"\n                oninput="plotCircleCoords(false);">' in rv.data
     assert b'<input type="submit" value="Generate" method="post">' in rv.data
 
 def test_badinput(client):
