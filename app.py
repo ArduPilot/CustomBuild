@@ -6,7 +6,7 @@ import gzip
 from io import BytesIO
 import time
 
-from flask import Flask
+from flask import Flask # using flask as the framework
 from flask import render_template
 from flask import request
 
