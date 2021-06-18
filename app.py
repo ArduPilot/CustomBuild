@@ -87,26 +87,23 @@ def index():
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
     if request.method == 'POST':
-        # parse and sanitise the input
-        try:
-            # request.form['username']
-            lat = float(request.form['lat'])
-            lon = float(request.form['long'])
-            radius = int(request.form['radius'])
-            assert lat < 90
-            assert lon < 180
-            assert lat > -90
-            assert lon > -180
-            radius = clamp(radius, 1, 400)
-        except:
-            print("Bad data")
-            return render_template('generate.html', error="Error with input")
+        # request.form['username']
+        features = []
+        for i in range(1,8):
+            value = request.form["option" + str(i)]
+            features.append(value)
+            undefine = "undef " + value.split()[1]
+            features.insert(0,undefine)
+        extra_hwdef = '\n'.join(features)
+
+        print("running...")
+
+        file = open('extra_hwdef.dat',"w")
+        file.write(extra_hwdef)
+        file.close()
 
         # UUID for this terrain generation
         uuidkey = str(uuid.uuid1())
-
-        # Flag for if user wanted a tile outside +-60deg latitude
-        outsideLat = None
 
         # get a list of files required to cover area
         filelist = []
