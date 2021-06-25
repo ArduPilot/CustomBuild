@@ -1,5 +1,6 @@
 import uuid
 import os
+import subprocess
 import zipfile
 import urllib.request
 import gzip
@@ -14,13 +15,13 @@ from flask import request
 this_path = os.path.dirname(os.path.realpath(__file__))
 
 # Where the user requested tile are stored
-output_path = os.path.join(this_path, '..', 'userRequestTerrain')
+output_path = os.path.join(this_path, '..', 'userRequestFirmware')
 
 # Where the data database is
 tile_path = os.path.join(this_path, '..', 'data', 'tiles')
 
-# The output folder for all gzipped terrain requests
-app = Flask(__name__, static_url_path='/terrain', static_folder=output_path,)
+# The output folder for all gzipped build requests
+app = Flask(__name__, static_url_path='/builds', static_folder=output_path,)
 
 def compressFiles(fileList, uuidkey):
     # create a zip file comprised of dat.gz tiles
@@ -79,36 +80,61 @@ def generate():
             features.insert(0,undefine)
         extra_hwdef = '\n'.join(features)
 
+        print("features: ", features)
+
         print("running...")
 
         file = open('extra_hwdef.dat',"w")
+        
         file.write(extra_hwdef)
         file.close()
+
+        git_hash = subprocess.check_output(['git', 'rev-parse', 'master'])
+        git_hash = git_hash[:len(git_hash)-1]
+
+        md5sum = subprocess.check_output(['md5sum', 'extra_hwdef.dat'])
+        md5sum = md5sum[:len(md5sum)-18]
+
+        builddir = '/tmp/build'
+        sourcedir = '/Users/willpiper/Documents/GitHub/ardupilot/'
+        appdir = os.path.abspath(os.curdir)
+        board = 'Beastf7'
+        subprocess.run(['./waf', 'configure', 
+                        '--board', board, 
+                        '--out', builddir, 
+                        '--extra-hwdef', os.path.join(appdir, 'extra_hwdef.dat')],
+                        cwd = sourcedir)
+        subprocess.run(['./waf', 'copter'], cwd = sourcedir)
+
+        print("git hash: ", git_hash)
+        print("md5sum: ", md5sum)
+        print("token: ", git_hash+md5sum)
 
         # UUID for this terrain generation
         uuidkey = str(uuid.uuid1())
 
+
         # remove duplicates
-        filelist = list(dict.fromkeys(filelist))
-        print(filelist)
+        #filelist = list(dict.fromkeys(filelist))
+        #print(filelist)
 
         #compress
-        success = compressFiles(filelist, uuidkey)
+        #success = compressFiles(filelist, uuidkey)
 
         # as a cleanup, remove any generated terrain older than 24H
-        for f in os.listdir(output_path):
-            if os.stat(os.path.join(output_path, f)).st_mtime < time.time() - 24 * 60 * 60:
-                print("Removing old file: " + str(os.path.join(output_path, f)))
-                os.remove(os.path.join(output_path, f))
+        #for f in os.listdir(output_path):
+        #    if os.stat(os.path.join(output_path, f)).st_mtime < time.time() - 24 * 60 * 60:
+        #        print("Removing old file: " + str(os.path.join(output_path, f)))
+        #        os.remove(os.path.join(output_path, f))
 
-        if success:
-            print("Generated " + "/terrain/" + uuidkey + ".zip")
-            return render_template('generate.html', urlkey="/terrain/" + uuidkey + ".zip",
-                                   uuidkey=uuidkey, outsideLat=outsideLat)
-        else:
-            print("Failed " + "/terrain/" + uuidkey + ".zip")
-            return render_template('generate.html', error="Cannot generate terrain",
-                                   uuidkey=uuidkey)
+        #if success:
+        #    print("Generated " + "/terrain/" + uuidkey + ".zip")
+        #    return render_template('generate.html', urlkey="/terrain/" + uuidkey + ".zip",
+        #                           uuidkey=uuidkey, outsideLat=outsideLat)
+        #else:
+        #    print("Failed " + "/terrain/" + uuidkey + ".zip")
+        #    return render_template('generate.html', error="Cannot generate terrain",
+        #                           uuidkey=uuidkey)
     else:
         print("Bad get")
         return render_template('generate.html', error="Need to use POST, not GET")
