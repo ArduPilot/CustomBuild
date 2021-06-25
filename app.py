@@ -96,7 +96,7 @@ def generate():
         md5sum = md5sum[:len(md5sum)-18]
 
         builddir = '/tmp/build'
-        sourcedir = '/Users/willpiper/Documents/GitHub/ardupilot/'
+        sourcedir = '../ardupilot/'
         appdir = os.path.abspath(os.curdir)
         board = 'Beastf7'
         subprocess.run(['./waf', 'configure', 
