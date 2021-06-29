@@ -5,12 +5,28 @@
         <title>ArduPilot Custom Firmware Builder</title>
         <h1>ArduPilot Custom Firmware Builder</h1>
 
-        <p>Please select features to be included in the reduced firmware build.</p>
+        <p>Please select the required options for the reduced firmware build.</p>
         
         <!--<p>To download entire continents of terrain data, see <a href=https://terrain.ardupilot.org/data/continents/>here<a>.</p>-->
 
-        <h2>Available Features</h2>
         <form action="/generate" method="post">
+            <label for="vehicle">Choose a vehicle:</label>
+            <select name="vehicle">
+                <option value="copter">Copter</option>
+                <option value="plane">Plane</option>
+                <option value="rover">Rover</option>
+                <option value="sub">Sub</option>
+            </select>
+            <br><br>
+            <label for="board">Choose a board:</label>
+            <select name="board">
+                <option value="aero">aero</option>
+                <option value="airbotf4">airbotf4</option>
+                <option value="bbbmini">bbbmini</option>
+                <option value="BeastF7">BeastF7</option>
+                <option value="BeastH7">BeastH7</option>
+            </select>
+            <br><br>
             <input type="checkbox" name="option1" value="define HAL_NAVEKF2_AVAILABLE 1">
             <input type="hidden" name="option1" value="define HAL_NAVEKF2_AVAILABLE 0"> EKF2
             <br>

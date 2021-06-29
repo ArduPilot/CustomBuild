@@ -6,6 +6,7 @@ import urllib.request
 import gzip
 from io import BytesIO
 import time
+import json
 
 from flask import Flask # using flask as the framework
 from flask import render_template
@@ -68,11 +69,26 @@ def compressFiles(fileList, uuidkey):
 def index():
     return render_template('index.html')
 
+def run_build(taskfile):
+    # run a build with parameters from task
+    task = json.loads(open(taskfile).read())
+    builddir = '/tmp/build'
+    subprocess.run(['./waf', 'configure', 
+                    '--board', task['board'], 
+                    '--out', builddir, 
+                    '--extra-hwdef', task['extra_hwdef']],
+                    cwd = task['sourcedir'])
+    subprocess.run(['./waf', 'clean'], cwd = task['sourcedir'])
+    subprocess.run(['./waf', task['vehicle']], cwd = task['sourcedir'])
+
+
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
     if request.method == 'POST':
-        # request.form['username']
         features = []
+        task = {}
+
+        # fetch features from user input
         for i in range(1,8):
             value = request.form["option" + str(i)]
             features.append(value)
@@ -82,36 +98,49 @@ def generate():
 
         print("features: ", features)
 
-        print("running...")
-
-        file = open('extra_hwdef.dat',"w")
-        
+        # create extra_hwdef.dat file and obtain md5sum
+        file = open('buildqueue/extra_hwdef.dat',"w")
         file.write(extra_hwdef)
         file.close()
+        md5sum = subprocess.check_output(['md5sum', 'buildqueue/extra_hwdef.dat'],
+                                            encoding = 'utf-8')
+        md5sum = md5sum[:len(md5sum)-29]
+        os.remove('buildqueue/extra_hwdef.dat')
 
-        git_hash = subprocess.check_output(['git', 'rev-parse', 'master'])
+        # define source and app directories
+        sourcedir = os.path.abspath('../ardupilot/')
+        appdir = os.path.abspath(os.curdir)
+
+        # obtain git-hash of source
+        git_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], 
+                                            cwd = sourcedir,
+                                            encoding = 'utf-8')
         git_hash = git_hash[:len(git_hash)-1]
 
-        md5sum = subprocess.check_output(['md5sum', 'extra_hwdef.dat'])
-        md5sum = md5sum[:len(md5sum)-18]
+        # create directories using concatenated token of git-hash and md5sum of hwdef
+        token = git_hash + "-" + md5sum
+        extra_hwdef_dir = os.path.join(appdir, 'buildqueue/{}'.format(token))
+        if not os.path.isdir(extra_hwdef_dir):
+            os.mkdir(extra_hwdef_dir)
+        file = open('{}/extra_hwdef.dat'.format(extra_hwdef_dir),"w")
+        file.write(extra_hwdef)
+        file.close()
+        
+        # fill dictionary of variables and create json file
+        task['hwdef_md5sum'] = md5sum
+        task['git_hash'] = git_hash
+        task['sourcedir'] = sourcedir
+        task['extra_hwdef'] = os.path.join(extra_hwdef_dir, 'extra_hwdef.dat')
+        task['board'] = request.form["board"]
+        task['vehicle'] = request.form["vehicle"]
+        jfile = open('q.json', "w")
+        jfile.write(json.dumps(task))
+        jfile.close()
 
-        builddir = '/tmp/build'
-        sourcedir = '../ardupilot/'
-        appdir = os.path.abspath(os.curdir)
-        board = 'Beastf7'
-        subprocess.run(['./waf', 'configure', 
-                        '--board', board, 
-                        '--out', builddir, 
-                        '--extra-hwdef', os.path.join(appdir, 'extra_hwdef.dat')],
-                        cwd = sourcedir)
-        subprocess.run(['./waf', 'copter'], cwd = sourcedir)
+        print(task)
 
-        print("git hash: ", git_hash)
-        print("md5sum: ", md5sum)
-        print("token: ", git_hash+md5sum)
-
-        # UUID for this terrain generation
-        uuidkey = str(uuid.uuid1())
+        # run build
+        run_build('q.json')
 
 
         # remove duplicates
