@@ -9,6 +9,7 @@ import time
 import json
 
 from flask import Flask, render_template, request, flash
+from threading import Thread
 
 # Directory of this file
 this_path = os.path.dirname(os.path.realpath(__file__))
@@ -79,6 +80,10 @@ def run_build(taskfile):
     subprocess.run(['./waf', 'clean'], cwd = task['sourcedir'])
     subprocess.run(['./waf', task['vehicle']], cwd = task['sourcedir'])
 
+def threaded_task():
+    for i in range(10):
+        print("Working... {}".format(i + 1))
+        time.sleep(1)
 
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
@@ -95,6 +100,10 @@ def generate():
         extra_hwdef = '\n'.join(features)
 
         print("features: ", features)
+
+        thread = Thread(target=threaded_task, args=())
+        thread.daemon = True
+        thread.start()
 
         # create extra_hwdef.dat file and obtain md5sum
         file = open('buildqueue/extra_hwdef.dat',"w")
@@ -136,7 +145,7 @@ def generate():
         jfile.close()
 
         print(task)
-        
+
         # run build and rename build directory
         builddir = os.path.join('/private/tmp/build', token)
         if os.path.isdir(builddir):
