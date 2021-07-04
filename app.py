@@ -8,9 +8,7 @@ from io import BytesIO
 import time
 import json
 
-from flask import Flask # using flask as the framework
-from flask import render_template
-from flask import request
+from flask import Flask, render_template, request, flash
 
 # Directory of this file
 this_path = os.path.dirname(os.path.realpath(__file__))
@@ -119,10 +117,10 @@ def generate():
 
         # create directories using concatenated token of git-hash and md5sum of hwdef
         token = git_hash + "-" + md5sum
-        extra_hwdef_dir = os.path.join(appdir, 'buildqueue/{}'.format(token))
-        if not os.path.isdir(extra_hwdef_dir):
-            os.mkdir(extra_hwdef_dir)
-        file = open('{}/extra_hwdef.dat'.format(extra_hwdef_dir),"w")
+        buildqueue_dir = os.path.join(appdir, 'buildqueue', token)
+        if not os.path.isdir(buildqueue_dir):
+            os.mkdir(buildqueue_dir)
+        file = open(os.path.join(buildqueue_dir, 'extra_hwdef.dat'),"w")
         file.write(extra_hwdef)
         file.close()
         
@@ -130,18 +128,29 @@ def generate():
         task['hwdef_md5sum'] = md5sum
         task['git_hash'] = git_hash
         task['sourcedir'] = sourcedir
-        task['extra_hwdef'] = os.path.join(extra_hwdef_dir, 'extra_hwdef.dat')
+        task['extra_hwdef'] = os.path.join(buildqueue_dir, 'extra_hwdef.dat')
         task['board'] = request.form["board"]
         task['vehicle'] = request.form["vehicle"]
-        jfile = open('q.json', "w")
+        jfile = open('{}/q.json'.format(buildqueue_dir), "w")
         jfile.write(json.dumps(task))
         jfile.close()
 
         print(task)
+        
+        # run build and rename build directory
+        builddir = os.path.join('/private/tmp/build', token)
+        if os.path.isdir(builddir):
+            print("Build already exists")
+        else:
+            run_build(os.path.join(buildqueue_dir, 'q.json'))
+            os.rename(os.path.join('/private/tmp/build', task['board']), builddir)
 
-        # run build
-        run_build('q.json')
+        # remove working files
+        os.remove(os.path.join(buildqueue_dir, 'extra_hwdef.dat'))
+        os.remove(os.path.join(buildqueue_dir, 'q.json'))
+        os.rmdir(buildqueue_dir)
 
+        return render_template('generate.html')
 
         # remove duplicates
         #filelist = list(dict.fromkeys(filelist))

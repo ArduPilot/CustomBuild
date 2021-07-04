@@ -5,9 +5,7 @@
 {% if error %}
   <p>Error: {{ error }}!</p>
 {% else %}
-  <p>Custom firmware build complete. You can download from: <a href="{{ urlkey }}" download="custom_build.zip">here</a>.</p>
-  <p>This should be unzipped to the autopilot's SD card.</p>
-  <p>This download will be available for 24 hours.</p>
+  <p>Custom firmware build complete. Download <a href="{{ urlkey }}" download="custom_build.zip">here</a>.</p>
 {% endif %}
 
 <br />
