@@ -1,0 +1,77 @@
+<!doctype html>
+
+<body>
+    <div id="menu">
+        <title>ArduPilot Custom Firmware Builder</title>
+        <h1>ArduPilot Custom Firmware Builder</h1>
+
+        <p>Please select the required options for the reduced firmware build.</p>
+
+        <form action="/generate" method="post">
+            <input name="vehicle">
+            <input name="board">
+            <input name="option1">
+            <input name="option2">
+            <input name="option3">
+            <input name="option4">
+            <input name="option5">
+            <input name="option6">
+            <input name="option7">
+            <input name="option8">
+        </form>
+    </div>
+
+
+
+    <!-- <div id="menu">
+        <title>ArduPilot Custom Firmware Builder</title>
+        <h1>ArduPilot Custom Firmware Builder</h1>
+
+        <p>Please select the required options for the reduced firmware build.</p>
+
+        <form action="/generate" method="post">
+            <label for="vehicle">Choose a vehicle:</label>
+            <select name="vehicle">
+                <option value="copter">Copter</option>
+                <option value="plane">Plane</option>
+                <option value="rover">Rover</option>
+                <option value="sub">Sub</option>
+            </select>
+            <br><br>
+            <label for="board">Choose a board:</label>
+            <select name="board">
+                <option value="BeastF7">BeastF7</option>
+                <option value="BeastH7">BeastH7</option>
+            </select>
+            <br><br>
+            <input type="checkbox" name="option1" value="define HAL_NAVEKF2_AVAILABLE 1">
+            <input type="hidden" name="option1" value="define HAL_NAVEKF2_AVAILABLE 0"> EKF2
+            <br>
+            <input type="checkbox" name="option2" value="define HAL_NAVEKF3_AVAILABLE 1">
+            <input type="hidden" name="option2" value="define HAL_NAVEKF3_AVAILABLE 0"> EKF3
+            <br>
+            <input type="checkbox" name="option3" value="define HAL_WITH_DSP 1">
+            <input type="hidden" name="option3" value="define HAL_WITH_DSP 0"> HAL_WITH_DSP
+            <br>
+            <input type="checkbox" name="option4" value="define HAL_SPRAYER_ENABLED 1">
+            <input type="hidden" name="option4" value="define HAL_SPRAYER_ENABLED 0"> HAL_SPRAYER_ENABLED
+            <br>
+            <input type="checkbox" name="option5" value="define HAL_PARACHUTE_ENABLED 1">
+            <input type="hidden" name="option5" value="define HAL_PARACHUTE_ENABLED 0"> HAL_PARACHUTE_ENABLED
+            <br>
+            <input type="checkbox" name="option6" value="define HAL_MOUNT_ENABLED 1">
+            <input type="hidden" name="option6" value="define HAL_MOUNT_ENABLED 0"> HAL_MOUNT_ENABLED
+            <br>
+            <input type="checkbox" name="option7" value="define HAL_HOTT_TELEM_ENABLED 1">
+            <input type="hidden" name="option7" value="define HAL_HOTT_TELEM_ENABLED 0"> HAL_HOTT_TELEM_ENABLED
+            <br>
+            <input type="checkbox" name="option8" value="define HAL_BATTMON_FUEL_ENABLE 1">
+            <input type="hidden" name="option8" value="define HAL_BATTMON_FUEL_ENABLE 0"> HAL_BATTMON_FUEL_ENABLE
+            <br><br>
+            <input type="submit" value="Generate" method="post">
+        </form>
+    </div> -->
+</body>
+<br />
+
+<footer>Created by Will Piper, <a href=https://github.com/willpiper24/terraingen>Source Code<a>.</footer>
