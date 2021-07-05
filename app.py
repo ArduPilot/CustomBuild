@@ -17,6 +17,9 @@ def run_build(taskfile):
     # run a build with parameters from task
     task = json.loads(open(taskfile).read())
     builddir = '/tmp/build'
+    subprocess.run(['git', 'submodule', 
+                    'update', '--recursive', 
+                    '--force', '--init'])
     subprocess.run(['./waf', 'configure', 
                     '--board', task['board'], 
                     '--out', builddir, 
@@ -33,7 +36,6 @@ def check_queue():
         queue_lock.release()
         if listing:
             for token in listing:
-                print(token)
                 builddir = os.path.join('/private/tmp/build', token)
                 buildqueue_dir = os.path.join(appdir, 'buildqueue', token)
                 # check if build exists
@@ -41,7 +43,6 @@ def check_queue():
                     print("Build already exists")
                 else:
                     # run build and rename build directory
-                    print(buildqueue_dir)
                     run_build(os.path.join(buildqueue_dir, 'q.json'))
                     f = open(os.path.join(buildqueue_dir, 'q.json'))
                     task = json.load(f)
@@ -53,7 +54,6 @@ def check_queue():
                 os.rmdir(os.path.join(buildqueue_dir))
 
                 print("Build successful")
-        #time.sleep(1)
 
 # define source and app directories
 sourcedir = os.path.abspath('../ardupilot/')
