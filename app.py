@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import uuid
 import os
 import subprocess
@@ -7,17 +9,51 @@ import gzip
 from io import BytesIO
 import time
 import json
+import pathlib
 
 from flask import Flask, render_template, request, flash
 from threading import Thread, Lock
 
 queue_lock = Lock()
 
-def run_build(taskfile):
+'''
+Directory structure:
+  - all paths relative to where the app starts
+  - waf builds go into build
+  - json queued build files go into buildqueue
+  - resulting builds go into done
+  - ardupilot is in ardupilot directory
+  - templates in CustomBuild/templates
+
+'''
+
+def get_template(filename):
+    return render_template(filename)
+
+def remove_directory_recursive(dirname):
+    '''remove a directory recursively'''
+    if not os.path.exists(dirname):
+        return
+    f = pathlib.Path(dirname)
+    if f.is_file():
+        f.unlink()
+    else:
+        for child in f.iterdir():
+            rmtree(child)
+        f.rmdir()
+
+
+def create_directory(dir_path):
+    '''create a directory, don't fail if it exists'''
+    pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
+
+
+def run_build(taskfile, builddir):
     # run a build with parameters from task
     task = json.loads(open(taskfile).read())
-    builddir = '/tmp/build'
-    subprocess.run(['git', 'submodule', 
+    remove_directory_recursive(builddir)
+    create_directory(builddir)
+    subprocess.run(['git', 'submodule',
                     'update', '--recursive', 
                     '--force', '--init'])
     subprocess.run(['./waf', 'configure', 
@@ -32,21 +68,23 @@ def run_build(taskfile):
 def check_queue():
     while(1):
         queue_lock.acquire()
-        listing = os.listdir(os.path.join(appdir, 'buildqueue'))
+        listing = os.listdir('buildqueue')
         queue_lock.release()
         if listing:
             for token in listing:
-                builddir = os.path.join('/private/tmp/build', token)
-                buildqueue_dir = os.path.join(appdir, 'buildqueue', token)
+                builddir = 'build'
+                buildqueue_dir = os.path.join('buildqueue', token)
+                done_dir = os.path.join('done', token)
                 # check if build exists
                 if os.path.isdir(builddir):
                     print("Build already exists")
                 else:
                     # run build and rename build directory
-                    run_build(os.path.join(buildqueue_dir, 'q.json'))
                     f = open(os.path.join(buildqueue_dir, 'q.json'))
                     task = json.load(f)
-                    os.rename(os.path.join('/private/tmp/build', task['board']), builddir)
+
+                    run_build(os.path.join(buildqueue_dir, 'q.json'), builddir)
+                    os.rename(os.path.join(builddir, task['board']), done_dir)
                 
                 # remove working files
                 os.remove(os.path.join(buildqueue_dir, 'extra_hwdef.dat'))
@@ -56,7 +94,7 @@ def check_queue():
                 print("Build successful")
 
 # define source and app directories
-sourcedir = os.path.abspath('../ardupilot/')
+sourcedir = os.path.abspath('ardupilot/')
 appdir = os.path.abspath(os.curdir)
 
 if not os.path.isdir('buildqueue'):
@@ -76,7 +114,7 @@ output_path = os.path.join(this_path, '..', 'userRequestFirmware')
 tile_path = os.path.join(this_path, '..', 'data', 'tiles')
 
 # The output folder for all gzipped build requests
-app = Flask(__name__, static_url_path='/builds', static_folder=output_path,)
+app = Flask(__name__, static_url_path='/builds', static_folder=output_path, template_folder='templates')
 
 #def compressFiles(fileList, uuidkey):
     # create a zip file comprised of dat.gz tiles
@@ -121,7 +159,7 @@ app = Flask(__name__, static_url_path='/builds', static_folder=output_path,)
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return get_template('index.html')
 
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
@@ -180,7 +218,7 @@ def generate():
 
     #print(task)
 
-    return render_template('building.html')
+    return get_template('building.html')
 
         # remove duplicates
         #filelist = list(dict.fromkeys(filelist))
@@ -197,19 +235,19 @@ def generate():
 
         #if success:
         #    print("Generated " + "/terrain/" + uuidkey + ".zip")
-        #    return render_template('generate.html', urlkey="/terrain/" + uuidkey + ".zip",
+        #    return get_template('generate.html', urlkey="/terrain/" + uuidkey + ".zip",
         #                           uuidkey=uuidkey, outsideLat=outsideLat)
         #else:
         #    print("Failed " + "/terrain/" + uuidkey + ".zip")
-        #    return render_template('generate.html', error="Cannot generate terrain",
+        #    return get_template('generate.html', error="Cannot generate terrain",
         #                           uuidkey=uuidkey)
     #else:
     #    print("Bad get")
-    #    return render_template('generate.html', error="Need to use POST, not GET")
+    #    return get_template('generate.html', error="Need to use POST, not GET")
 
 @app.route('/home', methods=['POST'])
 def home():
-    return render_template('index.html')
+    return get_template('index.html')
 
 if __name__ == "__main__":
     app.run()
