@@ -10,6 +10,7 @@ from io import BytesIO
 import time
 import json
 import pathlib
+import shutil
 
 from flask import Flask, render_template, request, flash
 from threading import Thread, Lock
@@ -39,7 +40,7 @@ def remove_directory_recursive(dirname):
         f.unlink()
     else:
         for child in f.iterdir():
-            rmtree(child)
+            shutil.rmtree(child)
         f.rmdir()
 
 
@@ -76,7 +77,7 @@ def check_queue():
                 buildqueue_dir = os.path.join('buildqueue', token)
                 done_dir = os.path.join('done', token)
                 # check if build exists
-                if os.path.isdir(builddir):
+                if os.path.isdir(os.path.join(sourcedir, builddir, token)):
                     print("Build already exists")
                 else:
                     # run build and rename build directory
@@ -84,7 +85,8 @@ def check_queue():
                     task = json.load(f)
 
                     run_build(os.path.join(buildqueue_dir, 'q.json'), builddir)
-                    os.rename(os.path.join(builddir, task['board']), done_dir)
+                    os.rename(os.path.join(sourcedir, builddir, task['board']),
+                                os.path.join(sourcedir, done_dir))
                 
                 # remove working files
                 os.remove(os.path.join(buildqueue_dir, 'extra_hwdef.dat'))
@@ -94,7 +96,7 @@ def check_queue():
                 print("Build successful")
 
 # define source and app directories
-sourcedir = os.path.abspath('ardupilot/')
+sourcedir = os.path.abspath(os.path.join('..', 'ardupilot'))
 appdir = os.path.abspath(os.curdir)
 
 if not os.path.isdir('buildqueue'):
