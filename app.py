@@ -2,6 +2,7 @@
 
 import uuid
 import os
+import sys
 import subprocess
 import zipfile
 import urllib.request
@@ -49,21 +50,25 @@ def create_directory(dir_path):
     pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
 
 
-def run_build(taskfile, builddir):
+def run_build(taskfile, builddir, done_dir):
     # run a build with parameters from task
     task = json.loads(open(taskfile).read())
-    remove_directory_recursive(builddir)
-    create_directory(builddir)
-    subprocess.run(['git', 'submodule',
-                    'update', '--recursive', 
-                    '--force', '--init'])
-    subprocess.run(['./waf', 'configure', 
-                    '--board', task['board'], 
-                    '--out', builddir, 
-                    '--extra-hwdef', task['extra_hwdef']],
-                    cwd = task['sourcedir'])
-    subprocess.run(['./waf', 'clean'], cwd = task['sourcedir'])
-    subprocess.run(['./waf', task['vehicle']], cwd = task['sourcedir'])
+    remove_directory_recursive(os.path.join(sourcedir, done_dir))
+    create_directory('done')
+    with open(os.path.join(sourcedir, 'done', 'build.log'), "wb") as log:
+        subprocess.run(['git', 'submodule',
+                        'update', '--recursive', 
+                        '--force', '--init'], stdout=log, stderr=log)
+        subprocess.run(['./waf', 'configure', 
+                        '--board', task['board'], 
+                        '--out', builddir, 
+                        '--extra-hwdef', task['extra_hwdef']],
+                        cwd = task['sourcedir'], 
+                        stdout=log, stderr=log)
+        subprocess.run(['./waf', 'clean'], cwd = task['sourcedir'], 
+                        stdout=log, stderr=log)
+        subprocess.run(['./waf', task['vehicle']], cwd = task['sourcedir'], 
+                        stdout=log, stderr=log)
 
 # background thread to check for queued build requests
 def check_queue():
@@ -77,16 +82,19 @@ def check_queue():
                 buildqueue_dir = os.path.join('buildqueue', token)
                 done_dir = os.path.join('done', token)
                 # check if build exists
-                if os.path.isdir(os.path.join(sourcedir, builddir, token)):
+                if os.path.isdir(os.path.join(sourcedir, done_dir)):
                     print("Build already exists")
                 else:
                     # run build and rename build directory
                     f = open(os.path.join(buildqueue_dir, 'q.json'))
                     task = json.load(f)
 
-                    run_build(os.path.join(buildqueue_dir, 'q.json'), builddir)
+                    run_build(os.path.join(buildqueue_dir, 'q.json'), 
+                                builddir, done_dir)
                     os.rename(os.path.join(sourcedir, builddir, task['board']),
                                 os.path.join(sourcedir, done_dir))
+                    os.rename(os.path.join(sourcedir, 'done', 'build.log'),
+                                os.path.join(sourcedir, done_dir, 'build.log'))
                 
                 # remove working files
                 os.remove(os.path.join(buildqueue_dir, 'extra_hwdef.dat'))
@@ -182,13 +190,13 @@ def generate():
     queue_lock.acquire()
 
     # create extra_hwdef.dat file and obtain md5sum
-    file = open('buildqueue/extra_hwdef.dat',"w")
+    file = open(os.path.join('buildqueue', 'extra_hwdef.dat'),"w")
     file.write(extra_hwdef)
     file.close()
     md5sum = subprocess.check_output(['md5sum', 'buildqueue/extra_hwdef.dat'],
                                         encoding = 'utf-8')
     md5sum = md5sum[:len(md5sum)-29]
-    os.remove('buildqueue/extra_hwdef.dat')
+    os.remove(os.path.join('buildqueue', 'extra_hwdef.dat'))
 
     # obtain git-hash of source
     git_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], 
