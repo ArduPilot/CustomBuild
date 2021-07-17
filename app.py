@@ -12,6 +12,7 @@ import time
 import json
 import pathlib
 import shutil
+from distutils.dir_util import copy_tree
 
 from flask import Flask, render_template, request, flash
 from threading import Thread, Lock
@@ -54,8 +55,10 @@ def run_build(taskfile, builddir, done_dir):
     # run a build with parameters from task
     task = json.loads(open(taskfile).read())
     remove_directory_recursive(os.path.join(sourcedir, done_dir))
-    create_directory('done')
-    with open(os.path.join(sourcedir, 'done', 'build.log'), "wb") as log:
+    remove_directory_recursive(os.path.join(sourcedir, builddir))
+    create_directory(os.path.join(sourcedir, done_dir))
+    create_directory(os.path.join(sourcedir, builddir))
+    with open(os.path.join(sourcedir, done_dir, 'build.log'), "wb") as log:
         subprocess.run(['git', 'submodule',
                         'update', '--recursive', 
                         '--force', '--init'], stdout=log, stderr=log)
@@ -79,8 +82,8 @@ def check_queue():
         if listing:
             for token in listing:
                 builddir = 'build'
-                buildqueue_dir = os.path.join('buildqueue', token)
                 done_dir = os.path.join('done', token)
+                buildqueue_dir = os.path.join('buildqueue', token)
                 # check if build exists
                 if os.path.isdir(os.path.join(sourcedir, done_dir)):
                     print("Build already exists")
@@ -88,13 +91,10 @@ def check_queue():
                     # run build and rename build directory
                     f = open(os.path.join(buildqueue_dir, 'q.json'))
                     task = json.load(f)
-
                     run_build(os.path.join(buildqueue_dir, 'q.json'), 
                                 builddir, done_dir)
-                    os.rename(os.path.join(sourcedir, builddir, task['board']),
+                    copy_tree(os.path.join(sourcedir, builddir, task['board']),
                                 os.path.join(sourcedir, done_dir))
-                    os.rename(os.path.join(sourcedir, 'done', 'build.log'),
-                                os.path.join(sourcedir, done_dir, 'build.log'))
                 
                 # remove working files
                 os.remove(os.path.join(buildqueue_dir, 'extra_hwdef.dat'))
@@ -216,6 +216,7 @@ def generate():
     # fill dictionary of variables and create json file
     task['hwdef_md5sum'] = md5sum
     task['git_hash'] = git_hash
+    task['token'] = token
     task['sourcedir'] = sourcedir
     task['extra_hwdef'] = os.path.join(buildqueue_dir, 'extra_hwdef.dat')
     task['board'] = request.form["board"]
@@ -228,7 +229,12 @@ def generate():
 
     #print(task)
 
-    return get_template('building.html')
+    apache_build_dir = "http://localhost:8080/" + token
+    apache_build_log = "http://localhost:8080/" + token + "/build.log"
+    return render_template('generate.html', 
+                            apache_build_dir=apache_build_dir, 
+                            apache_build_log=apache_build_log,
+                            token=token,)
 
         # remove duplicates
         #filelist = list(dict.fromkeys(filelist))

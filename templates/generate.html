@@ -5,9 +5,27 @@
 {% if error %}
   <p>Error: {{ error }}!</p>
 {% else %}
-  <p>Custom firmware build complete. Download <a href="{{ urlkey }}" download="custom_build.zip">here</a>.</p>
+  <body>
+    <div id="menu">
+
+        <p>Build in progress...</p>
+        
+        <form action="{{ apache_build_log }}">
+            <input type="submit" value="View build progress" />
+        </form>
+        <form action="{{ apache_build_dir }}">
+            <input type="submit" value="Go to build directory" />
+        </form>
+        <form action="http://localhost:8080/">
+            <input type="submit" value="See all builds" />
+        </form>
+        <form action="/home" method="post">
+            <input type="submit" value="Queue another build" method="post">
+        </form>
+    </div>
+  </body>
 {% endif %}
 
 <br />
 
-<footer>{{uuidkey}}</footer>
+<footer>Build ID: {{ token }}</footer>
