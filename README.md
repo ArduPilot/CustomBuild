@@ -17,5 +17,18 @@ To run:
 For Apache web server http://localhost:8080 :
 
 ```
+DocumentRoot "ardupilot/done"
+<Directory ardupilot/done>
+				Options Indexes FollowSymLinks MultiViews
+				AllowOverride None
+				Order allow,deny
+				allow from all
+Require all granted
+</Directory>
+```
+
+To run server:
+
+```
 /usr/local/opt/httpd/bin/httpd -D FOREGROUND
 ```
