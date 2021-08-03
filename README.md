@@ -17,8 +17,8 @@ To run:
 For Apache web server http://localhost:8080 :
 
 ```
-DocumentRoot "ardupilot/done"
-<Directory ardupilot/done>
+DocumentRoot "CustomBuild directory"
+<Directory CustomBuild directory>
 				Options Indexes FollowSymLinks MultiViews
 				AllowOverride None
 				Order allow,deny
