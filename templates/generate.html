@@ -10,13 +10,13 @@
 
         <p>Build in progress...</p>
         
-        <form action="{{ apache_build_log }}">
+        <form action="{{ apache_build_log }}" target="_blank">
             <input type="submit" value="View build progress" />
         </form>
-        <form action="{{ apache_build_dir }}">
+        <form action="{{ apache_build_dir }}" target="_blank">
             <input type="submit" value="Go to build directory" />
         </form>
-        <form action="http://localhost:8080/">
+        <form action="{{ apache_all_builds }}" target="_blank">
             <input type="submit" value="See all builds" />
         </form>
         <form action="/home" method="post">
