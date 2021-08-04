@@ -6,7 +6,7 @@ This is a website that generates a downloadable custom ArduPilot firmware, based
 
 ## For developers
 
-This website uses the flask library.
+This website uses the flask library. The ardupilot directory must be in the same directory as the CustomBuild directory.
 
 To run:
 
@@ -14,11 +14,13 @@ To run:
 ./app.py
 ```
 
-For Apache web server http://localhost:8080 :
+For Apache web server:
+Insert the CustomBuild directory location for DocumentRoot and Directory below.
+Webpage: http://localhost:8080
 
 ```
-DocumentRoot "CustomBuild directory"
-<Directory CustomBuild directory>
+DocumentRoot "CustomBuild directory location"
+<Directory CustomBuild directory location>
 				Options Indexes FollowSymLinks MultiViews
 				AllowOverride None
 				Order allow,deny
