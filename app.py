@@ -129,8 +129,15 @@ def check_queue():
                     app.logger.info('Build failed')
                     continue
 
+import optparse
+parser = optparse.OptionParser("app.py")
+
+parser.add_option("", "--basedir", type="string",
+                  default="..", help="base directory")
+cmd_opts, cmd_args = parser.parse_args()
+                
 # define directories
-basedir = os.path.abspath('..')
+basedir = os.path.abspath(cmd_opts.basedir)
 sourcedir = os.path.abspath(os.path.join(basedir, 'ardupilot'))
 outdir_parent = os.path.join(basedir, 'builds')
 tmpdir_parent = os.path.join(basedir, 'tmp')
