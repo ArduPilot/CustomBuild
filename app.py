@@ -12,24 +12,27 @@ from flask import Flask, render_template, request, flash
 from threading import Thread, Lock
 
 def get_boards():
-    '''return a list of boards to build'''
+    #return a list of boards to build
     import importlib.util
     spec = importlib.util.spec_from_file_location("build_binaries.py",
-                                                  os.path.join(basedir, "ardupilot/Tools/scripts/board_list.py"))
+                                                  os.path.join(sourcedir, 
+                                                  'Tools', 'scripts', 
+                                                  'board_list.py'))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod.AUTOBUILD_BOARDS
 
 # list of build options to offer
-BUILD_OPTIONS = [ ('EKF2', 'HAL_NAVEKF2_AVAILABLE', 'Enable EKF2'),
-                  ('EKF3', 'HAL_NAVEKF3_AVAILABLE', 'Enable EKF3'),
-                  ('DSP',  'HAL_WITH_DSP', 'Enable DSP'),
-                  ('SPRAYER', 'HAL_SPRAYER_ENABLED', 'Enable Sprayer'),
-                  ('PARACHUTE', 'HAL_PARACHUTE_ENABLED', 'Enable Parachute'),
-                  ('MOUNT', 'HAL_MOUNT_ENABLED', 'Enable Mount'),
-                  ('HOTT_TELEM', 'HAL_HOTT_TELEM_ENABLED', 'Enable HoTT Telemetry'),
-                  ('BATTMON_FUEL', 'HAL_BATTMON_FUEL_ENABLE', 'Enable Fuel BatteryMonitor')
-                  ]
+BUILD_OPTIONS = [ 
+    ('EKF2', 'HAL_NAVEKF2_AVAILABLE', 'Enable EKF2'),
+    ('EKF3', 'HAL_NAVEKF3_AVAILABLE', 'Enable EKF3'),
+    ('DSP',  'HAL_WITH_DSP', 'Enable DSP'),
+    ('SPRAYER', 'HAL_SPRAYER_ENABLED', 'Enable Sprayer'),
+    ('PARACHUTE', 'HAL_PARACHUTE_ENABLED', 'Enable Parachute'),
+    ('MOUNT', 'HAL_MOUNT_ENABLED', 'Enable Mount'),
+    ('HOTT_TELEM', 'HAL_HOTT_TELEM_ENABLED', 'Enable HoTT Telemetry'),
+    ('BATTMON_FUEL', 'HAL_BATTMON_FUEL_ENABLE', 'Enable Fuel BatteryMonitor')
+    ]
 
 VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub' ]
 
@@ -58,7 +61,7 @@ dictConfig({
 
 def remove_directory_recursive(dirname):
     # remove a directory recursively
-    app.logger.info('removing directory ' + dirname)
+    app.logger.info('Removing directory ' + dirname)
     if not os.path.exists(dirname):
         return
     f = pathlib.Path(dirname)
@@ -81,13 +84,7 @@ def run_build(task, tmpdir, outdir):
     if not os.path.isfile(os.path.join(outdir, 'extra_hwdef.dat')):
         app.logger.error('Build aborted, missing extra_hwdef.dat')
     app.logger.info('Appending to build.log')
-    #os.remove(os.path.join(outdir, 'build.log'))
     with open(os.path.join(outdir, 'build.log'), 'a') as log:
-        app.logger.info('Submodule update')
-        subprocess.run(['git', 'submodule',
-                        'update', '--recursive', 
-                        '--force', '--init'], 
-                        stdout=log, stderr=log)
         app.logger.info('Running waf configure')
         subprocess.run(['./waf', 'configure', 
                         '--board', task['board'], 
@@ -96,10 +93,12 @@ def run_build(task, tmpdir, outdir):
                         cwd = task['sourcedir'], 
                         stdout=log, stderr=log)
         app.logger.info('Running clean')
-        subprocess.run(['./waf', 'clean'], cwd = task['sourcedir'], 
+        subprocess.run(['./waf', 'clean'], 
+                        cwd = task['sourcedir'], 
                         stdout=log, stderr=log)
         app.logger.info('Running build')
-        subprocess.run(['./waf', task['vehicle'].lower()], cwd = task['sourcedir'],
+        subprocess.run(['./waf', task['vehicle']], 
+                        cwd = task['sourcedir'],
                         stdout=log, stderr=log)
 
 # background thread to check for queued build requests
@@ -113,10 +112,8 @@ def check_queue():
     if len(json_files) == 0:
         return
     taskfile = json_files[0]
-
     app.logger.info('Opening ' + taskfile)
     task = json.loads(open(taskfile).read())
-    os.remove(taskfile)
     outdir = os.path.join(outdir_parent, task['token'])
     tmpdir = os.path.join(tmpdir_parent, task['token'])
     try:
@@ -129,10 +126,12 @@ def check_queue():
         app.logger.info('Build successful!')
         app.logger.info('Removing ' + tmpdir)
         remove_directory_recursive(tmpdir)
-        # remove extra_hwdef.dat
+        # remove extra_hwdef.dat and q.json
         app.logger.info('Removing ' +
                         os.path.join(outdir, 'extra_hwdef.dat'))
         os.remove(os.path.join(outdir, 'extra_hwdef.dat'))
+        app.logger.info('Removing ' + taskfile)
+        os.remove(taskfile)
                 
     except Exception as ex:
         app.logger.info('Build failed')
@@ -143,6 +142,12 @@ def queue_thread():
     while True:
         try:
             check_queue()
+            # as a cleanup, remove any generated terrain older than 24H
+            for f in os.listdir(outdir_parent):
+                if os.stat(os.path.join(outdir_parent, f)).st_mtime < \
+                time.time() - 24 * 60 * 60:
+                    remove_directory_recursive(
+                        os.path.join(outdir_parent, f))
             time.sleep(5)
         except Exception as ex:
             print(ex)
@@ -184,28 +189,29 @@ thread.start()
 
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
-    #if request.method == 'POST':
-    features = []
-    task = {}
-
     try:
         # fetch features from user input
+        extra_hwdef = []
+        feature_list = []
         app.logger.info('Fetching features from user input')
         for (label, define, text) in BUILD_OPTIONS:
             if label not in request.form:
                 continue
-            value = request.form[label]
-            features.append(value)
+            extra_hwdef.append(request.form[label])
+            if request.form[label][-1] == '1':
+                feature_list.append(text)
             undefine = 'undef ' + define
-            features.insert(0,undefine)
-        extra_hwdef = '\n'.join(features)
+            extra_hwdef.insert(0, undefine)
+        extra_hwdef = '\n'.join(extra_hwdef)
+        spaces = '\n' + ' '*len('Selected Features: ')
+        feature_list = spaces.join(feature_list)
 
         queue_lock.acquire()
 
         # create extra_hwdef.dat file and obtain md5sum
         app.logger.info('Creating ' + 
                         os.path.join(outdir_parent, 'extra_hwdef.dat'))
-        file = open(os.path.join(outdir_parent, 'extra_hwdef.dat'),'w')
+        file = open(os.path.join(outdir_parent, 'extra_hwdef.dat'), 'w')
         app.logger.info('Writing\n' + extra_hwdef)
         file.write(extra_hwdef)
         file.close()
@@ -215,7 +221,8 @@ def generate():
                                             'extra_hwdef.dat')],
                                             encoding = 'utf-8')
         md5sum = md5sum[:len(md5sum)
-                        -(3+len(os.path.join(outdir_parent, 'extra_hwdef.dat')))]
+                        -(3+len(os.path.join(outdir_parent, 
+                                            'extra_hwdef.dat')))]
         app.logger.info('md5sum = ' + md5sum)
         app.logger.info('Removing ' + 
                         os.path.join(outdir_parent, 'extra_hwdef.dat'))
@@ -231,7 +238,7 @@ def generate():
 
         # create directories using concatenated token 
         # of vehicle, board, git-hash of source, and md5sum of hwdef
-        vehicle = request.form['vehicle']
+        vehicle = request.form['vehicle'].lower()
         board = request.form['board']
         token = vehicle + '-' + board + '-' + git_hash + '-' + md5sum
         app.logger.info('token = ' + token)
@@ -240,31 +247,41 @@ def generate():
         if os.path.isdir(outdir):
             app.logger.info('Build already exists')
         else:
+            app.logger.info('Updating submodules')
+            subprocess.run(['git', 'submodule',
+                            'update', '--recursive', 
+                            '--force', '--init'])
             app.logger.info('Creating ' + outdir)
             create_directory(outdir)
             # create build.log
+            build_log_info = ('Vehicle: ' + request.form['vehicle'] +
+                '\nBoard: ' + request.form['board'] +
+                '\nSelected Features: ' + feature_list +
+                '\n\nWaiting for build to start...\n\n')
             app.logger.info('Creating build.log')
             build_log = open(os.path.join(outdir, 'build.log'), 'w')
-            build_log.write('Waiting for build to start...\n')
+            build_log.write(build_log_info)
             build_log.close()
             # create hwdef.dat
-            app.logger.info('Opening ' + os.path.join(outdir, 'extra_hwdef.dat'))
+            app.logger.info('Opening ' + 
+                            os.path.join(outdir, 'extra_hwdef.dat'))
             file = open(os.path.join(outdir, 'extra_hwdef.dat'),'w')
             app.logger.info('Writing\n' + extra_hwdef)
             file.write(extra_hwdef)
             file.close()
             # fill dictionary of variables and create json file
-            task['hwdef_md5sum'] = md5sum
-            task['git_hash'] = git_hash
+            task = {}
             task['token'] = token
             task['sourcedir'] = sourcedir
             task['extra_hwdef'] = os.path.join(outdir, 'extra_hwdef.dat')
-            task['board'] = board
             task['vehicle'] = vehicle
+            task['board'] = board
+            print(task)
             app.logger.info('Opening ' + os.path.join(outdir, 'q.json'))
             jfile = open(os.path.join(outdir, 'q.json'), 'w')
-            app.logger.info('Writing task file to ' + os.path.join(outdir, 'q.json'))
-            jfile.write(json.dumps(task))
+            app.logger.info('Writing task file to ' + 
+                            os.path.join(outdir, 'q.json'))
+            jfile.write(json.dumps(task, separators=(',\n', ': ')))
             jfile.close()
 
         queue_lock.release()
