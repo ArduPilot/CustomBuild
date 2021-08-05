@@ -10,10 +10,9 @@
         <form action="/generate" method="post">
             <label for="vehicle">Choose a vehicle:</label>
             <select name="vehicle">
-                <option value="copter">Copter</option>
-                <option value="plane">Plane</option>
-                <option value="rover">Rover</option>
-                <option value="sub">Sub</option>
+                {% for vehicle in get_vehicles() %}
+                <option value="{{vehicle}}">{{vehicle}}</option>
+                {% endfor %}
             </select>
             <br><br>
             <label for="board">Choose a board:</label>

@@ -31,6 +31,8 @@ BUILD_OPTIONS = [ ('EKF2', 'HAL_NAVEKF2_AVAILABLE', 'Enable EKF2'),
                   ('BATTMON_FUEL', 'HAL_BATTMON_FUEL_ENABLE', 'Enable Fuel BatteryMonitor')
                   ]
 
+VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub' ]
+
 queue_lock = Lock()
 
 from logging.config import dictConfig
@@ -97,7 +99,7 @@ def run_build(task, tmpdir, outdir):
         subprocess.run(['./waf', 'clean'], cwd = task['sourcedir'], 
                         stdout=log, stderr=log)
         app.logger.info('Running build')
-        subprocess.run(['./waf', task['vehicle']], cwd = task['sourcedir'], 
+        subprocess.run(['./waf', task['vehicle'].lower()], cwd = task['sourcedir'],
                         stdout=log, stderr=log)
 
 # background thread to check for queued build requests
@@ -287,6 +289,8 @@ def generate():
 def get_build_options():
     return BUILD_OPTIONS
 
+def get_vehicles():
+    return VEHICLES
 
 @app.route('/')
 @app.route('/home', methods=['POST'])
@@ -294,6 +298,7 @@ def home():
     app.logger.info('Rendering index.html')
     return render_template('index.html',
                            get_boards=get_boards,
+                           get_vehicles=get_vehicles,
                            get_build_options=get_build_options)
 
 if __name__ == '__main__':
