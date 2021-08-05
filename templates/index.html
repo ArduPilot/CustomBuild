@@ -18,34 +18,17 @@
             <br><br>
             <label for="board">Choose a board:</label>
             <select name="board">
-                <option value="BeastF7">BeastF7</option>
-                <option value="BeastH7">BeastH7</option>
+                {% for board in get_boards() %}
+                <option value="{{board}}">{{board}}</option>
+                {% endfor %}
             </select>
             <br><br>
-            <input type="checkbox" name="option1" value="define HAL_NAVEKF2_AVAILABLE 1">
-            <input type="hidden" name="option1" value="define HAL_NAVEKF2_AVAILABLE 0"> EKF2
+            {% for (label,define,text) in get_build_options() %}
+            <input type="checkbox" name="{{label}}" value="define {{define}} 1">
+            <input type="hidden" name="{{label}}" value="define {{define}} 0"> {{text}}
             <br>
-            <input type="checkbox" name="option2" value="define HAL_NAVEKF3_AVAILABLE 1">
-            <input type="hidden" name="option2" value="define HAL_NAVEKF3_AVAILABLE 0"> EKF3
+            {% endfor %}
             <br>
-            <input type="checkbox" name="option3" value="define HAL_WITH_DSP 1">
-            <input type="hidden" name="option3" value="define HAL_WITH_DSP 0"> HAL_WITH_DSP
-            <br>
-            <input type="checkbox" name="option4" value="define HAL_SPRAYER_ENABLED 1">
-            <input type="hidden" name="option4" value="define HAL_SPRAYER_ENABLED 0"> HAL_SPRAYER_ENABLED
-            <br>
-            <input type="checkbox" name="option5" value="define HAL_PARACHUTE_ENABLED 1">
-            <input type="hidden" name="option5" value="define HAL_PARACHUTE_ENABLED 0"> HAL_PARACHUTE_ENABLED
-            <br>
-            <input type="checkbox" name="option6" value="define HAL_MOUNT_ENABLED 1">
-            <input type="hidden" name="option6" value="define HAL_MOUNT_ENABLED 0"> HAL_MOUNT_ENABLED
-            <br>
-            <input type="checkbox" name="option7" value="define HAL_HOTT_TELEM_ENABLED 1">
-            <input type="hidden" name="option7" value="define HAL_HOTT_TELEM_ENABLED 0"> HAL_HOTT_TELEM_ENABLED
-            <br>
-            <input type="checkbox" name="option8" value="define HAL_BATTMON_FUEL_ENABLE 1">
-            <input type="hidden" name="option8" value="define HAL_BATTMON_FUEL_ENABLE 0"> HAL_BATTMON_FUEL_ENABLE
-            <br><br>
             <input type="submit" value="Generate" method="post">
         </form>
     </div>

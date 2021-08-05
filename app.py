@@ -10,6 +10,26 @@ from distutils.dir_util import copy_tree
 from flask import Flask, render_template, request, flash
 from threading import Thread, Lock
 
+def get_boards():
+    '''return a list of boards to build'''
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("build_binaries.py",
+                                                  os.path.join(basedir, "ardupilot/Tools/scripts/board_list.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.AUTOBUILD_BOARDS
+
+# list of build options to offer
+BUILD_OPTIONS = [ ('EKF2', 'HAL_NAVEKF2_AVAILABLE', 'Enable EKF2'),
+                  ('EKF3', 'HAL_NAVEKF3_AVAILABLE', 'Enable EKF3'),
+                  ('DSP',  'HAL_WITH_DSP', 'Enable DSP'),
+                  ('SPRAYER', 'HAL_SPRAYER_ENABLED', 'Enable Sprayer'),
+                  ('PARACHUTE', 'HAL_PARACHUTE_ENABLED', 'Enable Parachute'),
+                  ('MOUNT', 'HAL_MOUNT_ENABLED', 'Enable Mount'),
+                  ('HOTT_TELEM', 'HAL_HOTT_TELEM_ENABLED', 'Enable HoTT Telemetry'),
+                  ('BATTMON_FUEL', 'HAL_BATTMON_FUEL_ENABLE', 'Enable Fuel BatteryMonitor')
+                  ]
+
 queue_lock = Lock()
 
 from logging.config import dictConfig
@@ -162,11 +182,6 @@ thread = Thread(target=check_queue, args=())
 thread.daemon = True
 thread.start()
 
-@app.route('/')
-def index():
-    app.logger.info('Rendering index.html')
-    return render_template('index.html')
-
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
     #if request.method == 'POST':
@@ -176,10 +191,12 @@ def generate():
     try:
         # fetch features from user input
         app.logger.info('Fetching features from user input')
-        for i in range(1,8):
-            value = request.form['option' + str(i)]
+        for (label, define, text) in BUILD_OPTIONS:
+            if label not in request.form:
+                continue
+            value = request.form[label]
             features.append(value)
-            undefine = 'undef ' + value.split()[1]
+            undefine = 'undef ' + define
             features.insert(0,undefine)
         extra_hwdef = '\n'.join(features)
 
@@ -265,13 +282,21 @@ def generate():
                                 apache_all_builds=apache_all_builds,
                                 token=token)
     
-    except:
+    except Exception as ex:
+        print(ex)
         return render_template('generate.html', error='Error occured')
 
+def get_build_options():
+    return BUILD_OPTIONS
+
+
+@app.route('/')
 @app.route('/home', methods=['POST'])
 def home():
     app.logger.info('Rendering index.html')
-    return render_template('index.html')
+    return render_template('index.html',
+                           get_boards=get_boards,
+                           get_build_options=get_build_options)
 
 if __name__ == '__main__':
     app.run()
