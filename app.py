@@ -8,7 +8,7 @@ import shutil
 import glob
 import time
 from distutils.dir_util import copy_tree
-from flask import Flask, render_template, request, flash
+from flask import Flask, render_template, request, jsonify
 from threading import Thread, Lock
 
 def get_boards():
@@ -135,7 +135,7 @@ def check_queue():
                 
     except Exception as ex:
         app.logger.info('Build failed')
-        print(ex)
+        app.logger.error(ex)
         pass
 
 def queue_thread():
@@ -150,8 +150,7 @@ def queue_thread():
                         os.path.join(outdir_parent, f))
             time.sleep(5)
         except Exception as ex:
-            print(ex)
-            print('Failed queue: ', ex)
+            app.logger.error(ex)('Failed queue: ', ex)
             pass
 
 import optparse
@@ -167,18 +166,7 @@ sourcedir = os.path.abspath(os.path.join(basedir, 'ardupilot'))
 outdir_parent = os.path.join(basedir, 'builds')
 tmpdir_parent = os.path.join(basedir, 'tmp')
 
-# Directory of this file
-this_path = os.path.dirname(os.path.realpath(__file__))
-
-# Where the user requested tile are stored
-output_path = os.path.join(this_path, '..', 'userRequestFirmware')
-
-# Where the data database is
-tile_path = os.path.join(this_path, '..', 'data', 'tiles')
-
-# The output folder for all gzipped build requests
-app = Flask(__name__, static_url_path='/builds', 
-            static_folder=output_path, template_folder='templates')
+app = Flask(__name__, template_folder='templates')
 
 if not os.path.isdir(outdir_parent):
     create_directory(outdir_parent)
@@ -190,6 +178,17 @@ thread.start()
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
     try:
+        # update submodules and ardupilot git tree
+        app.logger.info('Updating submodules')
+        subprocess.run(['git', 'submodule',
+                        'update', '--recursive', 
+                        '--force', '--init'])
+        app.logger.info('Fetching ardupilot origin')
+        subprocess.run(['git', 'fetch', 'origin'])
+        app.logger.info('Updating ardupilot git tree')
+        subprocess.run(['git', 'reset', '--hard', 
+                        'tridge/pr-builds-extra'], 
+                        cwd=sourcedir)
         # fetch features from user input
         extra_hwdef = []
         feature_list = []
@@ -247,10 +246,6 @@ def generate():
         if os.path.isdir(outdir):
             app.logger.info('Build already exists')
         else:
-            app.logger.info('Updating submodules')
-            subprocess.run(['git', 'submodule',
-                            'update', '--recursive', 
-                            '--force', '--init'])
             app.logger.info('Creating ' + outdir)
             create_directory(outdir)
             # create build.log
@@ -276,7 +271,6 @@ def generate():
             task['extra_hwdef'] = os.path.join(outdir, 'extra_hwdef.dat')
             task['vehicle'] = vehicle
             task['board'] = board
-            print(task)
             app.logger.info('Opening ' + os.path.join(outdir, 'q.json'))
             jfile = open(os.path.join(outdir, 'q.json'), 'w')
             app.logger.info('Writing task file to ' + 
@@ -300,7 +294,7 @@ def generate():
                                 token=token)
     
     except Exception as ex:
-        print(ex)
+        app.logger.error(ex)
         return render_template('generate.html', error='Error occured')
 
 def get_build_options():
