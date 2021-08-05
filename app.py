@@ -6,6 +6,7 @@ import json
 import pathlib
 import shutil
 import glob
+import time
 from distutils.dir_util import copy_tree
 from flask import Flask, render_template, request, flash
 from threading import Thread, Lock
@@ -71,17 +72,13 @@ def create_directory(dir_path):
     pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
 
 
-def run_build(taskfile, tmpdir, outdir):
+def run_build(task, tmpdir, outdir):
     # run a build with parameters from task
-    app.logger.info('Opening ' + taskfile)
-    task = json.loads(open(taskfile).read())
-    app.logger.info('Removing ' + taskfile)
-    os.remove(taskfile)
     remove_directory_recursive(tmpdir)
     create_directory(tmpdir)
     if not os.path.isfile(os.path.join(outdir, 'extra_hwdef.dat')):
         app.logger.error('Build aborted, missing extra_hwdef.dat')
-    app.logger.info('Creating build.log')
+    app.logger.info('Appending to build.log')
     #os.remove(os.path.join(outdir, 'build.log'))
     with open(os.path.join(outdir, 'build.log'), 'a') as log:
         app.logger.info('Submodule update')
@@ -105,49 +102,50 @@ def run_build(taskfile, tmpdir, outdir):
 
 # background thread to check for queued build requests
 def check_queue():
-    while(1):
-        queue_lock.acquire()
-        json_files = list(filter(os.path.isfile, 
-                                    glob.glob(os.path.join(outdir_parent, 
-                                                '*', 'q.json'))))
-        json_files.sort(key=lambda x: os.path.getmtime(x))
-        queue_lock.release()
-        if json_files:
-            for taskfile in json_files:
-                #taskfile = os.path.join(outdir, file)
-                app.logger.info('Opening ' + taskfile)
-                task = json.loads(open(taskfile).read())
-                outdir = os.path.join(outdir_parent, task['token'])
-                tmpdir = os.path.join(tmpdir_parent, task['token'])
-                # check if build exists
-                #if os.path.isdir(outdir):
-                    #app.logger.info('Build already exists')
-                    #app.logger.info('Removing ' + taskfile)
-                    #os.remove(taskfile)
-                #else:
-                try:
-                    # run build and rename build directory
-                    app.logger.info('Opening ' + taskfile)
-                    f = open(taskfile)
-                    app.logger.info('Loading ' + taskfile)
-                    task = json.load(f)
-                    run_build(taskfile, tmpdir, outdir)
-                    app.logger.info('Copying build files from %s to %s', 
-                                    os.path.join(tmpdir, task['board']),
-                                    outdir)
-                    copy_tree(os.path.join(tmpdir, task['board'], 'bin'), 
-                                outdir)
-                    app.logger.info('Build successful!')
-                    app.logger.info('Removing ' + tmpdir)
-                    remove_directory_recursive(tmpdir)
-                    # remove extra_hwdef.dat
-                    app.logger.info('Removing ' + 
-                                    os.path.join(outdir, 'extra_hwdef.dat'))
-                    os.remove(os.path.join(outdir, 'extra_hwdef.dat'))
+    queue_lock.acquire()
+    json_files = list(filter(os.path.isfile,
+                             glob.glob(os.path.join(outdir_parent,
+                                                    '*', 'q.json'))))
+    json_files.sort(key=lambda x: os.path.getmtime(x))
+    queue_lock.release()
+    if len(json_files) == 0:
+        return
+    taskfile = json_files[0]
+
+    app.logger.info('Opening ' + taskfile)
+    task = json.loads(open(taskfile).read())
+    os.remove(taskfile)
+    outdir = os.path.join(outdir_parent, task['token'])
+    tmpdir = os.path.join(tmpdir_parent, task['token'])
+    try:
+        # run build and rename build directory
+        run_build(task, tmpdir, outdir)
+        app.logger.info('Copying build files from %s to %s',
+                        os.path.join(tmpdir, task['board']),
+                            outdir)
+        copy_tree(os.path.join(tmpdir, task['board'], 'bin'), outdir)
+        app.logger.info('Build successful!')
+        app.logger.info('Removing ' + tmpdir)
+        remove_directory_recursive(tmpdir)
+        # remove extra_hwdef.dat
+        app.logger.info('Removing ' +
+                        os.path.join(outdir, 'extra_hwdef.dat'))
+        os.remove(os.path.join(outdir, 'extra_hwdef.dat'))
                 
-                except:
-                    app.logger.info('Build failed')
-                    continue
+    except Exception as ex:
+        app.logger.info('Build failed')
+        print(ex)
+        pass
+
+def queue_thread():
+    while True:
+        try:
+            check_queue()
+            time.sleep(5)
+        except Exception as ex:
+            print(ex)
+            print('Failed queue: ', ex)
+            pass
 
 import optparse
 parser = optparse.OptionParser("app.py")
@@ -178,7 +176,7 @@ app = Flask(__name__, static_url_path='/builds',
 if not os.path.isdir(outdir_parent):
     create_directory(outdir_parent)
 
-thread = Thread(target=check_queue, args=())
+thread = Thread(target=queue_thread, args=())
 thread.daemon = True
 thread.start()
 
