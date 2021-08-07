@@ -14,8 +14,7 @@ from threading import Thread, Lock
 #BOARDS = [ 'BeastF7', 'BeastH7' ]
 
 def get_boards():
-    #return a list of boards to build
-    
+    '''return a list of boards to build'''
     import importlib.util
     spec = importlib.util.spec_from_file_location("build_binaries.py",
                                                   os.path.join(sourcedir, 
@@ -65,7 +64,7 @@ dictConfig({
 #    return render_template(filename)
 
 def remove_directory_recursive(dirname):
-    # remove a directory recursively
+    '''remove a directory recursively'''
     app.logger.info('Removing directory ' + dirname)
     if not os.path.exists(dirname):
         return
@@ -77,13 +76,13 @@ def remove_directory_recursive(dirname):
 
 
 def create_directory(dir_path):
-    # create a directory, don't fail if it exists
+    '''create a directory, don't fail if it exists'''
     app.logger.info('Creating ' + dir_path)
     pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
 
 
 def run_build(task, tmpdir, outdir):
-    # run a build with parameters from task
+    '''run a build with parameters from task'''
     remove_directory_recursive(tmpdir_parent)
     create_directory(tmpdir)
     if not os.path.isfile(os.path.join(outdir, 'extra_hwdef.dat')):
@@ -106,44 +105,40 @@ def run_build(task, tmpdir, outdir):
                         cwd = task['sourcedir'],
                         stdout=log, stderr=log)
 
-# background thread to check for queued build requests
-def check_queue():
-    queue_lock.acquire()
+def sort_json_files():
     json_files = list(filter(os.path.isfile,
                              glob.glob(os.path.join(outdir_parent,
                                                     '*', 'q.json'))))
     json_files.sort(key=lambda x: os.path.getmtime(x))
+    return json_files
+
+def check_queue():
+    '''thread to continuously run queued builds'''
+    queue_lock.acquire()
+    json_files = sort_json_files()
     queue_lock.release()
     if len(json_files) == 0:
         return
     # remove multiple build requests from same ip address (keep newest)
-    '''
     queue_lock.acquire()
     ip_list = []
     for f in json_files:
         file = json.loads(open(f).read())
         ip_list.append(file['ip'])
-    for i in ip_list:
-        ip_list_copy = ip_list
-        ip_list_copy.remove(i)
-        if i in ip_list_copy:
-            file = json.loads(open(json_files[ip_list.index(i)]).read())
+    seen = set()
+    ip_list.reverse()
+    for index, value in enumerate(ip_list):
+        if value in seen:
+            file = json.loads(open(json_files[-index-1]).read())
             outdir_to_delete = os.path.join(outdir_parent, file['token'])
-            tmpdir_to_delete = os.path.join(tmpdir_parent, file['token'])
-            #app.logger.info('Removing ' + json_files[ip_list.index(i)])
-            #os.remove(json_files[ip_list.index(i)])
             remove_directory_recursive(outdir_to_delete)
-            remove_directory_recursive(tmpdir_to_delete)
-            ip_list.remove(i)
-    json_files = list(filter(os.path.isfile,
-                             glob.glob(os.path.join(outdir_parent,
-                                                    '*', 'q.json'))))
-    json_files.sort(key=lambda x: os.path.getmtime(x))
+        else:
+            seen.add(value)
     queue_lock.release()
     if len(json_files) == 0:
         return
-    '''
     # open oldest q.json file
+    json_files = sort_json_files()
     taskfile = json_files[0]
     app.logger.info('Opening ' + taskfile)
     task = json.loads(open(taskfile).read())
@@ -170,17 +165,20 @@ def check_queue():
         app.logger.error(ex)
         pass
 
+def remove_old_builds():
+    '''as a cleanup, remove any builds older than 24H'''
+    for f in os.listdir(outdir_parent):
+        if os.stat(os.path.join(outdir_parent, f)).st_mtime < \
+        time.time() - 24 * 60 * 60:
+            remove_directory_recursive(
+                os.path.join(outdir_parent, f))
+    time.sleep(5)
+
 def queue_thread():
     while True:
         try:
             check_queue()
-            # as a cleanup, remove any generated terrain older than 24H
-            for f in os.listdir(outdir_parent):
-                if os.stat(os.path.join(outdir_parent, f)).st_mtime < \
-                time.time() - 24 * 60 * 60:
-                    remove_directory_recursive(
-                        os.path.join(outdir_parent, f))
-            time.sleep(5)
+            remove_old_builds()
         except Exception as ex:
             app.logger.error(ex)('Failed queue: ', ex)
             pass
