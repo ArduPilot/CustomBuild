@@ -1,31 +1,45 @@
 <!doctype html>
+<html>
+
 <title>ArduPilot Custom Firmware Builder</title>
 <h1>ArduPilot Custom Firmware Builder</h1>
 
 {% if error %}
   <p>{{ error }}!</p>
 {% else %}
-  <body>
+  <body onload="javascript: reload()">
     <div id="menu">
-
         <p>Build in progress...</p>
-        
-        <form action="{{ apache_build_log }}" target="_blank">
-            <input type="submit" value="View build progress" />
+        <form action="{{apache_build_log}}" target="_blank">
+            <input type="submit" value="View build log file" />
         </form>
-        <form action="{{ apache_build_dir }}" target="_blank">
+        <form action="{{apache_build_dir}}" target="_blank">
             <input type="submit" value="Go to build directory" />
         </form>
-        <form action="{{ apache_all_builds }}" target="_blank">
+        <form action="{{apache_all_builds}}" target="_blank">
             <input type="submit" value="See all builds" />
         </form>
         <form action="/home" method="post">
             <input type="submit" value="Queue another build" method="post">
         </form>
     </div>
+    <p>Build ID: {{ token }}</p>
+    <p>Build progress:</p>
+    <textarea  
+        id="output" rows="30" cols="100" readonly autocomplete="off">
+    </textarea>
+    <script>
+        var output = document.getElementById('output');
+        output.scrollTop = output.scrollHeight;
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', "{{ url_for('stream') }}");
+        xhr.send();
+        setInterval(function() {
+            output.textContent = xhr.responseText;
+        }, 1);
+    </script>
+
   </body>
 {% endif %}
 
-<br />
-
-<footer>Build ID: {{ token }}</footer>
+</html>

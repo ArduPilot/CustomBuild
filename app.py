@@ -8,11 +8,14 @@ import shutil
 import glob
 import time
 from distutils.dir_util import copy_tree
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, url_for
 from threading import Thread, Lock
+
+#BOARDS = [ 'BeastF7', 'BeastH7' ]
 
 def get_boards():
     #return a list of boards to build
+    
     import importlib.util
     spec = importlib.util.spec_from_file_location("build_binaries.py",
                                                   os.path.join(sourcedir, 
@@ -21,6 +24,8 @@ def get_boards():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod.AUTOBUILD_BOARDS
+    
+    #return BOARDS
 
 # list of build options to offer
 BUILD_OPTIONS = [ 
@@ -79,7 +84,7 @@ def create_directory(dir_path):
 
 def run_build(task, tmpdir, outdir):
     # run a build with parameters from task
-    remove_directory_recursive(tmpdir)
+    remove_directory_recursive(tmpdir_parent)
     create_directory(tmpdir)
     if not os.path.isfile(os.path.join(outdir, 'extra_hwdef.dat')):
         app.logger.error('Build aborted, missing extra_hwdef.dat')
@@ -111,9 +116,38 @@ def check_queue():
     queue_lock.release()
     if len(json_files) == 0:
         return
+    # remove multiple build requests from same ip address (keep newest)
+    '''
+    queue_lock.acquire()
+    ip_list = []
+    for f in json_files:
+        file = json.loads(open(f).read())
+        ip_list.append(file['ip'])
+    for i in ip_list:
+        ip_list_copy = ip_list
+        ip_list_copy.remove(i)
+        if i in ip_list_copy:
+            file = json.loads(open(json_files[ip_list.index(i)]).read())
+            outdir_to_delete = os.path.join(outdir_parent, file['token'])
+            tmpdir_to_delete = os.path.join(tmpdir_parent, file['token'])
+            #app.logger.info('Removing ' + json_files[ip_list.index(i)])
+            #os.remove(json_files[ip_list.index(i)])
+            remove_directory_recursive(outdir_to_delete)
+            remove_directory_recursive(tmpdir_to_delete)
+            ip_list.remove(i)
+    json_files = list(filter(os.path.isfile,
+                             glob.glob(os.path.join(outdir_parent,
+                                                    '*', 'q.json'))))
+    json_files.sort(key=lambda x: os.path.getmtime(x))
+    queue_lock.release()
+    if len(json_files) == 0:
+        return
+    '''
+    # open oldest q.json file
     taskfile = json_files[0]
     app.logger.info('Opening ' + taskfile)
     task = json.loads(open(taskfile).read())
+    print(task)
     outdir = os.path.join(outdir_parent, task['token'])
     tmpdir = os.path.join(tmpdir_parent, task['token'])
     try:
@@ -124,7 +158,6 @@ def check_queue():
                             outdir)
         copy_tree(os.path.join(tmpdir, task['board'], 'bin'), outdir)
         app.logger.info('Build successful!')
-        app.logger.info('Removing ' + tmpdir)
         remove_directory_recursive(tmpdir)
         # remove extra_hwdef.dat and q.json
         app.logger.info('Removing ' +
@@ -184,10 +217,10 @@ def generate():
                         'update', '--recursive', 
                         '--force', '--init'])
         app.logger.info('Fetching ardupilot origin')
-        subprocess.run(['git', 'fetch', 'origin'])
+        subprocess.run(['git', 'fetch', 'upstream'])
         app.logger.info('Updating ardupilot git tree')
         subprocess.run(['git', 'reset', '--hard', 
-                        'tridge/pr-builds-extra'], 
+                        'upstream/master'], 
                         cwd=sourcedir)
         # fetch features from user input
         extra_hwdef = []
@@ -241,6 +274,7 @@ def generate():
         board = request.form['board']
         token = vehicle + '-' + board + '-' + git_hash + '-' + md5sum
         app.logger.info('token = ' + token)
+        global outdir
         outdir = os.path.join(outdir_parent, token)
         
         if os.path.isdir(outdir):
@@ -271,6 +305,7 @@ def generate():
             task['extra_hwdef'] = os.path.join(outdir, 'extra_hwdef.dat')
             task['vehicle'] = vehicle
             task['board'] = board
+            task['ip'] = request.remote_addr
             app.logger.info('Opening ' + os.path.join(outdir, 'q.json'))
             jfile = open(os.path.join(outdir, 'q.json'), 'w')
             app.logger.info('Writing task file to ' + 
@@ -286,8 +321,8 @@ def generate():
                             + os.path.join('builds', token, 'build.log')
         apache_all_builds = 'http://localhost:8080/' \
                             + 'builds'
-        app.logger.info('Rendering generate.html')
-        return render_template('generate.html', 
+        app.logger.info('Rendering generate_basic.html')
+        return render_template('generate_basic.html', 
                                 apache_build_dir=apache_build_dir, 
                                 apache_build_log=apache_build_log,
                                 apache_all_builds=apache_all_builds,
@@ -295,7 +330,7 @@ def generate():
     
     except Exception as ex:
         app.logger.error(ex)
-        return render_template('generate.html', error='Error occured')
+        return render_template('generate_basic.html', error='Error occured')
 
 def get_build_options():
     return BUILD_OPTIONS
@@ -311,6 +346,15 @@ def home():
                            get_boards=get_boards,
                            get_vehicles=get_vehicles,
                            get_build_options=get_build_options)
+
+@app.route('/stream')
+def stream():
+    def generate():
+        with open(os.path.join(outdir, 'build.log')) as f:
+            while True:
+                yield f.read()
+                time.sleep(1)
+    return app.response_class(generate(), mimetype='text/plain')
 
 if __name__ == '__main__':
     app.run()
