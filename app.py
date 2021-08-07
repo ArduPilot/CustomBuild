@@ -8,7 +8,7 @@ import shutil
 import glob
 import time
 from distutils.dir_util import copy_tree
-from flask import Flask, render_template, request, url_for
+from flask import Flask, render_template, request, url_for, send_from_directory
 from threading import Thread, Lock
 
 #BOARDS = [ 'BeastF7', 'BeastH7' ]
@@ -147,7 +147,8 @@ def check_queue():
     taskfile = json_files[0]
     app.logger.info('Opening ' + taskfile)
     task = json.loads(open(taskfile).read())
-    print(task)
+    app.logger.info('Removing ' + taskfile)
+    os.remove(taskfile)
     outdir = os.path.join(outdir_parent, task['token'])
     tmpdir = os.path.join(tmpdir_parent, task['token'])
     try:
@@ -163,9 +164,7 @@ def check_queue():
         app.logger.info('Removing ' +
                         os.path.join(outdir, 'extra_hwdef.dat'))
         os.remove(os.path.join(outdir, 'extra_hwdef.dat'))
-        app.logger.info('Removing ' + taskfile)
-        os.remove(taskfile)
-                
+
     except Exception as ex:
         app.logger.info('Build failed')
         app.logger.error(ex)
@@ -186,6 +185,21 @@ def queue_thread():
             app.logger.error(ex)('Failed queue: ', ex)
             pass
 
+def update_source():
+    '''update submodules and ardupilot git tree'''
+    app.logger.info('Fetching ardupilot origin')
+    subprocess.run(['git', 'fetch', 'upstream'],
+                   cwd=sourcedir)
+    app.logger.info('Updating ardupilot git tree')
+    subprocess.run(['git', 'reset', '--hard',
+                    'upstream/master'],
+                       cwd=sourcedir)
+    app.logger.info('Updating submodules')
+    subprocess.run(['git', 'submodule',
+                    'update', '--recursive',
+                        '--force', '--init'],
+                       cwd=sourcedir)
+        
 import optparse
 parser = optparse.OptionParser("app.py")
 
@@ -211,17 +225,8 @@ thread.start()
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
     try:
-        # update submodules and ardupilot git tree
-        app.logger.info('Updating submodules')
-        subprocess.run(['git', 'submodule',
-                        'update', '--recursive', 
-                        '--force', '--init'])
-        app.logger.info('Fetching ardupilot origin')
-        subprocess.run(['git', 'fetch', 'upstream'])
-        app.logger.info('Updating ardupilot git tree')
-        subprocess.run(['git', 'reset', '--hard', 
-                        'upstream/master'], 
-                        cwd=sourcedir)
+        update_source()
+
         # fetch features from user input
         extra_hwdef = []
         feature_list = []
@@ -315,14 +320,13 @@ def generate():
 
         queue_lock.release()
 
-        apache_build_dir = 'http://localhost:8080/' \
-                            + os.path.join('builds', token)
-        apache_build_log = 'http://localhost:8080/' \
-                            + os.path.join('builds', token, 'build.log')
-        apache_all_builds = 'http://localhost:8080/' \
-                            + 'builds'
-        app.logger.info('Rendering generate_basic.html')
-        return render_template('generate_basic.html', 
+        base_url = request.url_root
+        app.logger.info(base_url)
+        apache_build_dir = base_url + os.path.join('builds', token)
+        apache_build_log = base_url + os.path.join('builds', token, 'build.log')
+        apache_all_builds = base_url + 'builds'
+        app.logger.info('Rendering generate.html')
+        return render_template('generate.html',
                                 apache_build_dir=apache_build_dir, 
                                 apache_build_log=apache_build_log,
                                 apache_all_builds=apache_all_builds,
@@ -330,7 +334,7 @@ def generate():
     
     except Exception as ex:
         app.logger.error(ex)
-        return render_template('generate_basic.html', error='Error occured')
+        return render_template('generate.html', error='Error occured')
 
 def get_build_options():
     return BUILD_OPTIONS
@@ -347,14 +351,10 @@ def home():
                            get_vehicles=get_vehicles,
                            get_build_options=get_build_options)
 
-@app.route('/stream')
-def stream():
-    def generate():
-        with open(os.path.join(outdir, 'build.log')) as f:
-            while True:
-                yield f.read()
-                time.sleep(1)
-    return app.response_class(generate(), mimetype='text/plain')
+@app.route("/builds/<path:name>")
+def download_file(name):
+    app.logger.info('Downloading %s' % name)
+    return send_from_directory(os.path.join(basedir,'builds'), name, as_attachment=False)
 
 if __name__ == '__main__':
     app.run()
