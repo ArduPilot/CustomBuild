@@ -202,7 +202,7 @@ import optparse
 parser = optparse.OptionParser("app.py")
 
 parser.add_option("", "--basedir", type="string",
-                  default="..", help="base directory")
+                  default="/home/will/GitHub", help="base directory")
 cmd_opts, cmd_args = parser.parse_args()
                 
 # define directories
@@ -283,7 +283,6 @@ def generate():
         if os.path.isdir(outdir):
             app.logger.info('Build already exists')
         else:
-            app.logger.info('Creating ' + outdir)
             create_directory(outdir)
             # create build.log
             build_log_info = ('Vehicle: ' + request.form['vehicle'] +
