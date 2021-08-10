@@ -91,20 +91,35 @@ def run_build(task, tmpdir, outdir):
     logpath = os.path.abspath(os.path.join(outdir, 'build.log'))
     app.logger.info("LOGPATH: %s" % logpath)
     with open(logpath, 'a') as log:
+
+        # setup PATH to point at our compiler
+        env = os.environ.copy()
+        appdir = os.path.dirname(__file__)
+        bindir = os.path.abspath(os.path.join(appdir, "..", "gcc", "bin"))
+        cachedir = os.path.abspath(os.path.join(appdir, "..", "cache"))
+
+        env["PATH"] = bindir + ":" + env["PATH"]
+        env["CC"] = "ccache arm-none-eabi-gcc"
+        env["CXX"] = "ccache arm-none-eabi-g++"
+        env['CCACHE_DIR'] = cachedir
+
         app.logger.info('Running waf configure')
         subprocess.run(['python3', './waf', 'configure',
                         '--board', task['board'], 
                         '--out', tmpdir, 
                         '--extra-hwdef', task['extra_hwdef']],
-                        cwd = task['sourcedir'], 
+                        cwd = task['sourcedir'],
+                        env=env,
                         stdout=log, stderr=log)
         app.logger.info('Running clean')
         subprocess.run(['python3', './waf', 'clean'],
                         cwd = task['sourcedir'], 
+                        env=env,
                         stdout=log, stderr=log)
         app.logger.info('Running build')
         subprocess.run(['python3', './waf', task['vehicle']],
                         cwd = task['sourcedir'],
+                        env=env,
                         stdout=log, stderr=log)
 
 def sort_json_files():
