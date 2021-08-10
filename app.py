@@ -277,8 +277,15 @@ def generate():
 
         # create directories using concatenated token 
         # of vehicle, board, git-hash of source, and md5sum of hwdef
-        vehicle = request.form['vehicle'].lower()
+        vehicle = request.form['vehicle']
+        if not vehicle in VEHICLES:
+            raise Exception("bad vehicle")
+        vehicle = vehicle.lower()
+
         board = request.form['board']
+        if board not in get_boards():
+            raise Exception("bad board")
+
         token = vehicle + '-' + board + '-' + git_hash + '-' + md5sum
         app.logger.info('token = ' + token)
         global outdir
@@ -289,8 +296,8 @@ def generate():
         else:
             create_directory(outdir)
             # create build.log
-            build_log_info = ('Vehicle: ' + request.form['vehicle'] +
-                '\nBoard: ' + request.form['board'] +
+            build_log_info = ('Vehicle: ' + vehicle +
+                '\nBoard: ' + board +
                 '\nSelected Features: ' + feature_list +
                 '\n\nWaiting for build to start...\n\n')
             app.logger.info('Creating build.log')
