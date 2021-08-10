@@ -33,10 +33,11 @@
             xhr.open('GET', "{{apache_build_log}}");
             xhr.onload = function() {
                 if (xhr.status == 200) {
-                    output.textContent = xhr.responseText; }
+                    output.textContent = xhr.responseText;
+                }
             }
             xhr.send();
-        }
+      }
       setInterval(reload,5000)
     </script>
 

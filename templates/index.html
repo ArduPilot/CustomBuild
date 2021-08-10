@@ -7,7 +7,7 @@
 
         <p>Please select the required options for the reduced firmware build.</p>
 
-        <form action="/CustomBuild/generate" method="post">
+        <form action="/generate" method="post">
             <label for="vehicle">Choose a vehicle:</label>
             <select name="vehicle">
                 {% for vehicle in get_vehicles() %}

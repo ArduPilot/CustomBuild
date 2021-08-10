@@ -88,20 +88,22 @@ def run_build(task, tmpdir, outdir):
     if not os.path.isfile(os.path.join(outdir, 'extra_hwdef.dat')):
         app.logger.error('Build aborted, missing extra_hwdef.dat')
     app.logger.info('Appending to build.log')
-    with open(os.path.join(outdir, 'build.log'), 'a') as log:
+    logpath = os.path.abspath(os.path.join(outdir, 'build.log'))
+    app.logger.info("LOGPATH: %s" % logpath)
+    with open(logpath, 'a') as log:
         app.logger.info('Running waf configure')
-        subprocess.run(['./waf', 'configure', 
+        subprocess.run(['python3', './waf', 'configure',
                         '--board', task['board'], 
                         '--out', tmpdir, 
                         '--extra-hwdef', task['extra_hwdef']],
                         cwd = task['sourcedir'], 
                         stdout=log, stderr=log)
         app.logger.info('Running clean')
-        subprocess.run(['./waf', 'clean'], 
+        subprocess.run(['python3', './waf', 'clean'],
                         cwd = task['sourcedir'], 
                         stdout=log, stderr=log)
         app.logger.info('Running build')
-        subprocess.run(['./waf', task['vehicle']], 
+        subprocess.run(['python3', './waf', task['vehicle']],
                         cwd = task['sourcedir'],
                         stdout=log, stderr=log)
 
@@ -201,8 +203,10 @@ def update_source():
 import optparse
 parser = optparse.OptionParser("app.py")
 
+
 parser.add_option("", "--basedir", type="string",
-                  default="/home/will/GitHub", help="base directory")
+                  default=os.path.abspath(os.path.join(os.path.dirname(__file__),"..","base")),
+                  help="base directory")
 cmd_opts, cmd_args = parser.parse_args()
                 
 # define directories
