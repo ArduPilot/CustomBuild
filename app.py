@@ -81,15 +81,13 @@ def create_directory(dir_path):
     pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
 
 
-def run_build(task, tmpdir, outdir):
+def run_build(task, tmpdir, outdir, logpath):
     '''run a build with parameters from task'''
     remove_directory_recursive(tmpdir_parent)
     create_directory(tmpdir)
     if not os.path.isfile(os.path.join(outdir, 'extra_hwdef.dat')):
         app.logger.error('Build aborted, missing extra_hwdef.dat')
     app.logger.info('Appending to build.log')
-    logpath = os.path.abspath(os.path.join(outdir, 'build.log'))
-    app.logger.info("LOGPATH: %s" % logpath)
     with open(logpath, 'a') as log:
 
         # setup PATH to point at our compiler
@@ -163,9 +161,11 @@ def check_queue():
     os.remove(taskfile)
     outdir = os.path.join(outdir_parent, task['token'])
     tmpdir = os.path.join(tmpdir_parent, task['token'])
+    logpath = os.path.abspath(os.path.join(outdir, 'build.log'))
+    app.logger.info("LOGPATH: %s" % logpath)
     try:
         # run build and rename build directory
-        run_build(task, tmpdir, outdir)
+        run_build(task, tmpdir, outdir, logpath)
         app.logger.info('Copying build files from %s to %s',
                         os.path.join(tmpdir, task['board']),
                             outdir)
@@ -181,6 +181,7 @@ def check_queue():
         app.logger.info('Build failed')
         app.logger.error(ex)
         pass
+    open(logpath,'a').write("\nBUILD_FINISHED\n")
 
 def remove_old_builds():
     '''as a cleanup, remove any builds older than 24H'''

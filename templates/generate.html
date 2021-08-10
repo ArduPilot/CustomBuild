@@ -40,11 +40,14 @@
             xhr.onload = function() {
                 if (xhr.status == 200) {
                     output.textContent = xhr.responseText;
+                    if (xhr.responseText.includes("BUILD_FINISHED")) {
+                        return;
+                    }
                 }
+                setTimeout(reload,3000)
             }
             xhr.send();
       }
-      setInterval(reload,5000)
     </script>
 
   </body>
