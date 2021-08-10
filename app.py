@@ -99,8 +99,8 @@ def run_build(task, tmpdir, outdir):
         cachedir = os.path.abspath(os.path.join(appdir, "..", "cache"))
 
         env["PATH"] = bindir + ":" + env["PATH"]
-        env["CC"] = "ccache arm-none-eabi-gcc"
-        env["CXX"] = "ccache arm-none-eabi-g++"
+        env["CC"] = "nice ccache arm-none-eabi-gcc"
+        env["CXX"] = "nice ccache arm-none-eabi-g++"
         env['CCACHE_DIR'] = cachedir
 
         app.logger.info('Running waf configure')
