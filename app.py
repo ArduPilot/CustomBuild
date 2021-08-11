@@ -7,10 +7,10 @@ import pathlib
 import shutil
 import glob
 import time
+import fcntl
 from distutils.dir_util import copy_tree
 from flask import Flask, render_template, request, url_for, send_from_directory, render_template_string
 from threading import Thread, Lock
-from filelock import FileLock
 
 # run at lower priority
 os.nice(20)
@@ -303,7 +303,10 @@ app = Flask(__name__, template_folder='templates')
 if not os.path.isdir(outdir_parent):
     create_directory(outdir_parent)
 
-if FileLock(os.path.join(basedir, "queue.lck")):
+try:
+    lock_file = open(os.path.join(basedir, "queue.lck"), "w")
+    fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    app.logger.info("Got queue lock")
     # we only want one set of threads
     thread = Thread(target=queue_thread, args=())
     thread.daemon = True
@@ -312,6 +315,8 @@ if FileLock(os.path.join(basedir, "queue.lck")):
     status_thread = Thread(target=status_thread, args=())
     status_thread.daemon = True
     status_thread.start()
+except IOError:
+    app.logger.info("No queue lock")
 
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
