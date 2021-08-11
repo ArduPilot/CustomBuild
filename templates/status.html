@@ -1,0 +1,7 @@
+<table>
+  <tr><th>Status</th><th>Age</th><th>Board</th><th>Vehicle</th></tr>
+  {% for (status,age,board,vehicle,link) in build_status %}
+  <tr><td><a href="{{link}}" target="_blank">{{status}}</a></td><td>{{age}}</td><td>{{board}}</td><td>{{vehicle}}</td></tr>
+  {% endfor %}
+</table>
+

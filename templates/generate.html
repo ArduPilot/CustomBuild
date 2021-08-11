@@ -10,13 +10,13 @@
   <body onload="javascript: reload()">
     <div id="menu">
         <p>Build in progress...</p>
-        <form action="{{apache_build_dir}}" target="_blank">
+        <form action="/builds/{{token}}" target="_blank">
             <input type="submit" value="Go to build directory" />
         </form>
-        <form action="{{apache_all_builds}}" target="_blank">
+        <form action="/builds" target="_blank">
             <input type="submit" value="See all builds" />
         </form>
-        <form action="/home" method="post">
+        <form action="/">
             <input type="submit" value="Queue another build" method="post">
         </form>
     </div>
@@ -30,7 +30,7 @@
             var output = document.getElementById('build_output');
             output.scrollTop = output.scrollHeight;
             var xhr = new XMLHttpRequest();
-            xhr.open('GET', "{{apache_build_log}}");
+            xhr.open('GET', "/builds/{{token}}/build.log");
 
             // disable cache, thanks to: https://stackoverflow.com/questions/22356025/force-cache-control-no-cache-in-chrome-via-xmlhttprequest-on-f5-reload
             xhr.setRequestHeader("Cache-Control", "no-cache, no-store, max-age=0");

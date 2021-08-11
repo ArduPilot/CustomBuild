@@ -8,13 +8,16 @@ import shutil
 import glob
 import time
 from distutils.dir_util import copy_tree
-from flask import Flask, render_template, request, url_for, send_from_directory
+from flask import Flask, render_template, request, url_for, send_from_directory, render_template_string
 from threading import Thread, Lock
+from filelock import FileLock
 
 # run at lower priority
 os.nice(20)
 
 #BOARDS = [ 'BeastF7', 'BeastH7' ]
+
+appdir = os.path.dirname(__file__)
 
 def get_boards():
     '''return a list of boards to build'''
@@ -95,7 +98,6 @@ def run_build(task, tmpdir, outdir, logpath):
 
         # setup PATH to point at our compiler
         env = os.environ.copy()
-        appdir = os.path.dirname(__file__)
         bindir = os.path.abspath(os.path.join(appdir, "..", "gcc", "bin"))
         cachedir = os.path.abspath(os.path.join(appdir, "..", "cache"))
 
@@ -123,11 +125,11 @@ def run_build(task, tmpdir, outdir, logpath):
                         env=env,
                         stdout=log, stderr=log)
 
-def sort_json_files():
+def sort_json_files(reverse=False):
     json_files = list(filter(os.path.isfile,
                              glob.glob(os.path.join(outdir_parent,
                                                     '*', 'q.json'))))
-    json_files.sort(key=lambda x: os.path.getmtime(x))
+    json_files.sort(key=lambda x: os.path.getmtime(x), reverse=reverse)
     return json_files
 
 def check_queue():
@@ -186,13 +188,16 @@ def check_queue():
         pass
     open(logpath,'a').write("\nBUILD_FINISHED\n")
 
+def file_age(fname):
+    '''return file age in seconds'''
+    return time.time() - os.stat(fname).st_mtime
+
 def remove_old_builds():
     '''as a cleanup, remove any builds older than 24H'''
     for f in os.listdir(outdir_parent):
-        if os.stat(os.path.join(outdir_parent, f)).st_mtime < \
-        time.time() - 24 * 60 * 60:
-            remove_directory_recursive(
-                os.path.join(outdir_parent, f))
+        bdir = os.path.join(outdir_parent, f)
+        if os.path.isdir(bdir) and file_age(bdir) > 24 * 60 * 60:
+            remove_directory_recursive(bdir)
     time.sleep(5)
 
 def queue_thread():
@@ -203,6 +208,64 @@ def queue_thread():
         except Exception as ex:
             app.logger.error(ex)('Failed queue: ', ex)
             pass
+
+def get_build_status():
+    '''return build status tuple list
+     returns tuples of form (status,age,board,vehicle,genlink)
+    '''
+    ret = []
+
+    # get list of directories
+    blist = []
+    for b in os.listdir(outdir_parent):
+        if os.path.isdir(os.path.join(outdir_parent,b)):
+            blist.append(b)
+
+    for b in blist:
+        a = b.split(':')
+        if len(a) < 2:
+            continue
+        vehicle = a[0]
+        board = a[1]
+        link = "/view?token=%s" % b
+        age_min = int(file_age(os.path.join(outdir_parent,b))/60.0)
+        age_str = "%u:%02u" % ((age_min // 60), age_min % 60)
+        if os.path.exists(os.path.join(outdir_parent,b,'q.json')):
+            status = "Pending"
+        elif not os.path.exists(os.path.join(outdir_parent,b,'build.log')):
+            status = "Error"
+        else:
+            build = open(os.path.join(outdir_parent,b,'build.log')).read()
+            if build.find("'%s' finished successfully" % vehicle.lower()) != -1:
+                status = "Finished"
+            elif build.find('BUILD_FINISHED') == -1:
+                status = "Running"
+            else:
+                status = "Failed"
+        ret.append((status,age_str,board,vehicle,link))
+    return ret
+
+def create_status():
+    '''create status.html'''
+    build_status = get_build_status()
+    tmpfile = os.path.join(outdir_parent, "status.tmp")
+    statusfile = os.path.join(outdir_parent, "status.html")
+    f = open(tmpfile, "w")
+    app2 = Flask("status")
+    with app2.app_context():
+        f.write(render_template_string(open(os.path.join(appdir, 'templates', 'status.html')).read(),
+                                       build_status=build_status))
+    f.close()
+    os.replace(tmpfile, statusfile)
+
+def status_thread():
+    while True:
+        try:
+            create_status()
+        except Exception as ex:
+            app.logger.info(ex)
+            pass
+        time.sleep(3)
 
 def update_source():
     '''update submodules and ardupilot git tree'''
@@ -239,9 +302,15 @@ app = Flask(__name__, template_folder='templates')
 if not os.path.isdir(outdir_parent):
     create_directory(outdir_parent)
 
-thread = Thread(target=queue_thread, args=())
-thread.daemon = True
-thread.start()
+if FileLock(os.path.join(basedir, "queue.lck")):
+    # we only want one set of threads
+    thread = Thread(target=queue_thread, args=())
+    thread.daemon = True
+    thread.start()
+
+    status_thread = Thread(target=status_thread, args=())
+    status_thread.daemon = True
+    status_thread.start()
 
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
@@ -305,7 +374,7 @@ def generate():
         if board not in get_boards():
             raise Exception("bad board")
 
-        token = vehicle + '-' + board + '-' + git_hash + '-' + md5sum
+        token = vehicle + ':' + board + ':' + git_hash + ':' + md5sum
         app.logger.info('token = ' + token)
         global outdir
         outdir = os.path.join(outdir_parent, token)
@@ -349,20 +418,21 @@ def generate():
 
         base_url = request.url_root
         app.logger.info(base_url)
-        apache_build_dir = base_url + os.path.join('builds', token)
-        apache_build_log = base_url + os.path.join('builds', token, 'build.log')
-        apache_all_builds = base_url + 'builds'
         app.logger.info('Rendering generate.html')
-        return render_template('generate.html',
-                                apache_build_dir=apache_build_dir, 
-                                apache_build_log=apache_build_log,
-                                apache_all_builds=apache_all_builds,
-                                token=token)
+        return render_template('generate.html', token=token)
     
     except Exception as ex:
         app.logger.error(ex)
         return render_template('generate.html', error='Error occured')
 
+@app.route('/view', methods=['GET'])
+def view():
+    '''view a build from status'''
+    token=request.args['token']
+    app.logger.info("viewing %s" % token)
+    return render_template('generate.html', token=token)
+
+    
 def get_build_options():
     return BUILD_OPTIONS
 
@@ -370,7 +440,6 @@ def get_vehicles():
     return VEHICLES
 
 @app.route('/')
-@app.route('/home', methods=['POST'])
 def home():
     app.logger.info('Rendering index.html')
     return render_template('index.html',
