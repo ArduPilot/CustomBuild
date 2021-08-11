@@ -11,6 +11,9 @@ from distutils.dir_util import copy_tree
 from flask import Flask, render_template, request, url_for, send_from_directory
 from threading import Thread, Lock
 
+# run at lower priority
+os.nice(20)
+
 #BOARDS = [ 'BeastF7', 'BeastH7' ]
 
 def get_boards():
@@ -97,8 +100,8 @@ def run_build(task, tmpdir, outdir, logpath):
         cachedir = os.path.abspath(os.path.join(appdir, "..", "cache"))
 
         env["PATH"] = bindir + ":" + env["PATH"]
-        env["CC"] = "nice ccache arm-none-eabi-gcc"
-        env["CXX"] = "nice ccache arm-none-eabi-g++"
+        env["CC"] = "ccache arm-none-eabi-gcc"
+        env["CXX"] = "ccache arm-none-eabi-g++"
         env['CCACHE_DIR'] = cachedir
 
         app.logger.info('Running waf configure')
