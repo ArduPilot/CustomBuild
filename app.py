@@ -183,8 +183,7 @@ def check_queue():
         os.remove(os.path.join(outdir, 'extra_hwdef.dat'))
 
     except Exception as ex:
-        app.logger.info('Build failed')
-        app.logger.error(ex)
+        app.logger.info(ex)('Build failed: ', ex)
         pass
     open(logpath,'a').write("\nBUILD_FINISHED\n")
 
@@ -429,7 +428,7 @@ def generate():
     
     except Exception as ex:
         app.logger.error(ex)
-        return render_template('generate.html', error='Error occured')
+        return render_template('generate.html', error='Error occured: ' + ex)
 
 @app.route('/view', methods=['GET'])
 def view():
