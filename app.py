@@ -220,6 +220,7 @@ def get_build_status():
     for b in os.listdir(outdir_parent):
         if os.path.isdir(os.path.join(outdir_parent,b)):
             blist.append(b)
+    blist.sort(key=lambda x: os.path.getmtime(os.path.join(outdir_parent,x)), reverse=True)
 
     for b in blist:
         a = b.split(':')
