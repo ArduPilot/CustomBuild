@@ -43,7 +43,7 @@
                 {% endfor %}
             </select>
             <br><br>
-            {% for (label,define,text,default) in get_build_options() %}
+            {% for (label,define,text,default,category) in get_build_options() %}
                 {% if default == '0' %}
                     <input type="checkbox" name="{{label}}" value="define {{define}} 1">
                     <input type="hidden" name="{{label}}" value="define {{define}} 0"> {{text}}
