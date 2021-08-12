@@ -1,7 +1,11 @@
-<table>
-  <tr><th>Status</th><th>Age</th><th>Board</th><th>Vehicle</th></tr>
+<table class="status-table">
+  <thead>
+  <tr><th>Status</th><th>Age (hr:min)</th><th>Board</th><th>Vehicle</th></tr>
+  </thead>
+  <tbody>
   {% for (status,age,board,vehicle,link) in build_status %}
-  <tr><td><a href="{{link}}" target="_blank">{{status}}</a></td><td>{{age}}</td><td>{{board}}</td><td>{{vehicle}}</td></tr>
+  <tr class="{{status}}"><td><a href="{{link}}" target="_blank">{{status}}</a></td><td>{{age}}</td><td>{{board}}</td><td>{{vehicle}}</td></tr>
   {% endfor %}
+  </tbody>
 </table>
 

@@ -126,3 +126,52 @@ ul#testlogs li a {
 ul#testlogs li a:hover {
 	color:#D14836;
 }
+
+.status-table {
+    border-collapse: collapse;
+    margin: 25px 0;
+    font-size: 0.9em;
+    font-family: sans-serif;
+    min-width: 400px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+}
+
+.status-table thead tr {
+    background-color: #009879;
+    color: #ffffff;
+    text-align: left;
+}
+
+.status-table th,
+.status-table td {
+    padding: 12px 15px;
+}
+
+.status-table tbody tr {
+    border-bottom: 1px solid #dddddd;
+}
+
+.status-table tbody tr.Failed {
+    font-weight: bold;
+    background-color: rgba(255,0,0,0.2);
+}
+
+.status-table tbody tr.Error {
+    font-weight: bold;
+    background-color: rgba(255,0,0,0.4);
+}
+
+.status-table tbody tr.Pending {
+    font-weight: bold;
+    background-color: rgba(128,128,0,0.2);
+}
+
+.status-table tbody tr.Finished {
+    font-weight: bold;
+    background-color: rgba(0,255,0,0.2);
+}
+
+.status-table tbody tr.Running {
+    font-weight: bold;
+    background-color: rgba(0,255,0,0.4);
+}
