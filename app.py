@@ -233,6 +233,7 @@ def get_build_status():
         app.logger.info('Opening ' + feature_file)
         selected_features_dict = json.loads(open(feature_file).read())
         selected_features = selected_features_dict['selected_features']
+        git_hash_short = selected_features_dict['git_hash_short']
         features = ''
         for feature in selected_features:
             if features == '':
@@ -253,7 +254,7 @@ def get_build_status():
                 status = "Running"
             else:
                 status = "Failed"
-        ret.append((status,age_str,board,vehicle,link,features))
+        ret.append((status,age_str,board,vehicle,link,features,git_hash_short))
     return ret
 
 def create_status():
@@ -380,8 +381,13 @@ def generate():
         git_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], 
                                             cwd = sourcedir,
                                             encoding = 'utf-8')
+        git_hash_short = subprocess.check_output(['git', 'rev-parse',
+                                                 '--short', 'HEAD'], 
+                                                cwd = sourcedir,
+                                                encoding = 'utf-8')
         git_hash = git_hash[:len(git_hash)-1]
         app.logger.info('Git hash = ' + git_hash)
+        selected_features_dict['git_hash_short'] =git_hash_short
 
         # create directories using concatenated token 
         # of vehicle, board, git-hash of source, and md5sum of hwdef

@@ -1,10 +1,10 @@
 <table class="status-table">
   <thead>
-  <tr><th>Status</th><th>Age (hr:min)</th><th>Board</th><th>Vehicle</th><th>Features</th></tr>
+  <tr><th>Status</th><th>Age (hr:min)</th><th>Board</th><th>Vehicle</th><th>Features</th><th>ArduPilot Git Hash</th></tr>
   </thead>
   <tbody>
-  {% for (status,age,board,vehicle,link,features) in build_status %}
-  <tr class="{{status}}"><td><a href="{{link}}" target="_blank">{{status}}</a></td><td>{{age}}</td><td>{{board}}</td><td>{{vehicle}}</td><td>{{features}}</td></tr>
+  {% for (status,age,board,vehicle,link,features,git_hash_short) in build_status %}
+  <tr class="{{status}}"><td><a href="{{link}}" target="_blank">{{status}}</a></td><td>{{age}}</td><td>{{board}}</td><td>{{vehicle}}</td><td>{{features}}</td><td>{{git_hash_short}}</td></tr>
   {% endfor %}
   </tbody>
 </table>
