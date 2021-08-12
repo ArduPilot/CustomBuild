@@ -158,20 +158,20 @@ ul#testlogs li a:hover {
 
 .status-table tbody tr.Error {
     font-weight: bold;
-    background-color: rgba(255,0,0,0.4);
+    background-color: rgba(255,0,0,0.2);
 }
 
 .status-table tbody tr.Pending {
     font-weight: bold;
-    background-color: rgba(128,128,0,0.2);
+    background-color: rgba(128,128,0,0.1);
 }
 
 .status-table tbody tr.Finished {
     font-weight: bold;
-    background-color: rgba(0,255,0,0.2);
+    background-color: rgba(0,255,0,0.1);
 }
 
 .status-table tbody tr.Running {
     font-weight: bold;
-    background-color: rgba(0,255,0,0.4);
+    background-color: rgba(0,255,0,0.15);
 }
