@@ -23,21 +23,34 @@
         <form action="/generate" method="post">
             <label for="vehicle">Choose a vehicle:</label>
             <select name="vehicle">
-                {% for vehicle in get_vehicles() %}
-                <option value="{{vehicle}}">{{vehicle}}</option>
+                {% for vehicle in get_vehicles()[0] %}
+                    {% if vehicle == get_vehicles()[1] %}
+                        <option value="{{vehicle}}" selected>{{vehicle}}</option>
+                    {% else %}
+                        <option value="{{vehicle}}">{{vehicle}}</option>
+                    {% endif %}
                 {% endfor %}
             </select>
             <br><br>
             <label for="board">Choose a board:</label>
             <select name="board">
-                {% for board in get_boards() %}
-                <option value="{{board}}">{{board}}</option>
+                {% for board in get_boards()[0] %}
+                    {% if board == get_boards()[1] %}
+                        <option value="{{board}}" selected>{{board}}</option>
+                    {% else %}
+                        <option value="{{board}}">{{board}}</option>
+                    {% endif %}
                 {% endfor %}
             </select>
             <br><br>
-            {% for (label,define,text) in get_build_options() %}
-            <input type="checkbox" name="{{label}}" value="define {{define}} 1">
-            <input type="hidden" name="{{label}}" value="define {{define}} 0"> {{text}}
+            {% for (label,define,text,default) in get_build_options() %}
+                {% if default == '0' %}
+                    <input type="checkbox" name="{{label}}" value="define {{define}} 1">
+                    <input type="hidden" name="{{label}}" value="define {{define}} 0"> {{text}}
+                {% else %}
+                    <input type="checkbox" name="{{label}}" value="define {{define}} 1" checked>
+                    <input type="hidden" name="{{label}}" value="define {{define}} 0"> {{text}}
+                {% endif %}
             <br>
             {% endfor %}
             <br>

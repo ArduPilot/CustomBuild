@@ -19,6 +19,10 @@ os.nice(20)
 
 appdir = os.path.dirname(__file__)
 
+VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub' ]
+default_vehicle = 'Copter'
+default_board = 'BeastF7'
+
 def get_boards():
     '''return a list of boards to build'''
     import importlib.util
@@ -28,23 +32,21 @@ def get_boards():
                                                   'board_list.py'))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return mod.AUTOBUILD_BOARDS
+    return (mod.AUTOBUILD_BOARDS, default_board)
     
     #return BOARDS
 
 # list of build options to offer
 BUILD_OPTIONS = [ 
-    ('EKF2', 'HAL_NAVEKF2_AVAILABLE', 'Enable EKF2'),
-    ('EKF3', 'HAL_NAVEKF3_AVAILABLE', 'Enable EKF3'),
-    ('DSP',  'HAL_WITH_DSP', 'Enable DSP'),
-    ('SPRAYER', 'HAL_SPRAYER_ENABLED', 'Enable Sprayer'),
-    ('PARACHUTE', 'HAL_PARACHUTE_ENABLED', 'Enable Parachute'),
-    ('MOUNT', 'HAL_MOUNT_ENABLED', 'Enable Mount'),
-    ('HOTT_TELEM', 'HAL_HOTT_TELEM_ENABLED', 'Enable HoTT Telemetry'),
-    ('BATTMON_FUEL', 'HAL_BATTMON_FUEL_ENABLE', 'Enable Fuel BatteryMonitor')
+    ('EKF2', 'HAL_NAVEKF2_AVAILABLE', 'Enable EKF2', '1'),
+    ('EKF3', 'HAL_NAVEKF3_AVAILABLE', 'Enable EKF3', '0'),
+    ('DSP',  'HAL_WITH_DSP', 'Enable DSP', '1'),
+    ('SPRAYER', 'HAL_SPRAYER_ENABLED', 'Enable Sprayer', '0'),
+    ('PARACHUTE', 'HAL_PARACHUTE_ENABLED', 'Enable Parachute', '0'),
+    ('MOUNT', 'HAL_MOUNT_ENABLED', 'Enable Mount', '0'),
+    ('HOTT_TELEM', 'HAL_HOTT_TELEM_ENABLED', 'Enable HoTT Telemetry', '0'),
+    ('BATTMON_FUEL', 'HAL_BATTMON_FUEL_ENABLE', 'Enable Fuel BatteryMonitor', '0')
     ]
-
-VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub' ]
 
 queue_lock = Lock()
 
@@ -339,7 +341,7 @@ def generate():
         feature_list = []
         selected_features = []
         app.logger.info('Fetching features from user input')
-        for (label, define, text) in BUILD_OPTIONS:
+        for (label, define, text, default) in BUILD_OPTIONS:
             if label not in request.form:
                 continue
             extra_hwdef.append(request.form[label])
@@ -467,7 +469,7 @@ def get_build_options():
     return BUILD_OPTIONS
 
 def get_vehicles():
-    return VEHICLES
+    return (VEHICLES, default_vehicle)
 
 @app.route('/')
 def home():
