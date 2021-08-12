@@ -33,8 +33,6 @@ def get_boards():
     spec.loader.exec_module(mod)
     default_board = mod.AUTOBUILD_BOARDS[11]
     return (mod.AUTOBUILD_BOARDS, default_board)
-    
-    #return BOARDS
 
 # list of build options to offer
 BUILD_OPTIONS = [ 
@@ -386,7 +384,7 @@ def generate():
                                                 encoding = 'utf-8')
         git_hash = git_hash[:len(git_hash)-1]
         app.logger.info('Git hash = ' + git_hash)
-        selected_features_dict['git_hash_short'] =git_hash_short
+        selected_features_dict['git_hash_short'] = git_hash_short
 
         # create directories using concatenated token 
         # of vehicle, board, git-hash of source, and md5sum of hwdef
@@ -395,7 +393,7 @@ def generate():
             raise Exception("bad vehicle")
 
         board = request.form['board']
-        if board not in get_boards():
+        if board not in get_boards()[0]:
             raise Exception("bad board")
 
         token = vehicle.lower() + ':' + board + ':' + git_hash + ':' + md5sum
