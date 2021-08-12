@@ -224,11 +224,21 @@ def get_build_status():
         a = b.split(':')
         if len(a) < 2:
             continue
-        vehicle = a[0]
+        vehicle = a[0].capitalize()
         board = a[1]
         link = "/view?token=%s" % b
         age_min = int(file_age(os.path.join(outdir_parent,b))/60.0)
         age_str = "%u:%02u" % ((age_min // 60), age_min % 60)
+        feature_file = os.path.join(outdir_parent, b, 'selected_features.json')
+        app.logger.info('Opening ' + feature_file)
+        selected_features_dict = json.loads(open(feature_file).read())
+        selected_features = selected_features_dict['selected_features']
+        features = ''
+        for feature in selected_features:
+            if features == '':
+                features = features + feature
+            else:
+                features = features + ", " + feature
         if os.path.exists(os.path.join(outdir_parent,b,'q.json')):
             status = "Pending"
         elif not os.path.exists(os.path.join(outdir_parent,b,'build.log')):
@@ -243,7 +253,7 @@ def get_build_status():
                 status = "Running"
             else:
                 status = "Failed"
-        ret.append((status,age_str,board,vehicle,link))
+        ret.append((status,age_str,board,vehicle,link,features))
     return ret
 
 def create_status():
@@ -270,7 +280,7 @@ def status_thread():
 
 def update_source():
     '''update submodules and ardupilot git tree'''
-    app.logger.info('Fetching ardupilot origin')
+    app.logger.info('Fetching ardupilot upstream')
     subprocess.run(['git', 'fetch', 'upstream'],
                    cwd=sourcedir)
     app.logger.info('Updating ardupilot git tree')
@@ -326,6 +336,7 @@ def generate():
         # fetch features from user input
         extra_hwdef = []
         feature_list = []
+        selected_features = []
         app.logger.info('Fetching features from user input')
         for (label, define, text) in BUILD_OPTIONS:
             if label not in request.form:
@@ -333,11 +344,14 @@ def generate():
             extra_hwdef.append(request.form[label])
             if request.form[label][-1] == '1':
                 feature_list.append(text)
+                selected_features.append(label)
             undefine = 'undef ' + define
             extra_hwdef.insert(0, undefine)
         extra_hwdef = '\n'.join(extra_hwdef)
-        spaces = '\n' + ' '*len('Selected Features: ')
+        spaces = '\n'
         feature_list = spaces.join(feature_list)
+        selected_features_dict = {}
+        selected_features_dict['selected_features'] = selected_features
 
         queue_lock.acquire()
 
@@ -374,13 +388,12 @@ def generate():
         vehicle = request.form['vehicle']
         if not vehicle in VEHICLES:
             raise Exception("bad vehicle")
-        vehicle = vehicle.lower()
 
         board = request.form['board']
         if board not in get_boards():
             raise Exception("bad board")
 
-        token = vehicle + ':' + board + ':' + git_hash + ':' + md5sum
+        token = vehicle.lower() + ':' + board + ':' + git_hash + ':' + md5sum
         app.logger.info('token = ' + token)
         global outdir
         outdir = os.path.join(outdir_parent, token)
@@ -392,7 +405,7 @@ def generate():
             # create build.log
             build_log_info = ('Vehicle: ' + vehicle +
                 '\nBoard: ' + board +
-                '\nSelected Features: ' + feature_list +
+                '\nSelected Features:\n' + feature_list +
                 '\n\nWaiting for build to start...\n\n')
             app.logger.info('Creating build.log')
             build_log = open(os.path.join(outdir, 'build.log'), 'w')
@@ -410,7 +423,7 @@ def generate():
             task['token'] = token
             task['sourcedir'] = sourcedir
             task['extra_hwdef'] = os.path.join(outdir, 'extra_hwdef.dat')
-            task['vehicle'] = vehicle
+            task['vehicle'] = vehicle.lower()
             task['board'] = board
             task['ip'] = request.remote_addr
             app.logger.info('Opening ' + os.path.join(outdir, 'q.json'))
@@ -419,6 +432,11 @@ def generate():
                             os.path.join(outdir, 'q.json'))
             jfile.write(json.dumps(task, separators=(',\n', ': ')))
             jfile.close()
+            # create selected_features.dat for status table
+            feature_file = open(os.path.join(outdir, 'selected_features.json'), 'w')
+            app.logger.info('Writing\n' + os.path.join(outdir, 'selected_features.json'))
+            feature_file.write(json.dumps(selected_features_dict))
+            feature_file.close()
 
         queue_lock.release()
 
@@ -429,7 +447,7 @@ def generate():
     
     except Exception as ex:
         app.logger.error(ex)
-        return render_template('generate.html', error='Error occured: ' + ex)
+        return render_template('generate.html', error='Error occured: ', ex=ex)
 
 @app.route('/view', methods=['GET'])
 def view():

@@ -1,10 +1,10 @@
 <table class="status-table">
   <thead>
-  <tr><th>Status</th><th>Age (hr:min)</th><th>Board</th><th>Vehicle</th></tr>
+  <tr><th>Status</th><th>Age (hr:min)</th><th>Board</th><th>Vehicle</th><th>Features</th></tr>
   </thead>
   <tbody>
-  {% for (status,age,board,vehicle,link) in build_status %}
-  <tr class="{{status}}"><td><a href="{{link}}" target="_blank">{{status}}</a></td><td>{{age}}</td><td>{{board}}</td><td>{{vehicle}}</td></tr>
+  {% for (status,age,board,vehicle,link,features) in build_status %}
+  <tr class="{{status}}"><td><a href="{{link}}" target="_blank">{{status}}</a></td><td>{{age}}</td><td>{{board}}</td><td>{{vehicle}}</td><td>{{features}}</td></tr>
   {% endfor %}
   </tbody>
 </table>
