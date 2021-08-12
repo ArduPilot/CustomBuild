@@ -9,7 +9,7 @@ import glob
 import time
 import fcntl
 from distutils.dir_util import copy_tree
-from flask import Flask, render_template, request, url_for, send_from_directory, render_template_string
+from flask import Flask, render_template, request, send_from_directory, render_template_string
 from threading import Thread, Lock
 
 # run at lower priority
@@ -35,6 +35,7 @@ def get_boards():
     return (mod.AUTOBUILD_BOARDS, default_board)
 
 # list of build options to offer
+# (label, define, text, default, category)
 BUILD_OPTIONS = [ 
     ('EKF2', 'HAL_NAVEKF2_AVAILABLE', 'Enable EKF2', '1', 'EKF'),
     ('EKF3', 'HAL_NAVEKF3_AVAILABLE', 'Enable EKF3', '0', 'EKF'),
@@ -45,6 +46,9 @@ BUILD_OPTIONS = [
     ('HOTT_TELEM', 'HAL_HOTT_TELEM_ENABLED', 'Enable HoTT Telemetry', '0', 'Other'),
     ('BATTMON_FUEL', 'HAL_BATTMON_FUEL_ENABLE', 'Enable Fuel BatteryMonitor', '0', 'Other')
     ]
+def build_options_sort(e):
+    return e[4]
+BUILD_OPTIONS.sort(key=build_options_sort)
 
 queue_lock = Lock()
 
