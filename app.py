@@ -98,12 +98,11 @@ def run_build(task, tmpdir, outdir, logpath):
 
         # setup PATH to point at our compiler
         env = os.environ.copy()
-        bindir = os.path.abspath(os.path.join(appdir, "..", "gcc", "bin"))
+        bindir1 = os.path.abspath(os.path.join(appdir, "..", "bin"))
+        bindir2 = os.path.abspath(os.path.join(appdir, "..", "gcc", "bin"))
         cachedir = os.path.abspath(os.path.join(appdir, "..", "cache"))
 
-        env["PATH"] = bindir + ":" + env["PATH"]
-        env["CC"] = "ccache arm-none-eabi-gcc"
-        env["CXX"] = "ccache arm-none-eabi-g++"
+        env["PATH"] = bindir1 + ":" + bindir2 + ":" + env["PATH"]
         env['CCACHE_DIR'] = cachedir
 
         app.logger.info('Running waf configure')
