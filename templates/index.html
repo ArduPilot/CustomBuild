@@ -31,7 +31,7 @@
                     {% endif %}
                 {% endfor %}
             </select>
-            <br><br>
+            <p/>
             <label for="board">Choose a board:</label>
             <select name="board">
                 {% for board in get_boards()[0] %}
@@ -42,17 +42,25 @@
                     {% endif %}
                 {% endfor %}
             </select>
-            <br><br>
-            {% for f in get_build_options() %}
-                {% if f.default == 0 %}
-                    <input type="checkbox" name="{{f.label}}" value="define {{f.define}} 1">
-                    <input type="hidden" name="{{f.label}}" value="define {{f.define}} 0"> {{f.description}}
-                {% else %}
-                    <input type="checkbox" name="{{f.label}}" value="define {{f.define}} 1" checked>
-                    <input type="hidden" name="{{f.label}}" value="define {{f.define}} 0"> {{f.description}}
-                {% endif %}
-            <br>
-            {% endfor %}
+            <p/>
+            <label for="board">Select Features:</label>
+            <ul>
+              {% for c in get_build_categories() %}
+              <li>{{c}}</li>
+                <ul>
+                  {% for f in get_build_options(c) %}
+                    <li>
+                    {% if f.default == 1 %}
+                    <input type="checkbox" name="{{f.label}}" value="1" checked>
+                    {% else %}
+                    <input type="checkbox" name="{{f.label}}" value="1">
+                    {% endif %}
+                    {{f.description}}
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% endfor %}
+            </ul>
             <br>
             <input type="submit" value="Generate" method="post">
         </form>
@@ -60,7 +68,7 @@
 <hr>
     <div id="build_status"></div>
 <br />
-    <script>
+      <script>
       function reload() {
             var output = document.getElementById('build_status');
             var xhr = new XMLHttpRequest();

@@ -350,15 +350,19 @@ def generate():
         feature_list = []
         selected_features = []
         app.logger.info('Fetching features from user input')
+
+        # add all undefs at the start
+        for f in BUILD_OPTIONS:
+            extra_hwdef.append('undef %s' % f.define)
+
         for f in BUILD_OPTIONS:
             if f.label not in request.form:
                 continue
-            extra_hwdef.append(request.form[f.label])
-            if request.form[f.label][-1] == '1':
+            if request.form[f.label] == '1':
+                extra_hwdef.append('define %s 1' % f.define)
                 feature_list.append(f.description)
                 selected_features.append(f.label)
-            undefine = 'undef ' + f.define
-            extra_hwdef.insert(0, undefine)
+
         extra_hwdef = '\n'.join(extra_hwdef)
         spaces = '\n'
         feature_list = spaces.join(feature_list)
@@ -464,8 +468,11 @@ def view():
     return render_template('generate.html', token=token)
 
     
-def get_build_options():
-    return BUILD_OPTIONS
+def get_build_options(category):
+    return [f for f in BUILD_OPTIONS if f.category == category]
+
+def get_build_categories():
+    return sorted(list(set([f.category for f in BUILD_OPTIONS])))
 
 def get_vehicles():
     return (VEHICLES, default_vehicle)
@@ -476,7 +483,8 @@ def home():
     return render_template('index.html',
                            get_boards=get_boards,
                            get_vehicles=get_vehicles,
-                           get_build_options=get_build_options)
+                           get_build_options=get_build_options,
+                           get_build_categories=get_build_categories)
 
 @app.route("/builds/<path:name>")
 def download_file(name):
