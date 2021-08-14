@@ -48,9 +48,9 @@ class Feature:
 
 # list of build options to offer
 BUILD_OPTIONS = [
-    Feature('EKF', 'EKF2', 'HAL_NAVEKF2_AVAILABLE', 'Enable EKF2', 1),
-    Feature('EKF', 'EKF3', 'HAL_NAVEKF3_AVAILABLE', 'Enable EKF3', 0),
-    Feature('Misc', 'DSP',  'HAL_WITH_DSP', 'Enable DSP', 1),
+    Feature('EKF', 'EKF3', 'HAL_NAVEKF3_AVAILABLE', 'Enable EKF3', 1),
+    Feature('EKF', 'EKF2', 'HAL_NAVEKF2_AVAILABLE', 'Enable EKF2', 0),
+    Feature('Misc', 'DSP',  'HAL_WITH_DSP', 'Enable DSP', 0),
     Feature('Misc', 'SPRAYER', 'HAL_SPRAYER_ENABLED', 'Enable Sprayer', 0),
     Feature('Safety', 'PARACHUTE', 'HAL_PARACHUTE_ENABLED', 'Enable Parachute', 0),
     Feature('Other', 'MOUNT', 'HAL_MOUNT_ENABLED', 'Enable Mount', 0),
