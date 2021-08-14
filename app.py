@@ -8,6 +8,7 @@ import shutil
 import glob
 import time
 import fcntl
+import hashlib
 from distutils.dir_util import copy_tree
 from flask import Flask, render_template, request, send_from_directory, render_template_string
 from threading import Thread, Lock
@@ -364,16 +365,9 @@ def generate():
         app.logger.info('Writing\n' + extra_hwdef)
         file.write(extra_hwdef)
         file.close()
-        app.logger.info('Getting md5sum')
-        md5sum = subprocess.check_output(['md5sum', 
-                                            os.path.join(outdir_parent, 
-                                            'extra_hwdef.dat')],
-                                            encoding = 'utf-8')
-        md5sum = md5sum[:len(md5sum)
-                        -(3+len(os.path.join(outdir_parent, 
-                                            'extra_hwdef.dat')))]
-        app.logger.info('md5sum = ' + md5sum)
-        app.logger.info('Removing ' + 
+
+        md5sum = hashlib.md5(extra_hwdef.encode('utf-8')).hexdigest()
+        app.logger.info('Removing ' +
                         os.path.join(outdir_parent, 'extra_hwdef.dat'))
         os.remove(os.path.join(outdir_parent, 'extra_hwdef.dat'))
 
