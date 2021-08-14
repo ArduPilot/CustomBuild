@@ -4,6 +4,7 @@
 <head>
 <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/main.css') }}">
 <script type="text/javascript" src="{{ url_for('static', filename='js/CollapsibleLists.js')}}"></script>
+<title>ArduPilot Custom Firmware Builder</title>
 </head>
 
 <body onload="javascript: reload()">
@@ -12,9 +13,8 @@
 <div id="logo">
 </div>
 </a>
-  
+
     <div id="menu">
-        <title>ArduPilot Custom Firmware Builder</title>
         <h2>ArduPilot Custom Firmware Builder</h2>
         <br><b>This site is EXPERIMENTAL</b>
 
@@ -64,7 +64,7 @@
               {% endfor %}
             </ul>
             <br>
-            <input type="submit" value="Generate" method="post">
+            <input type="submit" value="Generate">
         </form>
     </div>
 <hr>

@@ -28,13 +28,13 @@
             <input type="submit" value="See all builds" />
         </form>
         <form action="/">
-            <input type="submit" value="Queue another build" method="post">
+            <input type="submit" value="Queue another build">
         </form>
     </div>
     <p>Build ID: {{ token }}</p>
     <p>Build progress:</p>
     <textarea  
-        id="build_output" rows="30" cols="100" readonly autocomplete="off">
+        id="build_output" rows="30" cols="100" readonly>
     </textarea>
     <br><input type="checkbox" id="AutoScroll" checked>AutoScroll<script>
       function reload() {
