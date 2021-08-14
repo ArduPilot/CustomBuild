@@ -12,6 +12,7 @@ import hashlib
 from distutils.dir_util import copy_tree
 from flask import Flask, render_template, request, send_from_directory, render_template_string
 from threading import Thread, Lock
+from dataclasses import dataclass
 
 # run at lower priority
 os.nice(20)
@@ -35,21 +36,29 @@ def get_boards():
     default_board = mod.AUTOBUILD_BOARDS[11]
     return (mod.AUTOBUILD_BOARDS, default_board)
 
+
+@dataclass
+class Feature:
+    category: str
+    label: str
+    define: str
+    description: str
+    default: int
+
+
 # list of build options to offer
-# (label, define, text, default, category)
-BUILD_OPTIONS = [ 
-    ('EKF2', 'HAL_NAVEKF2_AVAILABLE', 'Enable EKF2', '1', 'EKF'),
-    ('EKF3', 'HAL_NAVEKF3_AVAILABLE', 'Enable EKF3', '0', 'EKF'),
-    ('DSP',  'HAL_WITH_DSP', 'Enable DSP', '1', 'Other'),
-    ('SPRAYER', 'HAL_SPRAYER_ENABLED', 'Enable Sprayer', '0', 'Other'),
-    ('PARACHUTE', 'HAL_PARACHUTE_ENABLED', 'Enable Parachute', '0', 'Other'),
-    ('MOUNT', 'HAL_MOUNT_ENABLED', 'Enable Mount', '0', 'Other'),
-    ('HOTT_TELEM', 'HAL_HOTT_TELEM_ENABLED', 'Enable HoTT Telemetry', '0', 'Other'),
-    ('BATTMON_FUEL', 'HAL_BATTMON_FUEL_ENABLE', 'Enable Fuel BatteryMonitor', '0', 'Other')
+BUILD_OPTIONS = [
+    Feature('EKF', 'EKF2', 'HAL_NAVEKF2_AVAILABLE', 'Enable EKF2', 1),
+    Feature('EKF', 'EKF3', 'HAL_NAVEKF3_AVAILABLE', 'Enable EKF3', 0),
+    Feature('Misc', 'DSP',  'HAL_WITH_DSP', 'Enable DSP', 1),
+    Feature('Misc', 'SPRAYER', 'HAL_SPRAYER_ENABLED', 'Enable Sprayer', 0),
+    Feature('Safety', 'PARACHUTE', 'HAL_PARACHUTE_ENABLED', 'Enable Parachute', 0),
+    Feature('Other', 'MOUNT', 'HAL_MOUNT_ENABLED', 'Enable Mount', 0),
+    Feature('Other', 'HOTT_TELEM', 'HAL_HOTT_TELEM_ENABLED', 'Enable HoTT Telemetry', 0),
+    Feature('Other', 'BATTMON_FUEL', 'HAL_BATTMON_FUEL_ENABLE', 'Enable Fuel BatteryMonitor', 0)
     ]
-def build_options_sort(e):
-    return e[4]
-BUILD_OPTIONS.sort(key=build_options_sort)
+
+BUILD_OPTIONS.sort(key=lambda x: x.category)
 
 queue_lock = Lock()
 
@@ -341,14 +350,14 @@ def generate():
         feature_list = []
         selected_features = []
         app.logger.info('Fetching features from user input')
-        for (label, define, text, default, category) in BUILD_OPTIONS:
-            if label not in request.form:
+        for f in BUILD_OPTIONS:
+            if f.label not in request.form:
                 continue
-            extra_hwdef.append(request.form[label])
-            if request.form[label][-1] == '1':
-                feature_list.append(text)
-                selected_features.append(label)
-            undefine = 'undef ' + define
+            extra_hwdef.append(request.form[f.label])
+            if request.form[f.label][-1] == '1':
+                feature_list.append(f.description)
+                selected_features.append(f.label)
+            undefine = 'undef ' + f.define
             extra_hwdef.insert(0, undefine)
         extra_hwdef = '\n'.join(extra_hwdef)
         spaces = '\n'
