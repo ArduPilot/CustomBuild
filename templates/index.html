@@ -3,6 +3,7 @@
 
 <head>
 <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/main.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
 </head>
 
 <body onload="javascript: reload()">
@@ -43,25 +44,27 @@
                 {% endfor %}
             </select>
             <p/>
-            <label for="board">Select Features:</label>
-            <ul>
-              {% for c in get_build_categories() %}
-              <li>{{c}}</li>
+            <div id="jstree">
+                <label for="board">Select Features:</label>
                 <ul>
-                  {% for f in get_build_options(c) %}
-                    <li>
-                    {% if f.default == 1 %}
-                    <input type="checkbox" name="{{f.label}}" value="1" checked>
-                    {% else %}
-                    <input type="checkbox" name="{{f.label}}" value="1">
-                    {% endif %}
-                    {{f.description}}
-                    </li>
-                  {% endfor %}
+                    {% for c in get_build_categories() %}
+                    <li>{{c}}
+                        <ul>
+                        {% for f in get_build_options(c) %}
+                            <li>
+                            {% if f.default == 1 %}
+                            <input type="checkbox" name="{{f.label}}" value="1" checked>
+                            {% else %}
+                            <input type="checkbox" name="{{f.label}}" value="1">
+                            {% endif %}
+                            {{f.description}}
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% endfor %}
                 </ul>
-              {% endfor %}
-            </ul>
-            <br>
+                <br>
+            </div>
             <input type="submit" value="Generate" method="post">
         </form>
     </div>
@@ -88,6 +91,15 @@
             xhr.send();
       }
     </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.12.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
+    <script>
+    $(function () {
+	$("#jstree").jstree({"plugins" : [ "themes", "html_data", "checkbox", "sort", "ui" ]});
+    });
+    </script>
+
 </body>
 
 <hr>

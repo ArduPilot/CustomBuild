@@ -17,8 +17,6 @@ from dataclasses import dataclass
 # run at lower priority
 os.nice(20)
 
-#BOARDS = [ 'BeastF7', 'BeastH7' ]
-
 appdir = os.path.dirname(__file__)
 
 VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub' ]
