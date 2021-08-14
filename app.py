@@ -376,10 +376,7 @@ def generate():
         git_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], 
                                             cwd = sourcedir,
                                             encoding = 'utf-8')
-        git_hash_short = subprocess.check_output(['git', 'rev-parse',
-                                                 '--short', 'HEAD'], 
-                                                cwd = sourcedir,
-                                                encoding = 'utf-8')
+        git_hash_short = git_hash[:10]
         git_hash = git_hash[:len(git_hash)-1]
         app.logger.info('Git hash = ' + git_hash)
         selected_features_dict['git_hash_short'] = git_hash_short
