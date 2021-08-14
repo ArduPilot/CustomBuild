@@ -36,10 +36,9 @@
     <textarea  
         id="build_output" rows="30" cols="100" readonly autocomplete="off">
     </textarea>
-    <script>
+    <br><input type="checkbox" id="AutoScroll" checked>AutoScroll<script>
       function reload() {
             var output = document.getElementById('build_output');
-            output.scrollTop = output.scrollHeight;
             var xhr = new XMLHttpRequest();
             xhr.open('GET', "/builds/{{token}}/build.log");
 
@@ -51,6 +50,11 @@
             xhr.onload = function() {
                 if (xhr.status == 200) {
                     output.textContent = xhr.responseText;
+
+                    var scrollcheck = document.getElementById('AutoScroll');
+                    if (scrollcheck.checked) {
+                        output.scrollTop = output.scrollHeight;
+                    }
                     if (xhr.responseText.includes("BUILD_FINISHED")) {
                         return;
                     }
