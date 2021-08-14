@@ -3,11 +3,12 @@
 
 <head>
 <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/main.css') }}">
+<script type="text/javascript" src="{{ url_for('static', filename='js/CollapsibleLists.js')}}"></script>
 </head>
 
 <body onload="javascript: reload()">
 <div id="main">
-<a href="https://firmware.ardupilot.org/">
+<a href="https://custom.ardupilot.org/">
 <div id="logo">
 </div>
 </a>
@@ -44,9 +45,9 @@
             </select>
             <p/>
             <label for="board">Select Features:</label>
-            <ul>
+            <ul class="collapsibleList">
               {% for c in get_build_categories() %}
-              <li>{{c}}</li>
+              <li>{{c}}
                 <ul>
                   {% for f in get_build_options(c) %}
                     <li>
@@ -59,6 +60,7 @@
                     </li>
                   {% endfor %}
                 </ul>
+               </li>
               {% endfor %}
             </ul>
             <br>
@@ -68,7 +70,8 @@
 <hr>
     <div id="build_status"></div>
 <br />
-      <script>
+       <script>
+      CollapsibleLists.apply();
       function reload() {
             var output = document.getElementById('build_status');
             var xhr = new XMLHttpRequest();

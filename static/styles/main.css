@@ -175,3 +175,17 @@ ul#testlogs li a:hover {
     font-weight: bold;
     background-color: rgba(0,255,0,0.15);
 }
+.collapsibleList li{
+  list-style-image : url('/static/images/bg.png');
+  cursor           : auto;
+}
+
+li.collapsibleListOpen{
+  list-style-image : url('/static/images/button-open.png');
+  cursor           : pointer;
+}
+
+li.collapsibleListClosed{
+  list-style-image : url('/static/images/button-closed.png');
+  cursor           : pointer;
+}
