@@ -11,6 +11,18 @@ Blog post: https://discuss.ardupilot.org/t/gsoc-2021-custom-firmware-builder/749
 This website uses the Flask library. Flask must be installed before use.  
 Directories: `ardupilot` must be within `base`, which must be in the same directory as `CustomBuild`.
 
+### Directory structure
+The ardupilot directory must be in the same directory as the CustomBuild directory.
+
+Use `--basedir` to adjust the base directory, the default one is `base`.
+It is expected that you have an environment where ArduPilot can be built. Otherwise, see [https://ardupilot.org/dev/docs/building-setup-linux.html](https://ardupilot.org/dev/docs/building-setup-linux.html)
+
+### Install Flask
+```
+python3 -m pip install --user -U flask
+```
+
+### Running
 To run:
 
 ```
