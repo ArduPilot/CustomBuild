@@ -1,31 +1,31 @@
 <!doctype html>
-<html>
+<html lang="en">
 
 <head>
-<link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/main.css') }}">
+    <meta charset="utf-8">
+    <title>ArduPilot Custom Firmware Builder</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/main.css') }}">
 </head>
 
-
-<title>ArduPilot Custom Firmware Builder</title>
 <h2>ArduPilot Custom Firmware Builder</h2>
 
 {% if error %}
-  <p>{{ error }} {{ex}}</p>
+<p>{{ error }} {{ex}}</p>
 {% else %}
-  <body onload="javascript: reload()">
+<body onload="javascript: reload()">
 
 <div id="main">
-<a href="https://custom.ardupilot.org/">
-<div id="logo">
-</div>
-</a>
+    <a href="https://custom.ardupilot.org/">
+        <div id="logo">
+        </div>
+    </a>
     <div id="menu">
         <p>Build in progress...</p>
         <form action="/builds/{{token}}" target="_blank">
-            <input type="submit" value="Go to build directory" />
+            <input type="submit" value="Go to build directory"/>
         </form>
         <form action="/builds" target="_blank">
-            <input type="submit" value="See all builds" />
+            <input type="submit" value="See all builds"/>
         </form>
         <form action="/">
             <input type="submit" value="Queue another build">
@@ -33,11 +33,12 @@
     </div>
     <p>Build ID: {{ token }}</p>
     <p>Build progress:</p>
-    <textarea  
-        id="build_output" rows="30" cols="100" readonly>
+    <textarea
+            id="build_output" rows="30" cols="100" readonly>
     </textarea>
-    <br><input type="checkbox" id="AutoScroll" checked>AutoScroll<script>
-      function reload() {
+    <br><input type="checkbox" id="AutoScroll" checked>AutoScroll
+    <script>
+        function reload() {
             var output = document.getElementById('build_output');
             var xhr = new XMLHttpRequest();
             xhr.open('GET', "/builds/{{token}}/build.log");
@@ -47,8 +48,8 @@
             xhr.setRequestHeader("Expires", "Tue, 01 Jan 1980 1:00:00 GMT");
             xhr.setRequestHeader("Pragma", "no-cache");
 
-            xhr.onload = function() {
-                if (xhr.status == 200) {
+            xhr.onload = function () {
+                if (xhr.status === 200) {
                     output.textContent = xhr.responseText;
 
                     var scrollcheck = document.getElementById('AutoScroll');
@@ -59,13 +60,13 @@
                         return;
                     }
                 }
-                setTimeout(reload,3000)
+                setTimeout(reload, 3000)
             }
             xhr.send();
-      }
+        }
     </script>
-
-  </body>
+</div>
+</body>
 {% endif %}
 
 </html>
