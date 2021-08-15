@@ -6,8 +6,27 @@ This is a website that generates a downloadable custom ArduPilot firmware, based
 
 ## For developers
 
-This website uses the flask library. The ardupilot directory must be in the same directory as the CustomBuild directory.
+This website uses the flask library.
 
+### Directory structure
+The ardupilot directory must be in the same directory as the CustomBuild directory.
+
+
+`╭─khancyr@pop-os ~/Workspace/ardupilot_custom_build
+╰─$ tree -d -L 1
+.
+├── ardupilot
+└── CustomBuild`
+
+Use `--basedir` to adjust the base directory, the default one is `base`.
+It is expected that you have an environement where ArduPilot can be built. Otherwise, see [https://ardupilot.org/dev/docs/building-setup-linux.html](https://ardupilot.org/dev/docs/building-setup-linux.html)
+
+### Install Flask
+```
+python3 -m pip install --user -U flask
+```
+
+### Running
 To run:
 
 ```
