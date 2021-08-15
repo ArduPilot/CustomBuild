@@ -1,78 +1,100 @@
 <!doctype html>
-
+<html lang="en">
 
 <head>
-<link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/main.css') }}">
-<script type="text/javascript" src="{{ url_for('static', filename='js/CollapsibleLists.js')}}"></script>
-<title>ArduPilot Custom Firmware Builder</title>
+    <meta charset="utf-8">
+    <title>ArduPilot Custom Firmware Builder</title>
+    <meta name="description"
+          content="ArduPilot Custom Firmware Builder. It allows to build custom ArduPilot firmware by selecting the wanted features.">
+    <meta name="author" content="ArduPilot Team">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- OG Meta Tags to improve the way the post looks when you share the page on LinkedIn, Facebook, Google+ -->
+    <meta property="og:site_name" content="ArduPilot"/>
+    <meta property="og:site" content=""/>
+    <meta property="og:title" content="ArduPilot Custom Firmware Builder"/>
+    <meta property="og:description"
+          content="ArduPilot Custom Firmware Builder. It allows to build custom ArduPilot firmware by selecting the wanted features."/>
+    <!-- description shown in the actual shared post -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://custom.ardupilot.org/">
+    <meta property="og:image" content="https://ardupilot.org/application/files/6315/7552/1962/ArduPilot-Motto.png">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/main.css') }}">
+
+    <script type="text/javascript" src="{{ url_for('static', filename='js/CollapsibleLists.js')}}"></script>
+
 </head>
 
 <body onload="javascript: reload()">
 <div id="main">
-<a href="https://custom.ardupilot.org/">
-<div id="logo">
-</div>
-</a>
+    <a href="https://custom.ardupilot.org/">
+        <div id="logo">
+        </div>
+    </a>
 
     <div id="menu">
         <h2>ArduPilot Custom Firmware Builder</h2>
         <br><b>This site is EXPERIMENTAL</b>
 
-
         <p>Please select the required options for the custom firmware build.</p>
 
         <form action="/generate" method="post">
-            <label for="vehicle">Choose a vehicle:</label>
-            <select name="vehicle">
-                {% for vehicle in get_vehicles()[0] %}
+            <label for="vehicle">Choose a vehicle:
+                <select name="vehicle">
+                    {% for vehicle in get_vehicles()[0] %}
                     {% if vehicle == get_vehicles()[1] %}
-                        <option value="{{vehicle}}" selected>{{vehicle}}</option>
+                    <option value="{{vehicle}}" selected>{{vehicle}}</option>
                     {% else %}
-                        <option value="{{vehicle}}">{{vehicle}}</option>
+                    <option value="{{vehicle}}">{{vehicle}}</option>
                     {% endif %}
-                {% endfor %}
-            </select>
-            <p/>
-            <label for="board">Choose a board:</label>
-            <select name="board">
-                {% for board in get_boards()[0] %}
+                    {% endfor %}
+                </select>
+            </label>
+            <p></p>
+            <label for="board">Choose a board:
+                <select name="board">
+                    {% for board in get_boards()[0] %}
                     {% if board == get_boards()[1] %}
-                        <option value="{{board}}" selected>{{board}}</option>
+                    <option value="{{board}}" selected>{{board}}</option>
                     {% else %}
-                        <option value="{{board}}">{{board}}</option>
+                    <option value="{{board}}">{{board}}</option>
                     {% endif %}
-                {% endfor %}
-            </select>
-            <p/>
-            <label for="board">Select Features:</label>
-            <ul class="collapsibleList">
-              {% for c in get_build_categories() %}
-              <li>{{c}}
-                <ul>
-                  {% for f in get_build_options(c) %}
-                    <li>
-                    {% if f.default == 1 %}
-                    <input type="checkbox" name="{{f.label}}" value="1" checked>
-                    {% else %}
-                    <input type="checkbox" name="{{f.label}}" value="1">
-                    {% endif %}
-                    {{f.description}}
+                    {% endfor %}
+                </select>
+            </label>
+            <p></p>
+            <label for="board">Select Features:
+                <ul class="collapsibleList">
+                    {% for c in get_build_categories() %}
+                    <li>{{c}}
+                        <ul>
+                            {% for f in get_build_options(c) %}
+                            <li>
+                                {% if f.default == 1 %}
+                                <input type="checkbox" name="{{f.label}}" value="1" checked>
+                                {% else %}
+                                <input type="checkbox" name="{{f.label}}" value="1">
+                                {% endif %}
+                                {{f.description}}
+                            </li>
+                            {% endfor %}
+                        </ul>
                     </li>
-                  {% endfor %}
+                    {% endfor %}
                 </ul>
-               </li>
-              {% endfor %}
-            </ul>
+            </label>
             <br>
             <input type="submit" value="Generate">
         </form>
     </div>
-<hr>
+    <hr>
     <div id="build_status"></div>
-<br />
-       <script>
-      CollapsibleLists.apply();
-      function reload() {
+    <br/>
+    <script>
+        CollapsibleLists.apply();
+
+        function reload() {
             var output = document.getElementById('build_status');
             var xhr = new XMLHttpRequest();
             xhr.open('GET', "/builds/status.html");
@@ -82,16 +104,18 @@
             xhr.setRequestHeader("Expires", "Tue, 01 Jan 1980 1:00:00 GMT");
             xhr.setRequestHeader("Pragma", "no-cache");
 
-            xhr.onload = function() {
-                if (xhr.status == 200) {
+            xhr.onload = function () {
+                if (xhr.status === 200) {
                     output.innerHTML = xhr.responseText;
                 }
-                setTimeout(reload,5000)
+                setTimeout(reload, 5000)
             }
             xhr.send();
-      }
+        }
     </script>
+</div>
 </body>
 
 <hr>
-<footer>Created by Will Piper, <a href=https://github.com/ArduPilot/CustomBuild>Source Code<a>.</footer>
+<footer>Created by Will Piper, <a href=https://github.com/ArduPilot/CustomBuild>Source Code</a>.</footer>
+</html>
