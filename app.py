@@ -9,6 +9,7 @@ import glob
 import time
 import fcntl
 import hashlib
+import fnmatch
 from distutils.dir_util import copy_tree
 from flask import Flask, render_template, request, send_from_directory, render_template_string
 from threading import Thread, Lock
@@ -27,14 +28,26 @@ default_vehicle = 'Copter'
 def get_boards():
     '''return a list of boards to build'''
     import importlib.util
-    spec = importlib.util.spec_from_file_location("build_binaries.py",
+    spec = importlib.util.spec_from_file_location("board_list.py",
                                                   os.path.join(sourcedir, 
                                                   'Tools', 'scripts', 
                                                   'board_list.py'))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    default_board = mod.AUTOBUILD_BOARDS[11]
-    return (mod.AUTOBUILD_BOARDS, default_board)
+    all_boards = mod.AUTOBUILD_BOARDS
+    default_board = mod.AUTOBUILD_BOARDS[0]
+    exclude_patterns = [ 'fmuv*', 'SITL*' ]
+    boards = []
+    for b in all_boards:
+        excluded = False
+        for p in exclude_patterns:
+            if fnmatch.fnmatch(b.lower(), p.lower()):
+                excluded = True
+                break
+        if not excluded:
+            boards.append(b)
+    boards.sort()
+    return (boards, boards[0])
 
 
 @dataclass
@@ -73,8 +86,8 @@ BUILD_OPTIONS = [
 
     Feature('MSP', 'MSP', 'HAL_MSP_ENABLED', 'Enable MSP Telemetry', 0),
     Feature('MSP', 'MSP_SENSORS', 'HAL_MSP_SENSORS_ENABLED', 'Enable MSP Sensors', 0),
-    Feature('MSP', 'MSP_OPTICALFLOW', 'HAL_MSP_OPTICALFLOW_ENABLED', 'Enable Msp opticalflow', 0),
-    Feature('MSP', 'MSP_RANGEFINDER', 'HAL_MSP_RANGEFINDER_ENABLED', 'Enable Msp rangefinder', 0),
+    Feature('MSP', 'MSP_OPTICALFLOW', 'HAL_MSP_OPTICALFLOW_ENABLED', 'Enable MSP OpticalFlow', 0),
+    Feature('MSP', 'MSP_RANGEFINDER', 'HAL_MSP_RANGEFINDER_ENABLED', 'Enable MSP Rangefinder', 0),
 
     Feature('ICE', 'EFI', 'HAL_EFI_ENABLED', 'Enable EFI Monitoring', 0),
     Feature('ICE', 'EFI_NMPWU', 'HAL_EFI_NWPWU_ENABLED', 'Enable EFI NMPMU', 0),
@@ -95,7 +108,7 @@ BUILD_OPTIONS = [
     Feature('Mode', 'MODE_FOLLOW', 'MODE_FOLLOW_ENABLED', 'Enable Mode Follow', 0),
     Feature('Mode', 'MODE_TURTLE', 'MODE_TURTLE_ENABLED', 'Enable Mode Turtle', 0),
     Feature('Mode', 'MODE_GUIDED_NOGPS', 'MODE_GUIDED_NOGPS_ENABLED', 'Enable Mode Guided NoGPS', 0),
-    Feature('Mode', 'QAUTOTUNE', 'QAUTOTUNE_ENABLED', 'Enable QAUTOTUNE', 0),
+    Feature('Mode', 'QAUTOTUNE', 'QAUTOTUNE_ENABLED', 'Enable Mode QAUTOTUNE', 0),
 
     Feature('Other', 'MOUNT', 'HAL_MOUNT_ENABLED', 'Enable Mount', 0),
     Feature('Other', 'SOARING', 'HAL_SOARING_ENABLED', 'Enable Soaring', 0),
@@ -528,7 +541,7 @@ def view():
 
     
 def get_build_options(category):
-    return [f for f in BUILD_OPTIONS if f.category == category]
+    return sorted([f for f in BUILD_OPTIONS if f.category == category], key=lambda x: x.description.lower())
 
 def get_build_categories():
     return sorted(list(set([f.category for f in BUILD_OPTIONS])))
