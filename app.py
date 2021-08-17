@@ -22,7 +22,7 @@ os.nice(20)
 
 appdir = os.path.dirname(__file__)
 
-VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub' ]
+VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'Tracker' ]
 default_vehicle = 'Copter'
 
 def get_boards():
