@@ -1,9 +1,9 @@
-# ArduPilot Custom Firmware Builder
+# ArduPilot Custom Firmware Builder - GSoC 2021 Project
 
 ## Summary
 
-https://custom.ardupilot.org  
-This is a website that generates a downloadable custom ArduPilot firmware, based on user selection.
+This is a website that generates a downloadable custom ArduPilot firmware, based on user selection.  
+Website: https://custom.ardupilot.org
 
 ## For developers
 
