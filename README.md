@@ -4,6 +4,7 @@
 
 This is a website that generates a downloadable custom ArduPilot firmware, based on user selection.  
 Website: https://custom.ardupilot.org
+Blog post: https://discuss.ardupilot.org/t/gsoc-2021-custom-firmware-builder/74946
 
 ## For developers
 
