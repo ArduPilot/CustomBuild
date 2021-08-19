@@ -96,7 +96,7 @@ BUILD_OPTIONS = [
     Feature('OSD', 'PLUSCODE', 'HAL_PLUSCODE_ENABLE', 'Enable PlusCode', 0),
     Feature('OSD', 'RUNCAM', 'HAL_RUNCAM_ENABLED', 'Enable RunCam', 0),
     Feature('OSD', 'SMARTAUDIO', 'HAL_SMARTAUDIO_ENABLED', 'Enable SmartAudio', 0),
-    Feature('OSD', 'OSD_PARAM', 'OSD_PARAM_ENABLED', 'Enable Osd param', 0),
+    Feature('OSD', 'OSD_PARAM', 'OSD_PARAM_ENABLED', 'Enable OSD param', 0),
 
     Feature('CAN', 'PICCOLOCAN', 'HAL_PICCOLO_CAN_ENABLE', 'Enable PiccoloCAN', 0),
     Feature('CAN', 'MPPTCAN', 'HAL_MPPT_PACKETDIGITAL_CAN_ENABLE', 'Enable MPPT CAN', 0),
@@ -259,10 +259,6 @@ def check_queue():
         copy_tree(os.path.join(tmpdir, task['board'], 'bin'), outdir)
         app.logger.info('Build successful!')
         remove_directory_recursive(tmpdir)
-        # remove extra_hwdef.dat and q.json
-        app.logger.info('Removing ' +
-                        os.path.join(outdir, 'extra_hwdef.dat'))
-        os.remove(os.path.join(outdir, 'extra_hwdef.dat'))
 
     except Exception as ex:
         app.logger.info(ex)('Build failed: ', ex)
@@ -428,9 +424,9 @@ def generate():
             extra_hwdef.append('undef %s' % f.define)
 
         for f in BUILD_OPTIONS:
-            if f.label not in request.form:
-                continue
-            if request.form[f.label] == '1':
+            if f.label not in request.form or request.form[f.label] != '1':
+                extra_hwdef.append('define %s 0' % f.define)
+            else:
                 extra_hwdef.append('define %s 1' % f.define)
                 feature_list.append(f.description)
                 selected_features.append(f.label)
