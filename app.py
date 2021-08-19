@@ -108,7 +108,6 @@ BUILD_OPTIONS = [
     Feature('Mode', 'MODE_FOLLOW', 'MODE_FOLLOW_ENABLED', 'Enable Mode Follow', 0),
     Feature('Mode', 'MODE_TURTLE', 'MODE_TURTLE_ENABLED', 'Enable Mode Turtle', 0),
     Feature('Mode', 'MODE_GUIDED_NOGPS', 'MODE_GUIDED_NOGPS_ENABLED', 'Enable Mode Guided NoGPS', 0),
-    Feature('Mode', 'QAUTOTUNE', 'QAUTOTUNE_ENABLED', 'Enable Mode QAUTOTUNE', 0),
 
     Feature('Other', 'MOUNT', 'HAL_MOUNT_ENABLED', 'Enable Mount', 0),
     Feature('Other', 'SOARING', 'HAL_SOARING_ENABLED', 'Enable Soaring', 0),
