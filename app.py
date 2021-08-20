@@ -108,13 +108,14 @@ BUILD_OPTIONS = [
     Feature('Mode', 'MODE_TURTLE', 'MODE_TURTLE_ENABLED', 'Enable Mode Turtle', 0),
     Feature('Mode', 'MODE_GUIDED_NOGPS', 'MODE_GUIDED_NOGPS_ENABLED', 'Enable Mode Guided NoGPS', 0),
 
-    Feature('Other', 'MOUNT', 'HAL_MOUNT_ENABLED', 'Enable Mount', 0),
+    Feature('Gimbal', 'MOUNT', 'HAL_MOUNT_ENABLED', 'Enable Mount', 0),
+    Feature('Gimbal', 'SOLOGIMBAL', 'HAL_SOLO_GIMBAL_ENABLED', 'Enable Solo Gimbal', 0),
+
     Feature('Other', 'SOARING', 'HAL_SOARING_ENABLED', 'Enable Soaring', 0),
     Feature('Other', 'DEEPSTALL', 'HAL_LANDING_DEEPSTALL_ENABLED', 'Enable Deepstall Landing', 0),
     Feature('Other', 'DSP',  'HAL_WITH_DSP', 'Enable DSP', 0),
     Feature('Other', 'SPRAYER', 'HAL_SPRAYER_ENABLED', 'Enable Sprayer', 0),
     Feature('Other', 'TORQEEDO', 'HAL_TORQEEDO_ENABLED', 'Enable Torqeedo Motors', 0),
-    Feature('Other', 'SOLOGIMBAL', 'HAL_SOLO_GIMBAL_ENABLED', 'Enable Solo Gimbal', 0),
     Feature('Other', 'RPM', 'RPM_ENABLED', 'Enable RPM', 0),
     Feature('Other', 'DISPLAY', 'HAL_DISPLAY_ENABLED', 'Enable I2C Displays', 0),
     Feature('Other', 'GRIPPER', 'GRIPPER_ENABLED', 'Enable Gripper', 0),
