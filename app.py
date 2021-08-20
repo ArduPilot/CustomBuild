@@ -120,7 +120,6 @@ BUILD_OPTIONS = [
     Feature('Other', 'GRIPPER', 'GRIPPER_ENABLED', 'Enable Gripper', 0),
     Feature('Other', 'BEACON', 'BEACON_ENABLED', 'Enable Beacon', 0),
     Feature('Other', 'LANDING_GEAR', 'LANDING_GEAR_ENABLED', 'Enable Landing Gear', 0),
-    Feature('Other', 'EXTERNAL_AHRS', 'HAL_EXTERNAL_AHRS_ENABLED', 'Enable External ahrs', 0),
     Feature('Other', 'NMEA_OUTPUT', 'HAL_NMEA_OUTPUT_ENABLED', 'Enable NMEA Output', 0),
     Feature('Other', 'BARO_WIND_COMP', 'HAL_BARO_WIND_COMP_ENABLED', 'Enable Baro Wind Compensation', 0),
     Feature('Other', 'GENERATOR', 'GENERATOR_ENABLED', 'Enable Generator', 0),
