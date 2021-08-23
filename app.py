@@ -13,7 +13,8 @@ import fnmatch
 from distutils.dir_util import copy_tree
 from flask import Flask, render_template, request, send_from_directory, render_template_string
 from threading import Thread, Lock
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import List
 
 # run at lower priority
 os.nice(20)
@@ -59,8 +60,8 @@ class Feature:
     default: int
     dependency: str
 
-
 # list of build options to offer
+# NOTE: the dependencies must be written as a single string with commas and no spaces, eg. 'dependency1,dependency2'
 BUILD_OPTIONS = [
     Feature('AHRS', 'EKF3', 'HAL_NAVEKF3_AVAILABLE', 'Enable EKF3', 1, None),
     Feature('AHRS', 'EKF2', 'HAL_NAVEKF2_AVAILABLE', 'Enable EKF2', 0, None),
