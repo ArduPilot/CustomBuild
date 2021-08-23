@@ -13,8 +13,7 @@ import fnmatch
 from distutils.dir_util import copy_tree
 from flask import Flask, render_template, request, send_from_directory, render_template_string
 from threading import Thread, Lock
-from dataclasses import dataclass, field
-from typing import List
+from dataclasses import dataclass
 
 # run at lower priority
 os.nice(20)
