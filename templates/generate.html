@@ -2,11 +2,11 @@
 <html>
 
 <head>
+    <title>ArduPilot Custom Firmware Builder</title>
     <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/main.css') }}">
 </head>
 
 
-<title>ArduPilot Custom Firmware Builder</title>
 <h2>ArduPilot Custom Firmware Builder</h2>
 
 {% if error %}
@@ -33,8 +33,7 @@
     </div>
     <p>Build ID: {{ token }}</p>
     <p>Build progress:</p>
-    <textarea
-            id="build_output" rows="30" cols="100" readonly>
+    <textarea id="build_output" rows="30" cols="100" readonly>
     </textarea>
     <br><input type="checkbox" id="AutoScroll" checked>AutoScroll
     <script>
@@ -49,7 +48,7 @@
             xhr.setRequestHeader("Pragma", "no-cache");
 
             xhr.onload = function () {
-                if (xhr.status == 200) {
+                if (xhr.status === 200) {
                     output.textContent = xhr.responseText;
 
                     var scrollcheck = document.getElementById('AutoScroll');
@@ -65,7 +64,7 @@
             xhr.send();
         }
     </script>
-
+</div>
 </body>
 {% endif %}
 

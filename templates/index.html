@@ -24,49 +24,52 @@
         <textarea style="float:right" readonly>hello</textarea>
 
         <form action="/generate" method="post">
-            <label for="vehicle">Choose a vehicle:</label>
-            <select name="vehicle">
-                {% for vehicle in get_vehicles()[0] %}
-                {% if vehicle == get_vehicles()[1] %}
-                <option value="{{vehicle}}" selected>{{vehicle}}</option>
-                {% else %}
-                <option value="{{vehicle}}">{{vehicle}}</option>
-                {% endif %}
-                {% endfor %}
-            </select>
-            <p/>
-            <label for="board">Choose a board:</label>
-            <select name="board">
-                {% for board in get_boards()[0] %}
-                {% if board == get_boards()[1] %}
-                <option value="{{board}}" selected>{{board}}</option>
-                {% else %}
-                <option value="{{board}}">{{board}}</option>
-                {% endif %}
-                {% endfor %}
-            </select>
-            <p/>
-            <label for="board">Select Features:</label>
-            <ul class="collapsibleList">
-                {% for c in get_build_categories() %}
-                <li>{{c}}
-                    <ul>
-                        {% for f in get_build_options(c) %}
-                        <li>
-                            {% if f.default == 1 %}
-                            <input onclick='dependencies(this, "{{f.label}}", "{{f.dependency}}");' type="checkbox"
-                                   name="{{f.label}}" id="{{f.label}}" value="1" checked>
-                            {% else %}
-                            <input onclick='dependencies(this, "{{f.label}}", "{{f.dependency}}");' type="checkbox"
-                                   name="{{f.label}}" id="{{f.label}}" value="1">
-                            {% endif %}
-                            {{f.description}}
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </li>
-                {% endfor %}
-            </ul>
+            <label for="vehicle">Choose a vehicle:
+                <select name="vehicle">
+                    {% for vehicle in get_vehicles()[0] %}
+                    {% if vehicle == get_vehicles()[1] %}
+                    <option value="{{vehicle}}" selected>{{vehicle}}</option>
+                    {% else %}
+                    <option value="{{vehicle}}">{{vehicle}}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </label>
+            <p></p>
+            <label for="board">Choose a board:
+                <select name="board">
+                    {% for board in get_boards()[0] %}
+                    {% if board == get_boards()[1] %}
+                    <option value="{{board}}" selected>{{board}}</option>
+                    {% else %}
+                    <option value="{{board}}">{{board}}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </label>
+            <p></p>
+            <label for="board">Select Features:
+                <ul class="collapsibleList">
+                    {% for c in get_build_categories() %}
+                    <li>{{c}}
+                        <ul>
+                            {% for f in get_build_options(c) %}
+                            <li>
+                                {% if f.default == 1 %}
+                                <input onclick='dependencies(this, "{{f.label}}", "{{f.dependency}}");' type="checkbox"
+                                       name="{{f.label}}" id="{{f.label}}" value="1" checked>
+                                {% else %}
+                                <input onclick='dependencies(this, "{{f.label}}", "{{f.dependency}}");' type="checkbox"
+                                       name="{{f.label}}" id="{{f.label}}" value="1">
+                                {% endif %}
+                                {{f.description}}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </label>
             <br>
             <input type="submit" value="Generate">
         </form>
@@ -88,7 +91,7 @@
             xhr.setRequestHeader("Pragma", "no-cache");
 
             xhr.onload = function () {
-                if (xhr.status == 200) {
+                if (xhr.status === 200) {
                     output.innerHTML = xhr.responseText;
                 }
                 setTimeout(reload, 5000)
@@ -110,7 +113,9 @@
             }
         }
     </script>
+</div>
 </body>
 
 <hr>
-<footer>Created by Will Piper, <a href=https://github.com/ArduPilot/CustomBuild>Source Code<a>.</footer>
+<footer>Created by Will Piper, <a href=https://github.com/ArduPilot/CustomBuild>Source Code</a>.</footer>
+</html>
