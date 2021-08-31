@@ -86,9 +86,14 @@ BUILD_OPTIONS = [
     Feature('Telemetry', 'SPEKTRUM', 'HAL_SPEKTRUM_TELEM_ENABLED', 'Enable Spektrum Telemetry', 0, None),
 
     Feature('MSP', 'MSP', 'HAL_MSP_ENABLED', 'Enable MSP Telemetry', 0, None),
-    Feature('MSP', 'MSP_SENSORS', 'HAL_MSP_SENSORS_ENABLED', 'Enable MSP Sensors', 0, None),
-    Feature('MSP', 'MSP_OPTICALFLOW', 'HAL_MSP_OPTICALFLOW_ENABLED', 'Enable MSP OpticalFlow', 0, None),
-    Feature('MSP', 'MSP_RANGEFINDER', 'HAL_MSP_RANGEFINDER_ENABLED', 'Enable MSP Rangefinder', 0, None),
+    Feature('MSP', 'MSP_SENSORS', 'HAL_MSP_SENSORS_ENABLED', 'Enable MSP Sensors', 0, 'MSP_GPS,MSP_BARO,MSP_COMPASS,MSP_AIRSPEED,MSP,MSP_OPTICALFLOW,MSP_RANGEFINDER'),
+    Feature('MSP', 'MSP_GPS', 'HAL_MSP_GPS_ENABLED', 'Enable MSP GPS', 0, 'MSP'),
+    Feature('MSP', 'MSP_COMPASS', 'HAL_MSP_COMPASS_ENABLED', 'Enable MSP Compass', 0, 'MSP'),
+    Feature('MSP', 'MSP_BARO', 'HAL_MSP_BARO_ENABLED', 'Enable MSP Baro', 0, 'MSP'),
+    Feature('MSP', 'MSP_AIRSPEED', 'HAL_MSP_AIRSPEED_ENABLED', 'Enable MSP AirSpeed', 0, 'MSP'),
+    Feature('MSP', 'MSP_OPTICALFLOW', 'HAL_MSP_OPTICALFLOW_ENABLED', 'Enable MSP OpticalFlow', 0, 'MSP'),
+    Feature('MSP', 'MSP_RANGEFINDER', 'HAL_MSP_RANGEFINDER_ENABLED', 'Enable MSP Rangefinder', 0, 'MSP'),
+    Feature('MSP', 'MSP_DISPLAYPORT', 'HAL_WITH_MSP_DISPLAYPORT', 'Enable MSP DisplayPort (aka CANVAS MODE)', 0, 'MSP'),
 
     Feature('ICE', 'EFI', 'HAL_EFI_ENABLED', 'Enable EFI Monitoring', 0, None),
     Feature('ICE', 'EFI_NMPWU', 'HAL_EFI_NWPWU_ENABLED', 'Enable EFI NMPMU', 0, None),
