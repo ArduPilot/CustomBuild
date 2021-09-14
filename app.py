@@ -133,6 +133,8 @@ BUILD_OPTIONS = [
     Feature('Other', 'GENERATOR', 'GENERATOR_ENABLED', 'Enable Generator', 0, None),
     Feature('Other', 'AC_OAPATHPLANNER', 'AC_OAPATHPLANNER_ENABLED', 'Enable Object Avoidance Path Planner', 0, None),
     Feature('Other', 'WINCH', 'WINCH_ENABLED', 'Enable Winch', 0, None),
+
+    Feature('Plane', 'QUADPLANE', 'HAL_QUADPLANE_ENABLED', 'Enable QuadPlane support', 0, None),
     ]
 
 BUILD_OPTIONS.sort(key=lambda x: x.category)
