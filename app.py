@@ -130,7 +130,7 @@ BUILD_OPTIONS = [
     Feature('Other', 'EXTERNAL_AHRS', 'HAL_EXTERNAL_AHRS_ENABLED', 'Enable External ahrs', 0, None),
     Feature('Other', 'NMEA_OUTPUT', 'HAL_NMEA_OUTPUT_ENABLED', 'Enable NMEA Output', 0, None),
     Feature('Other', 'BARO_WIND_COMP', 'HAL_BARO_WIND_COMP_ENABLED', 'Enable Baro Wind Compensation', 0, None),
-    Feature('Other', 'GENERATOR', 'GENERATOR_ENABLED', 'Enable Generator', 0, None),
+    Feature('Other', 'GENERATOR', 'HAL_GENERATOR_ENABLED', 'Enable Generator', 0, None),
     Feature('Other', 'AC_OAPATHPLANNER', 'AC_OAPATHPLANNER_ENABLED', 'Enable Object Avoidance Path Planner', 0, None),
     Feature('Other', 'WINCH', 'WINCH_ENABLED', 'Enable Winch', 0, None),
 
