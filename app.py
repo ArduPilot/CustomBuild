@@ -147,6 +147,7 @@ BUILD_OPTIONS = [
     # Feature('Other', 'OPTFLOW', 'OPTFLOW', 'Enable Optical Flow', 0, None),
 
     Feature('Plane', 'QUADPLANE', 'HAL_QUADPLANE_ENABLED', 'Enable QuadPlane support', 0, None),
+    Feature('Other', 'AIRSPEED', 'AP_AIRSPEED_ENABLED', 'Enable Airspeed Sensors', 1, None),    # Default to enabled to not annoy Plane users
     ]
 
 BUILD_OPTIONS.sort(key=lambda x: x.category)
