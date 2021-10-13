@@ -134,7 +134,8 @@ BUILD_OPTIONS = [
     Feature('Other', 'AC_OAPATHPLANNER', 'AC_OAPATHPLANNER_ENABLED', 'Enable Object Avoidance Path Planner', 0, None),
     Feature('Other', 'WINCH', 'WINCH_ENABLED', 'Enable Winch', 0, None),
     Feature('Other', 'GPS_MOVING_BASELINE', 'GPS_MOVING_BASELINE', 'Enable GPS Moving Baseline', 0, None),
-    Feature('Other', 'OPTFLOW', 'OPTFLOW', 'Enable Optical Flow', 0, None),
+    # disable OPTFLOW until we cope with enum clash
+    # Feature('Other', 'OPTFLOW', 'OPTFLOW', 'Enable Optical Flow', 0, None),
 
     Feature('Plane', 'QUADPLANE', 'HAL_QUADPLANE_ENABLED', 'Enable QuadPlane support', 0, None),
     ]
