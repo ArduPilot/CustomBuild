@@ -26,7 +26,7 @@ VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'Tracker' ]
 default_vehicle = 'Copter'
 default_repository = 'andyp1per'
 default_branch = 'pr-lua-apm-build'
-default_branch_spec = '%s/%s' % default_repository, default_branch
+default_branch_spec = '%s/%s' % (default_repository, default_branch)
 
 def get_boards():
     '''return a list of boards to build'''
