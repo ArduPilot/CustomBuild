@@ -24,6 +24,9 @@ appdir = os.path.dirname(__file__)
 
 VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'Tracker' ]
 default_vehicle = 'Copter'
+default_repository = 'andyp1per'
+default_branch = 'pr-lua-apm-build'
+default_branch_spec = '%s/%s' % default_repository, default_branch
 
 def get_boards():
     '''return a list of boards to build'''
@@ -370,12 +373,12 @@ def status_thread():
 
 def update_source():
     '''update submodules and ardupilot git tree'''
-    app.logger.info('Fetching ardupilot upstream')
-    subprocess.run(['git', 'fetch', 'upstream'],
+    app.logger.info('Fetching ardupilot %s' % default_repository)
+    subprocess.run(['git', 'fetch', default_repository],
                    cwd=sourcedir)
     app.logger.info('Updating ardupilot git tree')
     subprocess.run(['git', 'reset', '--hard',
-                    'upstream/master'],
+                    default_branch_spec],
                        cwd=sourcedir)
     app.logger.info('Updating submodules')
     subprocess.run(['git', 'submodule',
