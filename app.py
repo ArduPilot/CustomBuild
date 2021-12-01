@@ -73,6 +73,7 @@ BUILD_OPTIONS = [
 
     Feature('Battery', 'BATTMON_FUEL', 'HAL_BATTMON_FUEL_ENABLE', 'Enable Fuel BatteryMonitor', 0, None),
     Feature('Battery', 'BATTMON_SMBUS', 'HAL_BATTMON_SMBUS_ENABLE', 'Enable SMBUS BatteryMonitor', 0, None),
+    Feature('Battery', 'BATTMON_INA2XX', 'HAL_BATTMON_INA2XX_ENABLED', 'Enable INA2XX BatteryMonitor', 0, None),
 
     Feature('Ident', 'ADSB', 'HAL_ADSB_ENABLED', 'Enable ADSB', 0, None),
     Feature('Ident', 'ADSB_SAGETECH', 'HAL_ADSB_SAGETECH_ENABLED', 'Enable SageTech ADSB', 0, 'ADSB'),
