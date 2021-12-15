@@ -280,7 +280,7 @@ def check_queue():
         remove_directory_recursive(tmpdir)
 
     except Exception as ex:
-        app.logger.info(ex)('Build failed: ', ex)
+        app.logger.info('Build failed: ', ex)
         pass
     open(logpath,'a').write("\nBUILD_FINISHED\n")
 
@@ -302,7 +302,7 @@ def queue_thread():
             check_queue()
             remove_old_builds()
         except Exception as ex:
-            app.logger.error(ex)('Failed queue: ', ex)
+            app.logger.error('Failed queue: ', ex)
             pass
 
 def get_build_status():
