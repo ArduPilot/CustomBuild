@@ -347,7 +347,7 @@ def get_build_status():
             build = open(os.path.join(outdir_parent,b,'build.log')).read()
             if build.find("'%s' finished successfully" % vehicle.lower()) != -1:
                 status = "Finished"
-            elif build.find('The configuration failed') != -1 or build.find('Build failed') != -1:
+            elif build.find('The configuration failed') != -1 or build.find('Build failed') != -1 or build.find('compilation terminated') != -1:
                 status = "Failed"
             elif build.find('BUILD_FINISHED') == -1:
                 status = "Running"
