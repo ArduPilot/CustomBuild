@@ -94,6 +94,8 @@ systemctl reload apache2
 USER=www-data
 GROUP=www-data
 
+perl -pe 's%(www-data.*)/var/www::/usr/sbin/nologin%$1:/base:/bin/bash%' -i /etc/passwd
+
 # create and change permissions of /base - need to work out how to
 # effectively pass in --basedir to the WSGI at some stage
 for DIR in /base /base/builds /base/tmp; do
