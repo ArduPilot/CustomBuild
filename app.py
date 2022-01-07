@@ -24,7 +24,7 @@ appdir = os.path.dirname(__file__)
 VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'Tracker' ]
 default_vehicle = 'Copter'
 
-def get_boards():
+def get_boards_from_ardupilot_tree():
     '''return a list of boards to build'''
     import importlib.util
     spec = importlib.util.spec_from_file_location("board_list.py",
@@ -45,6 +45,10 @@ def get_boards():
                 break
         if not excluded:
             boards.append(b)
+    return boards
+
+def get_boards():
+    boards = get_boards_from_ardupilot_tree()
     boards.sort()
     return (boards, boards[0])
 
