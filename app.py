@@ -26,6 +26,7 @@ default_vehicle = 'Copter'
 
 def get_boards_from_ardupilot_tree():
     '''return a list of boards to build'''
+    tstart = time.time()
     import importlib.util
     spec = importlib.util.spec_from_file_location("board_list.py",
                                                   os.path.join(sourcedir, 
@@ -45,21 +46,25 @@ def get_boards_from_ardupilot_tree():
                 break
         if not excluded:
             boards.append(b)
+    app.logger.info('Took %f seconds to get boards' % (time.time() - tstart))
     return boards
 
 def get_boards():
-    boards = get_boards_from_ardupilot_tree()
+    global BOARDS
+    boards = BOARDS
     boards.sort()
     return (boards, boards[0])
 
 def get_build_options_from_ardupilot_tree():
     '''return a list of build options'''
+    tstart = time.time()
     import importlib.util
     spec = importlib.util.spec_from_file_location(
         "build_options.py",
         os.path.join(sourcedir, 'Tools', 'scripts', 'build_options.py'))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
+    app.logger.info('Took %f seconds to get build options' % (time.time() - tstart))
     return mod.BUILD_OPTIONS
 
 queue_lock = Lock()
@@ -289,7 +294,7 @@ def status_thread():
         time.sleep(3)
 
 def update_source():
-    '''update submodules and ardupilot git tree'''
+    '''update submodules and ardupilot git tree.  Returns new source git hash'''
     app.logger.info('Fetching ardupilot upstream')
     subprocess.run(['git', 'fetch', 'upstream'],
                    cwd=sourcedir)
@@ -302,7 +307,15 @@ def update_source():
                     'update', '--recursive',
                         '--force', '--init'],
                        cwd=sourcedir)
-        
+    source_git_hash = subprocess.check_output([
+        'git',
+        'rev-parse',
+        'HEAD',
+    ], cwd=sourcedir, encoding = 'utf-8')
+    source_git_hash = source_git_hash.rstrip()
+    app.logger.info('new git hash ' + source_git_hash)
+    return source_git_hash
+
 import optparse
 parser = optparse.OptionParser("app.py")
 
@@ -338,19 +351,37 @@ try:
 except IOError:
     app.logger.info("No queue lock")
 
+app.logger.info('Initial fetch')
+global SOURCE_GIT_HASH
+global BUILD_OPTIONS
+global BOARDS
+SOURCE_GIT_HASH = update_source()
+# get build options from source:
+BUILD_OPTIONS = get_build_options_from_ardupilot_tree()
+BOARDS = get_boards_from_ardupilot_tree()
+
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
     try:
-        update_source()
+        new_git_hash = update_source()
+
+        global SOURCE_GIT_HASH
+        global BUILD_OPTIONS
+        global BOARDS
+        if new_git_hash == SOURCE_GIT_HASH:
+            app.logger.info('Source git hash unchanged')
+        else:
+            app.logger.info('Source git hash changed; refreshing')
+            SOURCE_GIT_HASH = new_git_hash
+            # get build options from source:
+            BUILD_OPTIONS = get_build_options_from_ardupilot_tree()
+            BOARDS = get_boards_from_ardupilot_tree()
 
         # fetch features from user input
         extra_hwdef = []
         feature_list = []
         selected_features = []
         app.logger.info('Fetching features from user input')
-
-        # get build options from source:
-        BUILD_OPTIONS = get_build_options_from_ardupilot_tree()
 
         # add all undefs at the start
         for f in BUILD_OPTIONS:
@@ -385,14 +416,9 @@ def generate():
                         os.path.join(outdir_parent, 'extra_hwdef.dat'))
         os.remove(os.path.join(outdir_parent, 'extra_hwdef.dat'))
 
-        # obtain git-hash of source
-        app.logger.info('Getting git hash')
-        git_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], 
-                                            cwd = sourcedir,
-                                            encoding = 'utf-8')
-        git_hash_short = git_hash[:10]
-        git_hash = git_hash[:len(git_hash)-1]
-        app.logger.info('Git hash = ' + git_hash)
+        git_hash_short = SOURCE_GIT_HASH[:10]
+        git_hash = SOURCE_GIT_HASH[:len(SOURCE_GIT_HASH)-1]
+        app.logger.info('Git hash = ' + SOURCE_GIT_HASH)
         selected_features_dict['git_hash_short'] = git_hash_short
 
         # create directories using concatenated token 
@@ -405,7 +431,7 @@ def generate():
         if board not in get_boards()[0]:
             raise Exception("bad board")
 
-        token = vehicle.lower() + ':' + board + ':' + git_hash + ':' + md5sum
+        token = vehicle.lower() + ':' + board + ':' + SOURCE_GIT_HASH + ':' + md5sum
         app.logger.info('token = ' + token)
         global outdir
         outdir = os.path.join(outdir_parent, token)
@@ -481,7 +507,7 @@ def get_vehicles():
 @app.route('/')
 def home():
     app.logger.info('Rendering index.html')
-    BUILD_OPTIONS = get_build_options_from_ardupilot_tree()
+    global BUILD_OPTIONS
     return render_template('index.html',
                            get_boards=get_boards,
                            get_vehicles=get_vehicles,
