@@ -389,9 +389,14 @@ def generate():
 
         for f in BUILD_OPTIONS:
             if f.label not in request.form or request.form[f.label] != '1':
-                extra_hwdef.append('define %s 0' % f.define)
+                if f.is_env_not_define not True:
+                    extra_hwdef.append('define %s 0' % f.define)
             else:
-                extra_hwdef.append('define %s 1' % f.define)
+                if f.is_env_not_define:
+                    extra_hwdef.append('env %s 1' % f.define)
+                else:
+                    extra_hwdef.append('define %s 1' % f.define)
+                
                 feature_list.append(f.description)
                 selected_features.append(f.label)
 
