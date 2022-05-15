@@ -21,7 +21,7 @@ os.nice(20)
 
 appdir = os.path.dirname(__file__)
 
-VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'Tracker' ]
+VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'Tracker', 'Blimp', 'Heli']
 default_vehicle = 'Copter'
 BRANCHES = ['upstream/master', 'upstream/Plane-4.2', 'upstream/Copter-4.2', 'upstream/Rover-4.2']
 default_branch = 'upstream/master'
