@@ -23,6 +23,8 @@ appdir = os.path.dirname(__file__)
 
 VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'Tracker' ]
 default_vehicle = 'Copter'
+BRANCHES = ['upstream/master', 'upstream/Plane-4.2', 'upstream/Copter-4.2', 'upstream/Rover-4.2']
+default_branch = 'upstream/master'
 
 def get_boards_from_ardupilot_tree():
     '''return a list of boards to build'''
@@ -293,14 +295,14 @@ def status_thread():
             pass
         time.sleep(3)
 
-def update_source():
+def update_source(branch):
     '''update submodules and ardupilot git tree.  Returns new source git hash'''
-    app.logger.info('Fetching ardupilot upstream')
-    subprocess.run(['git', 'fetch', 'upstream'],
+    app.logger.info('Fetching ardupilot remote')
+    subprocess.run(['git', 'fetch', branch.split('/', 1)[0]],
                    cwd=sourcedir)
     app.logger.info('Updating ardupilot git tree')
     subprocess.run(['git', 'reset', '--hard',
-                    'upstream/master'],
+                    branch],
                        cwd=sourcedir)
     app.logger.info('Updating submodules')
     subprocess.run(['git', 'submodule',
@@ -355,7 +357,7 @@ app.logger.info('Initial fetch')
 global SOURCE_GIT_HASH
 global BUILD_OPTIONS
 global BOARDS
-SOURCE_GIT_HASH = update_source()
+SOURCE_GIT_HASH = update_source(default_branch)
 # get build options from source:
 BUILD_OPTIONS = get_build_options_from_ardupilot_tree()
 BOARDS = get_boards_from_ardupilot_tree()
@@ -363,7 +365,11 @@ BOARDS = get_boards_from_ardupilot_tree()
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
     try:
-        new_git_hash = update_source()
+        branch = request.form['branch']
+        if not branch in BRANCHES:
+            raise Exception("bad branch")
+
+        new_git_hash = update_source(branch)
 
         global SOURCE_GIT_HASH
         global BUILD_OPTIONS
@@ -443,6 +449,7 @@ def generate():
             # create build.log
             build_log_info = ('Vehicle: ' + vehicle +
                 '\nBoard: ' + board +
+                '\nBranch:' + branch +
                 '\nSelected Features:\n' + feature_list +
                 '\n\nWaiting for build to start...\n\n')
             app.logger.info('Creating build.log')
@@ -504,6 +511,9 @@ def get_build_categories(BUILD_OPTIONS):
 def get_vehicles():
     return (VEHICLES, default_vehicle)
 
+def get_branches():
+    return (BRANCHES, default_branch)
+
 @app.route('/')
 def home():
     app.logger.info('Rendering index.html')
@@ -511,6 +521,7 @@ def home():
     return render_template('index.html',
                            get_boards=get_boards,
                            get_vehicles=get_vehicles,
+                           get_branches=get_branches,
                            get_build_options=lambda x : get_build_options(BUILD_OPTIONS, x),
                            get_build_categories=lambda : get_build_categories(BUILD_OPTIONS))
 

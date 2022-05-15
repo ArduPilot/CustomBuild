@@ -39,6 +39,18 @@
         <p>Please select the required options for the custom firmware build, then hit 'Generate'.</p>
 
         <form action="/generate" method="post">
+            <label for="branch">Choose a branch:
+                <select name="branch">
+                    {% for branch in get_branches()[0] %}
+                    {% if branches == get_branches()[1] %}
+                    <option value="{{branch}}" selected>{{branch}}</option>
+                    {% else %}
+                    <option value="{{branch}}">{{branch}}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </label>
+            <p></p>
             <label for="vehicle">Choose a vehicle:
                 <select name="vehicle">
                     {% for vehicle in get_vehicles()[0] %}
