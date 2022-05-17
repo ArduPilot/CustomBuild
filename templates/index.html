@@ -21,7 +21,6 @@
     <meta property="og:image" content="https://ardupilot.org/application/files/6315/7552/1962/ArduPilot-Motto.png">
 
     <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/main.css') }}">
-    <script type="text/javascript" src="{{ url_for('static', filename='js/CollapsibleLists.js')}}"></script>
 </head>
 
 <body onload="javascript: reload()">
@@ -36,9 +35,9 @@
         <br><b>This site is EXPERIMENTAL</b>
 
 
-        <p>Please select the required options for the custom firmware build, then hit 'Generate'.</p>
+        <p>Please select the branch to build, then hit 'Next'.</p>
 
-        <form action="/generate" method="post">
+        <form action="/index2" method="post">
             <label for="branch">Choose a branch:
                 <select name="branch">
                     {% for branch in get_branches()[0] %}
@@ -50,55 +49,8 @@
                     {% endfor %}
                 </select>
             </label>
-            <p></p>
-            <label for="vehicle">Choose a vehicle:
-                <select name="vehicle">
-                    {% for vehicle in get_vehicles()[0] %}
-                    {% if vehicle == get_vehicles()[1] %}
-                    <option value="{{vehicle}}" selected>{{vehicle}}</option>
-                    {% else %}
-                    <option value="{{vehicle}}">{{vehicle}}</option>
-                    {% endif %}
-                    {% endfor %}
-                </select>
-            </label>
-            <p></p>
-            <label for="board">Choose a board:
-                <select name="board">
-                    {% for board in get_boards()[0] %}
-                    {% if board == get_boards()[1] %}
-                    <option value="{{board}}" selected>{{board}}</option>
-                    {% else %}
-                    <option value="{{board}}">{{board}}</option>
-                    {% endif %}
-                    {% endfor %}
-                </select>
-            </label>
-            <p></p>
-            <label for="board">Select Features:
-                <ul class="collapsibleList">
-                    {% for c in get_build_categories() %}
-                    <li>{{c}}
-                        <ul>
-                            {% for f in get_build_options(c) %}
-                            <li>
-                                {% if f.default == 1 %}
-                                <input onclick='dependencies(this, "{{f.label}}", "{{f.dependency}}");' type="checkbox"
-                                       name="{{f.label}}" id="{{f.label}}" value="1" checked>
-                                {% else %}
-                                <input onclick='dependencies(this, "{{f.label}}", "{{f.dependency}}");' type="checkbox"
-                                       name="{{f.label}}" id="{{f.label}}" value="1">
-                                {% endif %}
-                                {{f.description}}
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </label>
             <br>
-            <input type="submit" value="Generate">
+            <input type="submit" value="Next">
         </form>
     </div>
     <hr>
@@ -106,8 +58,6 @@
     <div id="build_status"></div>
     <br/>
     <script>
-        CollapsibleLists.apply();
-
         function reload() {
             var output = document.getElementById('build_status');
             var xhr = new XMLHttpRequest();
@@ -127,19 +77,6 @@
             xhr.send();
         }
 
-        function dependencies(cb, f_label, f_dependency1) {
-            switch (cb.name) {
-                case f_label:
-                    const f_dependency = f_dependency1.split(",")
-                    var arrayLength = f_dependency.length;
-                    for (var i = 0; i < arrayLength; i++) {
-                        if (document.getElementById(f_dependency[i]).checked == false) {
-                            document.getElementById(f_dependency[i]).checked = cb.checked;
-                        }
-                    }
-                    break;
-            }
-        }
     </script>
 </div>
 </body>

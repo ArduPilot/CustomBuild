@@ -25,6 +25,7 @@ VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'Tracker', 'Blimp', 'Heli']
 default_vehicle = 'Copter'
 BRANCHES = ['upstream/master', 'upstream/Plane-4.2', 'upstream/Copter-4.2', 'upstream/Rover-4.2']
 default_branch = 'upstream/master'
+chosen_branch = default_branch
 
 def get_boards_from_ardupilot_tree():
     '''return a list of boards to build'''
@@ -297,6 +298,7 @@ def status_thread():
 
 def update_source(branch):
     '''update submodules and ardupilot git tree.  Returns new source git hash'''
+    app.logger.info('Updating to new branch: '+branch)
     app.logger.info('Fetching ardupilot remote')
     subprocess.run(['git', 'fetch', branch.split('/', 1)[0]],
                    cwd=sourcedir)
@@ -365,23 +367,8 @@ BOARDS = get_boards_from_ardupilot_tree()
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
     try:
-        branch = request.form['branch']
-        if not branch in BRANCHES:
-            raise Exception("bad branch")
-
-        new_git_hash = update_source(branch)
-
-        global SOURCE_GIT_HASH
-        global BUILD_OPTIONS
-        global BOARDS
-        if new_git_hash == SOURCE_GIT_HASH:
-            app.logger.info('Source git hash unchanged')
-        else:
-            app.logger.info('Source git hash changed; refreshing')
-            SOURCE_GIT_HASH = new_git_hash
-            # get build options from source:
-            BUILD_OPTIONS = get_build_options_from_ardupilot_tree()
-            BOARDS = get_boards_from_ardupilot_tree()
+        global chosen_branch
+        app.logger.info('Generate: Chosen branch is %s' % chosen_branch)
 
         # fetch features from user input
         extra_hwdef = []
@@ -449,7 +436,7 @@ def generate():
             # create build.log
             build_log_info = ('Vehicle: ' + vehicle +
                 '\nBoard: ' + board +
-                '\nBranch:' + branch +
+                '\nBranch:' + chosen_branch +
                 '\nSelected Features:\n' + feature_list +
                 '\n\nWaiting for build to start...\n\n')
             app.logger.info('Creating build.log')
@@ -519,9 +506,30 @@ def home():
     app.logger.info('Rendering index.html')
     global BUILD_OPTIONS
     return render_template('index.html',
+                           get_branches=get_branches)
+
+@app.route('/index2', methods=['GET', 'POST'])
+def home2():
+    app.logger.info('Rendering index2.html')
+    global chosen_branch
+    chosen_branch = request.form['branch']
+    if not chosen_branch in BRANCHES:
+        raise Exception("bad branch")
+    new_git_hash = update_source(chosen_branch)
+    global SOURCE_GIT_HASH
+    global BUILD_OPTIONS
+    global BOARDS
+    if new_git_hash == SOURCE_GIT_HASH:
+        app.logger.info('Source git hash unchanged')
+    else:
+        app.logger.info('Source git hash changed; refreshing')
+        SOURCE_GIT_HASH = new_git_hash
+        # get build options from source:
+        BUILD_OPTIONS = get_build_options_from_ardupilot_tree()
+        BOARDS = get_boards_from_ardupilot_tree()
+    return render_template('index2.html',
                            get_boards=get_boards,
                            get_vehicles=get_vehicles,
-                           get_branches=get_branches,
                            get_build_options=lambda x : get_build_options(BUILD_OPTIONS, x),
                            get_build_categories=lambda : get_build_categories(BUILD_OPTIONS))
 
