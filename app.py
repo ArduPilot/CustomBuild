@@ -13,7 +13,7 @@ import fnmatch
 from distutils.dir_util import copy_tree
 from flask import Flask, render_template, request, send_from_directory, render_template_string
 from threading import Thread, Lock
-
+import sys
 # run at lower priority
 os.nice(20)
 
@@ -363,6 +363,8 @@ SOURCE_GIT_HASH = update_source(default_branch)
 # get build options from source:
 BUILD_OPTIONS = get_build_options_from_ardupilot_tree()
 BOARDS = get_boards_from_ardupilot_tree()
+
+app.logger.info('Python version is: %s' % sys.version)
 
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
