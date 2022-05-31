@@ -35,22 +35,11 @@
         <h2>ArduPilot Custom Firmware Builder</h2>
         <br><b>This site is EXPERIMENTAL</b>
 
-
+        <p>Branch: {{chosen_branch}} <br>
+        Vehicle: {{chosen_vehicle}}</p>
         <p>Please select the required options for the custom firmware build, then hit 'Generate'.</p>
 
         <form action="/generate" method="post">
-            <label for="vehicle">Choose a vehicle:
-                <select name="vehicle">
-                    {% for vehicle in get_vehicles()[0] %}
-                    {% if vehicle == get_vehicles()[1] %}
-                    <option value="{{vehicle}}" selected>{{vehicle}}</option>
-                    {% else %}
-                    <option value="{{vehicle}}">{{vehicle}}</option>
-                    {% endif %}
-                    {% endfor %}
-                </select>
-            </label>
-            <p></p>
             <label for="board">Choose a board:
                 <select name="board">
                     {% for board in get_boards()[0] %}

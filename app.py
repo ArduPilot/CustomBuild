@@ -23,6 +23,7 @@ appdir = os.path.dirname(__file__)
 
 VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'Tracker', 'Blimp', 'Heli']
 default_vehicle = 'Copter'
+chosen_vehicle = default_vehicle
 BRANCHES = ['upstream/master', 'upstream/Plane-4.2', 'upstream/Copter-4.2', 'upstream/Rover-4.2']
 default_branch = 'upstream/master'
 chosen_branch = default_branch
@@ -370,7 +371,7 @@ app.logger.info('Python version is: %s' % sys.version)
 def generate():
     try:
         global chosen_branch
-        app.logger.info('Generate: Chosen branch is %s' % chosen_branch)
+        global chosen_vehicle
 
         # fetch features from user input
         extra_hwdef = []
@@ -418,15 +419,12 @@ def generate():
 
         # create directories using concatenated token 
         # of vehicle, board, git-hash of source, and md5sum of hwdef
-        vehicle = request.form['vehicle']
-        if not vehicle in VEHICLES:
-            raise Exception("bad vehicle")
 
         board = request.form['board']
         if board not in get_boards()[0]:
             raise Exception("bad board")
 
-        token = vehicle.lower() + ':' + board + ':' + SOURCE_GIT_HASH + ':' + md5sum
+        token = chosen_vehicle.lower() + ':' + board + ':' + SOURCE_GIT_HASH + ':' + md5sum
         app.logger.info('token = ' + token)
         global outdir
         outdir = os.path.join(outdir_parent, token)
@@ -436,7 +434,7 @@ def generate():
         else:
             create_directory(outdir)
             # create build.log
-            build_log_info = ('Vehicle: ' + vehicle +
+            build_log_info = ('Vehicle: ' + chosen_vehicle +
                 '\nBoard: ' + board +
                 '\nBranch:' + chosen_branch +
                 '\nSelected Features:\n' + feature_list +
@@ -457,7 +455,7 @@ def generate():
             task['token'] = token
             task['sourcedir'] = sourcedir
             task['extra_hwdef'] = os.path.join(outdir, 'extra_hwdef.dat')
-            task['vehicle'] = vehicle.lower()
+            task['vehicle'] = chosen_vehicle.lower()
             task['board'] = board
             task['ip'] = request.remote_addr
             app.logger.info('Opening ' + os.path.join(outdir, 'q.json'))
@@ -508,7 +506,8 @@ def home():
     app.logger.info('Rendering index.html')
     global BUILD_OPTIONS
     return render_template('index.html',
-                           get_branches=get_branches)
+                           get_branches=get_branches,
+                           get_vehicles=get_vehicles,)
 
 @app.route('/index2', methods=['GET', 'POST'])
 def home2():
@@ -518,6 +517,12 @@ def home2():
     if not chosen_branch in BRANCHES:
         raise Exception("bad branch")
     new_git_hash = update_source(chosen_branch)
+
+    global chosen_vehicle
+    chosen_vehicle = request.form['vehicle']
+    if not chosen_vehicle in VEHICLES:
+        raise Exception("bad vehicle")
+
     global SOURCE_GIT_HASH
     global BUILD_OPTIONS
     global BOARDS
@@ -531,7 +536,8 @@ def home2():
         BOARDS = get_boards_from_ardupilot_tree()
     return render_template('index2.html',
                            get_boards=get_boards,
-                           get_vehicles=get_vehicles,
+                           chosen_vehicle=chosen_vehicle,
+                           chosen_branch=chosen_branch,
                            get_build_options=lambda x : get_build_options(BUILD_OPTIONS, x),
                            get_build_categories=lambda : get_build_categories(BUILD_OPTIONS))
 

@@ -49,6 +49,18 @@
                     {% endfor %}
                 </select>
             </label>
+            <p></p>
+            <label for="vehicle">Choose a vehicle:
+                <select name="vehicle">
+                    {% for vehicle in get_vehicles()[0] %}
+                    {% if vehicle == get_vehicles()[1] %}
+                    <option value="{{vehicle}}" selected>{{vehicle}}</option>
+                    {% else %}
+                    <option value="{{vehicle}}">{{vehicle}}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </label>
             <br>
             <input type="submit" value="Next">
         </form>
