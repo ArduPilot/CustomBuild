@@ -24,7 +24,12 @@ appdir = os.path.dirname(__file__)
 VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'Tracker', 'Blimp', 'Heli']
 default_vehicle = 'Copter'
 chosen_vehicle = default_vehicle
-BRANCHES = ['upstream/master', 'upstream/Plane-4.2', 'upstream/Copter-4.2', 'upstream/Rover-4.2']
+BRANCHES = {
+    'upstream/master' : 'Latest',
+    'upstream/Plane-4.2' : 'Plane 4.2 stable',
+    'upstream/Copter-4.2' : 'Copter 4.2 stable',
+    'upstream/Rover-4.2' : 'Rover 4.2 stable'
+}
 default_branch = 'upstream/master'
 chosen_branch = default_branch
 
@@ -538,6 +543,7 @@ def home2():
                            get_boards=get_boards,
                            chosen_vehicle=chosen_vehicle,
                            chosen_branch=chosen_branch,
+                           get_branches=get_branches,
                            get_build_options=lambda x : get_build_options(BUILD_OPTIONS, x),
                            get_build_categories=lambda : get_build_categories(BUILD_OPTIONS))
 

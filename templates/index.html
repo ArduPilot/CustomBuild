@@ -42,9 +42,9 @@
                 <select name="branch">
                     {% for branch in get_branches()[0] %}
                     {% if branches == get_branches()[1] %}
-                    <option value="{{branch}}" selected>{{branch}}</option>
+                    <option value="{{branch}}" selected>{{get_branches()[0][branch]}}</option>
                     {% else %}
-                    <option value="{{branch}}">{{branch}}</option>
+                    <option value="{{branch}}">{{get_branches()[0][branch]}}</option>
                     {% endif %}
                     {% endfor %}
                 </select>
