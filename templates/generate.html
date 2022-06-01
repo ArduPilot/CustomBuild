@@ -7,10 +7,8 @@
     <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/main.css') }}">
 </head>
 
-
-<h2>ArduPilot Custom Firmware Builder</h2>
-
 {% if error %}
+<h2>ArduPilot Custom Firmware Builder</h2>
 <p>{{ error }} {{ex}}</p>
 {% else %}
 <body onload="javascript: reload()">
@@ -21,6 +19,7 @@
         </div>
     </a>
     <div id="menu">
+        <h2>ArduPilot Custom Firmware Builder</h2>
         <p>Build in progress...</p>
         <form action="/builds/{{token}}" target="_blank">
             <input type="submit" value="Go to build directory"/>
