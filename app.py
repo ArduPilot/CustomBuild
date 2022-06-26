@@ -21,7 +21,7 @@ os.nice(20)
 
 appdir = os.path.dirname(__file__)
 
-VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'Tracker' ]
+VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'Tracker', 'Blimp', 'Heli' ]
 default_vehicle = 'Copter'
 
 def get_boards_from_ardupilot_tree():
