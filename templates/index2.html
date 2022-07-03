@@ -33,10 +33,10 @@
 
     <div id="menu">
         <h2>ArduPilot Custom Firmware Builder</h2>
-        <br><b>This site is EXPERIMENTAL</b>
 
         <p>Branch: {{get_branches()[0][chosen_branch]}} <br>
         Vehicle: {{chosen_vehicle}}</p>
+        <p>Firmware will be built based on current development branch (not the current Stable release).</p>
         <p>Please select the required options for the custom firmware build, then hit 'Generate'.</p>
 
         <form action="/generate" method="post">
