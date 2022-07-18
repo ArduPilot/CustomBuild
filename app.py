@@ -21,9 +21,10 @@ os.nice(20)
 
 appdir = os.path.dirname(__file__)
 
-VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'Tracker', 'Blimp', 'Heli']
+VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'AntennaTracker', 'Blimp', 'Heli']
 default_vehicle = 'Copter'
-chosen_vehicle = default_vehicle
+#Note: Current implementation of BRANCHES means we can't have multiple branches with the same name even if they're in different remote repos.
+#Branch names (the git branch name not the display name) also cannot contain anything not valid in folder names.
 BRANCHES = {
     'upstream/master' : 'Latest',
     'upstream/Plane-4.2' : 'Plane 4.2 stable',
@@ -31,14 +32,15 @@ BRANCHES = {
     'upstream/Rover-4.2' : 'Rover 4.2 stable'
 }
 default_branch = 'upstream/master'
-chosen_branch = default_branch
+CURR_BRANCH = default_branch
 
-def get_boards_from_ardupilot_tree():
+def get_boards_from_ardupilot_tree(branch):
     '''return a list of boards to build'''
     tstart = time.time()
+    S_DIR = os.path.abspath(os.path.join(basedir, 'ardupilot', branch.split('/', 1)[1]))
     import importlib.util
     spec = importlib.util.spec_from_file_location("board_list.py",
-                                                  os.path.join(sourcedir, 
+                                                  os.path.join(S_DIR, 
                                                   'Tools', 'scripts', 
                                                   'board_list.py'))
     mod = importlib.util.module_from_spec(spec)
@@ -58,19 +60,25 @@ def get_boards_from_ardupilot_tree():
     app.logger.info('Took %f seconds to get boards' % (time.time() - tstart))
     return boards
 
-def get_boards():
+def get_boards(branch):
+    global CURR_BRANCH
     global BOARDS
-    boards = BOARDS
+    if CURR_BRANCH is not branch or 'BOARDS' not in globals():
+        boards = get_boards_from_ardupilot_tree(branch)
+        BOARDS = boards
+    else:
+        boards = BOARDS
     boards.sort()
     return (boards, boards[0])
 
-def get_build_options_from_ardupilot_tree():
+def get_build_options_from_ardupilot_tree(branch):
     '''return a list of build options'''
     tstart = time.time()
+    S_DIR = os.path.abspath(os.path.join(basedir, 'ardupilot', branch.split('/', 1)[1]))
     import importlib.util
     spec = importlib.util.spec_from_file_location(
         "build_options.py",
-        os.path.join(sourcedir, 'Tools', 'scripts', 'build_options.py'))
+        os.path.join(S_DIR, 'Tools', 'scripts', 'build_options.py'))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     app.logger.info('Took %f seconds to get build options' % (time.time() - tstart))
@@ -123,6 +131,8 @@ def run_build(task, tmpdir, outdir, logpath):
     app.logger.info('Appending to build.log')
     with open(logpath, 'a') as log:
 
+        log.write('Setting vehicle to: ' + task['vehicle'].capitalize() + '\n')
+        log.flush()
         # setup PATH to point at our compiler
         env = os.environ.copy()
         bindir1 = os.path.abspath(os.path.join(appdir, "..", "bin"))
@@ -137,17 +147,17 @@ def run_build(task, tmpdir, outdir, logpath):
                         '--board', task['board'], 
                         '--out', tmpdir, 
                         '--extra-hwdef', task['extra_hwdef']],
-                        cwd = task['sourcedir'],
+                        cwd = task['S_DIR'],
                         env=env,
                         stdout=log, stderr=log)
         app.logger.info('Running clean')
         subprocess.run(['python3', './waf', 'clean'],
-                        cwd = task['sourcedir'], 
+                        cwd = task['S_DIR'], 
                         env=env,
                         stdout=log, stderr=log)
         app.logger.info('Running build')
         subprocess.run(['python3', './waf', task['vehicle']],
-                        cwd = task['sourcedir'],
+                        cwd = task['S_DIR'],
                         env=env,
                         stdout=log, stderr=log)
 
@@ -196,6 +206,7 @@ def check_queue():
     app.logger.info("LOGPATH: %s" % logpath)
     try:
         # run build and rename build directory
+        app.logger.info('MIR: Running build ' + str(task))
         run_build(task, tmpdir, outdir, logpath)
         app.logger.info('Copying build files from %s to %s',
                         os.path.join(tmpdir, task['board']),
@@ -304,24 +315,27 @@ def status_thread():
 
 def update_source(branch):
     '''update submodules and ardupilot git tree.  Returns new source git hash'''
+    S_DIR = os.path.abspath(os.path.join(basedir, 'ardupilot', branch.split('/', 1)[1]))
+    app.logger.info('S_DIR set to: %s' % S_DIR)
+
     app.logger.info('Updating to new branch: '+branch)
     app.logger.info('Fetching ardupilot remote')
     subprocess.run(['git', 'fetch', branch.split('/', 1)[0]],
-                   cwd=sourcedir)
+                   cwd=S_DIR)
     app.logger.info('Updating ardupilot git tree')
     subprocess.run(['git', 'reset', '--hard',
                     branch],
-                       cwd=sourcedir)
+                       cwd=S_DIR)
     app.logger.info('Updating submodules')
     subprocess.run(['git', 'submodule',
                     'update', '--recursive',
                         '--force', '--init'],
-                       cwd=sourcedir)
+                       cwd=S_DIR)
     source_git_hash = subprocess.check_output([
         'git',
         'rev-parse',
         'HEAD',
-    ], cwd=sourcedir, encoding = 'utf-8')
+    ], cwd=S_DIR, encoding = 'utf-8')
     source_git_hash = source_git_hash.rstrip()
     app.logger.info('new git hash ' + source_git_hash)
     return source_git_hash
@@ -337,7 +351,6 @@ cmd_opts, cmd_args = parser.parse_args()
                 
 # define directories
 basedir = os.path.abspath(cmd_opts.basedir)
-sourcedir = os.path.abspath(os.path.join(basedir, 'ardupilot'))
 outdir_parent = os.path.join(basedir, 'builds')
 tmpdir_parent = os.path.join(basedir, 'tmp')
 
@@ -362,21 +375,24 @@ except IOError:
     app.logger.info("No queue lock")
 
 app.logger.info('Initial fetch')
-global SOURCE_GIT_HASH
-global BUILD_OPTIONS
-global BOARDS
-SOURCE_GIT_HASH = update_source(default_branch)
-# get build options from source:
-BUILD_OPTIONS = get_build_options_from_ardupilot_tree()
-BOARDS = get_boards_from_ardupilot_tree()
+
+update_source(default_branch)
 
 app.logger.info('Python version is: %s' % sys.version)
 
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
     try:
-        global chosen_branch
-        global chosen_vehicle
+        chosen_branch = request.form['branch']
+        if not chosen_branch in BRANCHES:
+            raise Exception("bad branch")
+        new_git_hash = update_source(chosen_branch)
+        global CURR_BRANCH
+        CURR_BRANCH = chosen_branch
+
+        chosen_vehicle = request.form['vehicle']
+        if not chosen_vehicle in VEHICLES:
+            raise Exception("bad vehicle")
 
         # fetch features from user input
         extra_hwdef = []
@@ -384,11 +400,13 @@ def generate():
         selected_features = []
         app.logger.info('Fetching features from user input')
 
+        #ToDo - maybe have the if-statement to check if it's changed.
+        build_options = get_build_options_from_ardupilot_tree(chosen_branch)
         # add all undefs at the start
-        for f in BUILD_OPTIONS:
+        for f in build_options:
             extra_hwdef.append('undef %s' % f.define)
 
-        for f in BUILD_OPTIONS:
+        for f in build_options:
             if f.label not in request.form or request.form[f.label] != '1':
                 extra_hwdef.append('define %s 0' % f.define)
             else:
@@ -417,23 +435,21 @@ def generate():
                         os.path.join(outdir_parent, 'extra_hwdef.dat'))
         os.remove(os.path.join(outdir_parent, 'extra_hwdef.dat'))
 
-        git_hash_short = SOURCE_GIT_HASH[:10]
-        git_hash = SOURCE_GIT_HASH[:len(SOURCE_GIT_HASH)-1]
-        app.logger.info('Git hash = ' + SOURCE_GIT_HASH)
+        git_hash_short = new_git_hash[:10]
+        app.logger.info('Git hash = ' + new_git_hash)
         selected_features_dict['git_hash_short'] = git_hash_short
 
         # create directories using concatenated token 
         # of vehicle, board, git-hash of source, and md5sum of hwdef
 
         board = request.form['board']
-        if board not in get_boards()[0]:
+        if board not in get_boards(chosen_branch)[0]:
             raise Exception("bad board")
 
-        token = chosen_vehicle.lower() + ':' + board + ':' + SOURCE_GIT_HASH + ':' + md5sum
+        token = chosen_vehicle.lower() + ':' + board + ':' + new_git_hash + ':' + md5sum
         app.logger.info('token = ' + token)
-        global outdir
         outdir = os.path.join(outdir_parent, token)
-        
+
         if os.path.isdir(outdir):
             app.logger.info('Build already exists')
         else:
@@ -441,7 +457,7 @@ def generate():
             # create build.log
             build_log_info = ('Vehicle: ' + chosen_vehicle +
                 '\nBoard: ' + board +
-                '\nBranch:' + chosen_branch +
+                '\nBranch: ' + chosen_branch +
                 '\nSelected Features:\n' + feature_list +
                 '\n\nWaiting for build to start...\n\n')
             app.logger.info('Creating build.log')
@@ -458,7 +474,7 @@ def generate():
             # fill dictionary of variables and create json file
             task = {}
             task['token'] = token
-            task['sourcedir'] = sourcedir
+            task['S_DIR'] = os.path.abspath(os.path.join(basedir, 'ardupilot', chosen_branch.split('/', 1)[1]))
             task['extra_hwdef'] = os.path.join(outdir, 'extra_hwdef.dat')
             task['vehicle'] = chosen_vehicle.lower()
             task['board'] = board
@@ -481,7 +497,7 @@ def generate():
         app.logger.info(base_url)
         app.logger.info('Rendering generate.html')
         return render_template('generate.html', token=token)
-    
+
     except Exception as ex:
         app.logger.error(ex)
         return render_template('generate.html', error='Error occured: ', ex=ex)
@@ -493,12 +509,12 @@ def view():
     app.logger.info("viewing %s" % token)
     return render_template('generate.html', token=token)
 
-    
-def get_build_options(BUILD_OPTIONS, category):
-    return sorted([f for f in BUILD_OPTIONS if f.category == category], key=lambda x: x.description.lower())
 
-def get_build_categories(BUILD_OPTIONS):
-    return sorted(list(set([f.category for f in BUILD_OPTIONS])))
+def get_build_options(build_options, category):
+    return sorted([f for f in build_options if f.category == category], key=lambda x: x.description.lower())
+
+def get_build_categories(build_options):
+    return sorted(list(set([f.category for f in build_options])))
 
 def get_vehicles():
     return (VEHICLES, default_vehicle)
@@ -509,7 +525,6 @@ def get_branches():
 @app.route('/')
 def home():
     app.logger.info('Rendering index.html')
-    global BUILD_OPTIONS
     return render_template('index.html',
                            get_branches=get_branches,
                            get_vehicles=get_vehicles,)
@@ -517,35 +532,26 @@ def home():
 @app.route('/index2', methods=['GET', 'POST'])
 def home2():
     app.logger.info('Rendering index2.html')
-    global chosen_branch
     chosen_branch = request.form['branch']
     if not chosen_branch in BRANCHES:
         raise Exception("bad branch")
-    new_git_hash = update_source(chosen_branch)
+    global CURR_BRANCH
+    CURR_BRANCH = chosen_branch
 
-    global chosen_vehicle
     chosen_vehicle = request.form['vehicle']
     if not chosen_vehicle in VEHICLES:
         raise Exception("bad vehicle")
 
-    global SOURCE_GIT_HASH
-    global BUILD_OPTIONS
-    global BOARDS
-    if new_git_hash == SOURCE_GIT_HASH:
-        app.logger.info('Source git hash unchanged')
-    else:
-        app.logger.info('Source git hash changed; refreshing')
-        SOURCE_GIT_HASH = new_git_hash
-        # get build options from source:
-        BUILD_OPTIONS = get_build_options_from_ardupilot_tree()
-        BOARDS = get_boards_from_ardupilot_tree()
+    new_git_hash = update_source(chosen_branch)
+    app.logger.info('Refreshing build options & boards')
+    build_options = get_build_options_from_ardupilot_tree(chosen_branch)
     return render_template('index2.html',
-                           get_boards=get_boards,
+                           get_boards=lambda : get_boards(chosen_branch),
                            chosen_vehicle=chosen_vehicle,
                            chosen_branch=chosen_branch,
                            get_branches=get_branches,
-                           get_build_options=lambda x : get_build_options(BUILD_OPTIONS, x),
-                           get_build_categories=lambda : get_build_categories(BUILD_OPTIONS))
+                           get_build_options=lambda x : get_build_options(build_options, x),
+                           get_build_categories=lambda : get_build_categories(build_options))
 
 @app.route("/builds/<path:name>")
 def download_file(name):
