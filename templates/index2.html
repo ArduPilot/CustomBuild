@@ -34,12 +34,20 @@
     <div id="menu">
         <h2>ArduPilot Custom Firmware Builder</h2>
 
-        <p>Branch: {{get_branches()[0][chosen_branch]}} <br>
-        Vehicle: {{chosen_vehicle}}</p>
-        <p>Firmware will be built based on current development branch (not the current Stable release).</p>
-        <p>Please select the required options for the custom firmware build, then hit 'Generate'.</p>
-
         <form action="/generate" method="post">
+            <label for="vehicle">Chosen vehicle:
+                <select name="vehicle">
+                    <option value="{{chosen_vehicle}}" selected>{{chosen_vehicle}}</option>
+                </select>
+            </label>
+            <p></p>
+            <label for="branch">Chosen branch:
+                <select name="branch">
+                    <option value="{{chosen_branch}}" selected>{{get_branches()[0][chosen_branch]}}</option>
+                </select>
+            </label>
+            <p></p>
+            <p>Please select the required options for the custom firmware build, then hit 'Generate'.</p>
             <label for="board">Choose a board:
                 <select name="board">
                     {% for board in get_boards()[0] %}
