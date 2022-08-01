@@ -59,7 +59,7 @@
                         <ul>
                             {% for f in get_build_options(c) %}
                             <li>
-                                {% if f.default == 1 %}
+                                {% if f.default != 0 %}
                                 <input onclick='dependencies(this, "{{f.label}}", "{{f.dependency}}");' type="checkbox"
                                        name="{{f.label}}" id="{{f.label}}" value="1" checked>
                                 {% else %}
