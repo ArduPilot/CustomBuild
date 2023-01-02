@@ -37,7 +37,7 @@ CURR_BRANCH = default_branch
 def get_boards_from_ardupilot_tree(branch):
     '''return a list of boards to build'''
     tstart = time.time()
-    S_DIR = os.path.abspath(os.path.join(basedir, 'ardupilot', branch.split('/', 1)[1]))
+    S_DIR = os.path.abspath(os.path.join(basedir, 'ardupilot'))
     import importlib.util
     spec = importlib.util.spec_from_file_location("board_list.py",
                                                   os.path.join(S_DIR, 
@@ -74,7 +74,7 @@ def get_boards(branch):
 def get_build_options_from_ardupilot_tree(branch):
     '''return a list of build options'''
     tstart = time.time()
-    S_DIR = os.path.abspath(os.path.join(basedir, 'ardupilot', branch.split('/', 1)[1]))
+    S_DIR = os.path.abspath(os.path.join(basedir, 'ardupilot'))
     import importlib.util
     spec = importlib.util.spec_from_file_location(
         "build_options.py",
@@ -315,7 +315,7 @@ def status_thread():
 
 def update_source(branch):
     '''update submodules and ardupilot git tree.  Returns new source git hash'''
-    S_DIR = os.path.abspath(os.path.join(basedir, 'ardupilot', branch.split('/', 1)[1]))
+    S_DIR = os.path.abspath(os.path.join(basedir, 'ardupilot'))
     app.logger.info('S_DIR set to: %s' % S_DIR)
 
     app.logger.info('Updating to new branch: '+branch)
