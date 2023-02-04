@@ -92,6 +92,7 @@
             document.getElementById('board_list').innerHTML = "<p>Please wait. Fetching boards on branch "+branch+" ...";
             document.getElementById('build_options').innerHTML = "<p>Please wait. Fetching build options on branch "+branch+" ...";            
             document.getElementById("submit").disabled = true;
+            document.getElementById("branch").disabled = true;
 
             xhr.onload = function () {
                 if (xhr.status == 200) {
@@ -102,6 +103,7 @@
                     fillBoards(boards, default_board);
                     fillBuildOptions(features);
                     document.getElementById("submit").disabled = false;
+                    document.getElementById("branch").disabled = false;
                 }
             }
             xhr.send();
