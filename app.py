@@ -21,36 +21,72 @@ os.nice(20)
 
 appdir = os.path.dirname(__file__)
 
-VEHICLES = [ 'Copter', 'Plane', 'Rover', 'Sub', 'AntennaTracker', 'Blimp', 'Heli']
-default_vehicle = 'Copter'
-#Note: Current implementation of BRANCHES means we can't have multiple branches with the same name even if they're in different remote repos.
-#Branch names (the git branch name not the display name) also cannot contain anything not valid in folder names.
-BRANCHES = {
-    'upstream/master' : 'Latest',
-    'upstream/Plane-4.2' : 'Plane 4.2 stable',
-    'upstream/Copter-4.2' : 'Copter 4.2 stable',
-    'upstream/Rover-4.2' : 'Rover 4.2 stable'
-}
-default_branch = 'upstream/master'
+class Vehicle:
+    def __init__(self, name):
+        self.name = name
 
-def get_vehicles():
-    return VEHICLES
+# create vehicle objects
+copter = Vehicle('Copter')
+plane = Vehicle('Plane')
+rover = Vehicle('Rover')
+sub = Vehicle('Sub')
+tracker = Vehicle('AntennaTracker')
+blimp = Vehicle('Blimp')
+heli = Vehicle('Heli')
 
-def get_default_vehicle():
-    return default_vehicle
+VEHICLES = [copter, plane, rover, sub, tracker, blimp, heli]
+default_vehicle = copter
+# Note: Current implementation of BRANCHES means we can't have multiple branches with the same name even if they're in different remote repos.
+# Branch names (the git branch name not the Label) also cannot contain anything not valid in folder names.
+# the first branch in this list is always the default branch
+BRANCHES = [
+    {
+        'full_name'         : 'upstream/master',
+        'label'             : 'Latest',
+        'allowed_vehicles'  : [copter, plane, rover, sub, tracker, blimp, heli]
+    },
+    {
+        'full_name'         : 'upstream/Plane-4.3',
+        'label'             : 'Plane 4.3 stable',
+        'allowed_vehicles'  : [plane]
+    },
+    {
+        'full_name'         : 'upstream/Copter-4.3',
+        'label'             : 'Copter 4.3 stable',
+        'allowed_vehicles'  : [copter, heli]
+    },
+    {
+        'full_name'         : 'upstream/Rover-4.3',
+        'label'             : 'Rover 4.3 stable',
+        'allowed_vehicles'  : [rover]
+    },
+]
+default_branch = BRANCHES[0]
+
+def get_vehicle_names():
+    return sorted([vehicle.name for vehicle in VEHICLES])
+
+def get_default_vehicle_name():
+    return default_vehicle.name
+
+def get_branch_names():
+    return sorted([branch['full_name'] for branch in BRANCHES])
 
 def get_branches():
-    return BRANCHES
+    return sorted(BRANCHES, key=lambda x: x['full_name'])
 
-def get_default_branch():
-    return default_branch
+def get_default_branch_name():
+    return default_branch['full_name']
 
 # LOCKS
 queue_lock = Lock()
 head_lock = Lock()  # lock git HEAD, i.e., no branch change until this lock is released
 
-def is_valid_branch(branch):
-    return get_branches().get(branch) is not None
+def is_valid_vehicle(vehicle_name):
+    return vehicle_name in get_vehicle_names()
+
+def is_valid_branch(branch_name):
+    return branch_name in get_branch_names()
 
 def run_git(cmd, cwd):
     app.logger.info("Running git: %s" % ' '.join(cmd))
@@ -68,7 +104,7 @@ def on_branch(branch):
     return git_hash_target == git_hash_current
 
 def delete_branch(branch_name, s_dir):
-    run_git(['git', 'checkout', default_branch], cwd=s_dir) # to make sure we are not already on branch to be deleted
+    run_git(['git', 'checkout', get_default_branch_name()], cwd=s_dir) # to make sure we are not already on branch to be deleted
     run_git(['git', 'branch', '-D', branch_name], cwd=s_dir)    # delete branch
 
 def checkout_branch(targetBranch, s_dir, fetch_and_reset=False, temp_branch_name=None):
@@ -423,7 +459,7 @@ except IOError:
 
 app.logger.info('Initial fetch')
 # checkout to default branch, fetch remote, update submodules
-checkout_branch(default_branch, s_dir=sourcedir, fetch_and_reset=True)
+checkout_branch(get_default_branch_name(), s_dir=sourcedir, fetch_and_reset=True)
 update_submodules(s_dir=sourcedir)
 
 app.logger.info('Python version is: %s' % sys.version)
@@ -436,7 +472,7 @@ def generate():
             raise Exception("bad branch")
 
         chosen_vehicle = request.form['vehicle']
-        if not chosen_vehicle in VEHICLES:
+        if not is_valid_vehicle(chosen_vehicle):
             raise Exception("bad vehicle")
 
         chosen_board = request.form['board']
@@ -569,10 +605,8 @@ def parse_build_categories(build_options):
 def home():
     app.logger.info('Rendering index.html')
     return render_template('index.html',
-                           get_branches=get_branches,
-                           get_vehicles=get_vehicles,
-                           get_default_branch=get_default_branch,
-                           get_default_vehicle=get_default_vehicle)
+                           get_vehicle_names=get_vehicle_names,
+                           get_default_vehicle_name=get_default_vehicle_name)
 
 @app.route("/builds/<path:name>")
 def download_file(name):
@@ -617,6 +651,28 @@ def boards_and_features(remote, branch_name):
         'features' : features,
     }
     # return jsonified result dict
+    return jsonify(result)
+
+@app.route("/get_allowed_branches/<string:vehicle_name>", methods=['GET'])
+def get_allowed_branches(vehicle_name):
+    if not is_valid_vehicle(vehicle_name):
+        app.logger.error("Bad vehicle")
+        return ("Bad Vehicle", 400)
+
+    app.logger.info("Supported branches requested for %s" % vehicle_name)
+    branches = []
+    for branch in get_branches():
+        if vehicle_name in [vehicle.name for vehicle in branch['allowed_vehicles']]:
+            branches.append({
+                'full_name': branch['full_name'],
+                'label' : branch['label']
+            })
+
+    result = {
+        'branches' : branches,
+        'default_branch' : get_default_branch_name()
+    }
+    # return jsonified result dictionary
     return jsonify(result)
 
 if __name__ == '__main__':
