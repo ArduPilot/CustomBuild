@@ -35,21 +35,18 @@
         <h2>ArduPilot Custom Firmware Builder</h2>
 
         <form action="/generate" method="post">
-            <label for="branch">Choose a branch:
-                <select name="branch" id="branch" onchange="requestBoardsAndFeatures(this.value);">
-                    {% for branch in get_branches() %}
-                    <option value="{{branch}}" {% if branch == get_default_branch() %} selected {% endif %}>{{get_branches()[branch]}}</option>
-                    {% endfor %}
-                </select>
-            </label>
+            <div id="vehicle_list">
+                <label for="vehicle">Choose a vehicle:
+                    <select name="vehicle" id="vehicle" onchange="requestBranches(this.value);">
+                        {% for vehicle in get_vehicle_names() %}
+                        <option value="{{vehicle}}" {% if vehicle == get_default_vehicle_name() %} selected {% endif %}>{{vehicle}}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </div>
             <p></p>
-            <label for="vehicle">Choose a vehicle:
-                <select name="vehicle" id="vehicle">
-                    {% for vehicle in get_vehicles() %}
-                    <option value="{{vehicle}}" {% if vehicle == get_default_vehicle() %} selected {% endif %}>{{vehicle}}</option>
-                    {% endfor %}
-                </select>
-            </label>
+            <div id="branch_list"></div>
+            <p></p>
             <div id="board_list"></div>
             <p></p>
             <div id="build_options"></div>
@@ -64,7 +61,7 @@
     <script>
         function init() {
             refresh_builds();
-            requestBoardsAndFeatures(document.getElementById('branch').value);
+            requestBranches(document.getElementById("vehicle").value);
         }
 
         function refresh_builds() {
@@ -103,8 +100,11 @@
                     fillBoards(boards, default_board);
                     fillBuildOptions(features);
                     document.getElementById("submit").disabled = false;
-                    document.getElementById("branch").disabled = false;
+                } else {
+                    document.getElementById('board_list').innerHTML = "Something went wrong. Please try again. (Response says: "+xhr.response+")";
+                    document.getElementById('build_options').innerHTML = "";      
                 }
+                document.getElementById("branch").disabled = false;
             }
             xhr.send();
         }
@@ -172,6 +172,49 @@
                     }
                     break;
             }
+        }
+
+        function requestBranches(vehicle) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/get_allowed_branches/'+vehicle);           
+            document.getElementById("submit").disabled = true;
+            document.getElementById("vehicle").disabled = true;
+
+            xhr.onload = function () {
+                if (xhr.status == 200) {
+                    response = JSON.parse(xhr.response);
+                    branches = response['branches'];
+                    default_branch = response['default_branch'];
+                    old_branch = document.getElementById("branch");
+                    fillBranches(branches);
+                    document.getElementById("submit").disabled = false;
+                    if (old_branch == null || old_branch.value != default_branch){
+                        // branch has changed
+                        // fetch boards and features again
+                        requestBoardsAndFeatures(default_branch);
+                    }
+                } else {
+                    document.getElementById('branch_list').innerHTML = "Something went wrong. Please try again. (Response says: "+xhr.response+")";
+                }
+                document.getElementById("vehicle").disabled = false;
+            }
+            xhr.send();
+        }
+
+        function fillBranches(branches) {
+            var output = document.getElementById('branch_list');
+            output.innerHTML =  "<label for='branch'>Choose a branch: "+
+                                    "<select name='branch' id='branch' onchange='requestBoardsAndFeatures(this.value);'>"+
+                                    "</select>"+
+                                "</label>";
+            branchList = document.getElementById("branch");
+            branches.forEach(branch => {
+                opt = document.createElement('option');
+                opt.value = branch['full_name'];
+                opt.innerHTML = branch['label'];
+                opt.selected = (branch['full_name'] === default_branch);
+                branchList.appendChild(opt);
+            });
         }
     </script>
 </div>
