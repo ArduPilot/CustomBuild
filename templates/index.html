@@ -52,6 +52,7 @@
             <div id="build_options"></div>
             <br>
             <input type="submit" value="Generate" id="submit" disabled>
+            <input type="button" value="Reset option defaults" id="reset_def" onclick="requestDefaults();">
         </form>
     </div>
     <hr>
@@ -59,6 +60,9 @@
     <div id="build_status"></div>
     <br/>
     <script>
+        // this object contains defines and their corresponding labels for build options
+        var define_labels = {};
+
         function init() {
             refresh_builds();
             requestBranches(document.getElementById("vehicle").value);
@@ -89,6 +93,7 @@
             document.getElementById('board_list').innerHTML = "<p>Please wait. Fetching boards on branch "+branch+" ...";
             document.getElementById('build_options').innerHTML = "<p>Please wait. Fetching build options on branch "+branch+" ...";            
             document.getElementById("submit").disabled = true;
+            document.getElementById("reset_def").disabled = true;
             document.getElementById("branch").disabled = true;
 
             xhr.onload = function () {
@@ -99,7 +104,9 @@
                     features = response_json['features'];
                     fillBoards(boards, default_board);
                     fillBuildOptions(features);
+                    requestDefaults();
                     document.getElementById("submit").disabled = false;
+                    document.getElementById("reset_def").disabled = false;
                 } else {
                     document.getElementById('board_list').innerHTML = "Something went wrong. Please try again. (Response says: "+xhr.response+")";
                     document.getElementById('build_options').innerHTML = "";      
@@ -132,6 +139,7 @@
                                     "<ul class='collapsibleList' id='outer_list'></ul>"+
                                 "</label>";
             outerList = document.getElementById("outer_list");
+            define_labels = [];
             buildOptions.forEach(category => {
                 outerListItem = document.createElement('li');
                 outerListItem.innerHTML = category['name'];
@@ -150,6 +158,7 @@
                     innerListItem.appendChild(checkBox);
                     innerListItem.appendChild(document.createTextNode(option['description']));
                     innerList.appendChild(innerListItem);
+                    define_labels[option['define']] = option['label'];
                 });
                 outerListItem.appendChild(innerList);
                 outerList.appendChild(outerListItem);
@@ -161,11 +170,9 @@
             cb = document.getElementById(f_label);
             switch (cb.name) {
                 case f_label:
-                    console.log("bol");
                     const f_dependency = f_dependency1.split(",")
                     var arrayLength = f_dependency.length;
                     for (var i = 0; i < arrayLength; i++) {
-                        console.log(i);
                         if (document.getElementById(f_dependency[i]).checked == false) {
                             document.getElementById(f_dependency[i]).checked = cb.checked;
                         }
@@ -178,6 +185,7 @@
             var xhr = new XMLHttpRequest();
             xhr.open('GET', '/get_allowed_branches/'+vehicle);           
             document.getElementById("submit").disabled = true;
+            document.getElementById("reset_def").disabled = true;
             document.getElementById("vehicle").disabled = true;
 
             xhr.onload = function () {
@@ -188,10 +196,16 @@
                     old_branch = document.getElementById("branch");
                     fillBranches(branches);
                     document.getElementById("submit").disabled = false;
+                    document.getElementById("reset_def").disabled = false;
                     if (old_branch == null || old_branch.value != default_branch){
                         // branch has changed
                         // fetch boards and features again
                         requestBoardsAndFeatures(default_branch);
+                    } else {
+                        // the new branch and the current branch are same
+                        // branches need not to be changed
+                        // Since the vehicle has changed, reset the defaults
+                        requestDefaults();
                     }
                 } else {
                     document.getElementById('branch_list').innerHTML = "Something went wrong. Please try again. (Response says: "+xhr.response+")";
@@ -215,6 +229,38 @@
                 opt.selected = (branch['full_name'] === default_branch);
                 branchList.appendChild(opt);
             });
+        }
+
+        function requestDefaults() {
+            branch = document.getElementById('branch').value;
+            vehicle = document.getElementById('vehicle').value;
+            board = document.getElementById('board').value;
+            document.getElementById("reset_def").disabled = true;
+            
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/get_defaults/'+vehicle+'/'+branch+'/'+board);
+            xhr.onload = function () {
+                if (xhr.status == 200) {
+                    parsed_response = JSON.parse(xhr.response);
+                    setDefaults(parsed_response);
+                } else {
+                    console.log(xhr.response);
+                }
+                document.getElementById("reset_def").disabled = false;
+            }
+            xhr.send();
+        }
+
+        function setDefaults(defines_arr) {
+            for (var i=0; i<defines_arr.length; i++) {
+                var select_opt = (defines_arr[i][0] != '!');
+                var sanitised_define = (select_opt ? defines_arr[i] : defines_arr[i].substring(1)); // this removes the leading '!' from define if it contatins
+                var opt_label = define_labels[sanitised_define];
+                if (opt_label != undefined) {
+                    document.getElementById(opt_label).checked = select_opt;
+                }
+            }
+            return;
         }
     </script>
 </div>
