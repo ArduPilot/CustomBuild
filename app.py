@@ -14,6 +14,8 @@ from distutils.dir_util import copy_tree
 from flask import Flask, render_template, request, send_from_directory, render_template_string, jsonify
 from threading import Thread, Lock
 import sys
+import re
+import requests
 # run at lower priority
 os.nice(20)
 
@@ -22,17 +24,18 @@ os.nice(20)
 appdir = os.path.dirname(__file__)
 
 class Vehicle:
-    def __init__(self, name):
+    def __init__(self, name, dir):
         self.name = name
+        self.dir = dir
 
 # create vehicle objects
-copter = Vehicle('Copter')
-plane = Vehicle('Plane')
-rover = Vehicle('Rover')
-sub = Vehicle('Sub')
-tracker = Vehicle('AntennaTracker')
-blimp = Vehicle('Blimp')
-heli = Vehicle('Heli')
+copter = Vehicle('Copter', 'ArduCopter')
+plane = Vehicle('Plane', 'ArduPlane')
+rover = Vehicle('Rover', 'Rover')
+sub = Vehicle('Sub', 'ArduSub')
+tracker = Vehicle('AntennaTracker', 'AntennaTracker')
+blimp = Vehicle('Blimp', 'Blimp')
+heli = Vehicle('Heli', 'ArduCopter')
 
 VEHICLES = [copter, plane, rover, sub, tracker, blimp, heli]
 default_vehicle = copter
@@ -638,6 +641,7 @@ def boards_and_features(remote, branch_name):
                 'label' : option.label,
                 'description' : option.description,
                 'default' : option.default,
+                'define' : option.define,
                 'dependency' : option.dependency,
             })
         features.append({
@@ -674,6 +678,61 @@ def get_allowed_branches(vehicle_name):
     }
     # return jsonified result dictionary
     return jsonify(result)
+
+def get_firmware_version(vehicle_name, branch):
+    app.logger.info("Retrieving firmware version information for %s on branch: %s" % (vehicle_name, branch))
+    dir = ""
+    for vehicle in VEHICLES:
+        if vehicle.name == vehicle_name:
+            dir = vehicle.dir
+            break
+
+    if dir == "":
+        raise Exception("Could not determine vehicle directory")
+    head_lock.acquire()
+    output = subprocess.check_output(['git', 'show', branch+':'+dir+'/version.h'], cwd=sourcedir, encoding='utf-8', shell=False).rstrip()
+    head_lock.release()
+    match = re.search('define.THISFIRMWARE[\s\S]+V([0-9]+.[0-9]+.[0-9]+)', output)
+    if match is None:
+        raise Exception("Failed to retrieve firmware version from version.h")
+    firmware_version = match.group(1)
+    return firmware_version
+
+@app.route("/get_defaults/<string:vehicle_name>/<string:remote>/<string:branch_name>/<string:board>", methods = ['GET'])
+def get_deafults(vehicle_name, remote, branch_name, board):
+    if not remote == "upstream":
+        app.logger.error("Defaults requested for remote '%s' which is not supported" % remote)
+        return ("Bad remote. Only upstream is supported.", 400)
+
+    branch = remote + '/' + branch_name
+    if not is_valid_branch(branch):
+        app.logger.error("Bad branch")
+        return ("Bad branch", 400)
+
+    if not is_valid_vehicle(vehicle_name):
+        app.logger.error("Bad vehicle")
+        return ("Bad Vehicle", 400)
+
+    # Heli is built on copter
+    if vehicle_name == "Heli":
+        vehicle_name = "Copter"
+
+    artifacts_dir = vehicle_name
+    if branch_name == "master":
+        artifacts_dir += "/latest"
+    else:
+        artifacts_dir += ("/stable-"+get_firmware_version(vehicle_name, branch))
+
+    artifacts_dir += "/"+board
+    path = "https://firmware.ardupilot.org/"+artifacts_dir+"/features.txt"
+    response = requests.get(path, timeout=30)
+
+    if not response.status_code == 200:
+        return ("Could not retrieve features.txt for given vehicle, branch and board combination (Status Code: %d, path: %s)" % (response.status_code, path), response.status_code)
+    # split response by new line character to get a list of defines
+    result = response.text.split('\n')
+    # omit the last string as its always blank
+    return jsonify(result[:-1])
 
 if __name__ == '__main__':
     app.run()
