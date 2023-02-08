@@ -37,7 +37,7 @@
         <form action="/generate" method="post">
             <div id="vehicle_list">
                 <label for="vehicle">Choose a vehicle:
-                    <select name="vehicle" id="vehicle" onchange="requestBranches(this.value);">
+                    <select name="vehicle" id="vehicle" onchange="onVehicleChange(this.value);">
                         {% for vehicle in get_vehicle_names() %}
                         <option value="{{vehicle}}" {% if vehicle == get_default_vehicle_name() %} selected {% endif %}>{{vehicle}}</option>
                         {% endfor %}
@@ -51,8 +51,10 @@
             <p></p>
             <div id="build_options"></div>
             <br>
-            <input type="submit" value="Generate" id="submit" disabled>
-            <input type="button" value="Reset option defaults" id="reset_def" onclick="requestDefaults();">
+            <div id="message" style="color:red"></div>
+            <br>
+            <input type="submit" value="Generate" id="submit">
+            <input type="button" value="Reset option defaults" id="reset_def" onclick="Features.applyDefaults();">
         </form>
     </div>
     <hr>
@@ -60,12 +62,184 @@
     <div id="build_status"></div>
     <br/>
     <script>
-        // this object contains defines and their corresponding labels for build options
-        var define_labels = {};
+
+        const Features = (() => {
+            let features = {};
+            let features_dictionary = {};
+
+            function resetDictionary() {
+                features_dictionary = {};
+                features.forEach((category, cat_idx) => {
+                    category['options'].forEach((option, opt_idx) => {
+                        features_dictionary[option.define] = {
+                            'category_index' : cat_idx,
+                            'option_index' : opt_idx,
+                        };
+                    });
+                });
+            }
+
+            function reset(new_features) {
+                features = new_features;
+                resetDictionary();
+            }
+
+            function getByDefine(define) {
+                let dict_value = features_dictionary[define];
+                if (dict_value == undefined) {
+                    return null;
+                }
+                return features[dict_value['category_index']]['options'][dict_value['option_index']];
+            }
+
+            function updateDefaults(defines_array) {
+                // updates default on the basis of define array passed
+                // the define array consists define in format, EXAMPLE_DEFINE or !EXAMPLE_DEFINE
+                // we update the defaults in features object by processing those defines
+                for (let i=0; i<defines_array.length; i++) {
+                    let select_opt = (defines_array[i][0] != '!');
+                    let sanitised_define = (select_opt ? defines_array[i] : defines_array[i].substring(1)); // this removes the leading '!' from define if it contatins
+                    if (getByDefine(sanitised_define)) {
+                        let cat_idx = features_dictionary[sanitised_define]['category_index'];
+                        let opt_idx = features_dictionary[sanitised_define]['option_index'];
+                        getByDefine(sanitised_define).default = select_opt ? 1 : 0;
+                    }
+                }
+            }
+
+            function applyDefaults() {
+                features.forEach(category => {
+                    category['options'].forEach(option => {
+                        element = document.getElementById(option['label']);
+                        if (element != undefined) {
+                            element.checked = (option['default'] == 1);
+                        }
+                    });
+                });
+            }
+
+            return {reset, getByDefine, updateDefaults, applyDefaults};
+        })();
+        
+        var pending_update_calls = 0;   // to keep track of unresolved Promises
 
         function init() {
             refresh_builds();
-            requestBranches(document.getElementById("vehicle").value);
+            onVehicleChange(document.getElementById("vehicle").value);
+        }
+
+        function setMessage (messageText) {
+            document.getElementById("message").innerHTML = messageText;
+        }
+
+        // enables or disables the elements with ids passed as an array
+        // if enable is true, the elements are enabled and vice-versa
+        function enableDisableElementsById(ids, enable) {
+            for (let i=0; i<ids.length; i++) {
+                let element = document.getElementById(ids[i]);
+                if (element) {
+                    element.disabled = (!enable);
+                }
+            }
+        }
+
+        function onVehicleChange(new_vehicle) {
+            // following elemets will be blocked (disabled) when we make the request
+            let elements_to_block = ['vehicle', 'submit', 'reset_def'];
+            enableDisableElementsById(elements_to_block, false);
+            let request_url = '/get_allowed_branches/'+new_vehicle;
+            setMessage("Fetching the list of available branches for "+new_vehicle);
+            pending_update_calls += 1;
+            sendAjaxRequestForJsonResponse(request_url)
+                .then((json_response) => {
+                    let new_branch = json_response.default_branch;
+                    let all_branches = json_response.branches;
+                    updateBranches(all_branches, new_branch);
+                })
+                .catch((message) => {
+                    console.log("Branch update failed. "+message);
+                })
+                .finally(() => {
+                    setMessage("");
+                    enableDisableElementsById(elements_to_block, true);
+                    pending_update_calls -= 1;
+                    fetchAndUpdateDefaults();
+                });
+        }
+
+        function updateBranches(all_branches, new_branch) {
+            let branch_element = document.getElementById('branch');
+            let old_branch = branch_element ? branch_element.value : '';
+            fillBranches(all_branches, new_branch);
+            if (old_branch != new_branch) {
+                onBranchChange(new_branch);
+            }
+        }
+
+        function onBranchChange(new_branch) {
+            // following elemets will be blocked (disabled) when we make the request
+            let elements_to_block = ['branch', 'submit', 'reset_def'];
+            enableDisableElementsById(elements_to_block, false);
+            let request_url = '/boards_and_features/'+new_branch;
+            setMessage("Fetching the list of boards and features for "+new_branch);
+            pending_update_calls += 1;
+            sendAjaxRequestForJsonResponse(request_url)
+                .then((json_response) => {
+                    let boards = json_response.boards;
+                    let new_board = json_response.default_board;
+                    let new_features = json_response.features;
+                    updateBoards(boards, new_board);
+                    Features.reset(new_features);
+                    fillBuildOptions(new_features);
+                })
+                .catch((message) => {
+                    console.log("Boards and features update failed. "+message);
+                })
+                .finally(() => {
+                    setMessage("");
+                    enableDisableElementsById(elements_to_block, true);
+                    pending_update_calls -= 1;
+                    fetchAndUpdateDefaults();
+                });
+        }
+
+        function updateBoards(all_boards, new_board) {
+            let board_element = document.getElementById('board');
+            let old_board = board_element ? board.value : '';
+            fillBoards(all_boards, new_board);
+            if (old_board != new_board) {
+                onBoardChange(new_board);
+            }
+        }
+ 
+        function onBoardChange(new_board) {
+            fetchAndUpdateDefaults();
+        }
+
+        function fetchAndUpdateDefaults() {
+            // return early if there is an unresolved promise (i.e., there is an ongoing ajax call)
+            if (pending_update_calls > 0) {
+                return;
+            }
+            elements_to_block = ['reset_def']
+            enableDisableElementsById(elements_to_block, false);
+            let branch = document.getElementById('branch').value;
+            let vehicle = document.getElementById('vehicle').value;
+            let board = document.getElementById('board').value;
+            let request_url = '/get_defaults/'+vehicle+'/'+branch+'/'+board;
+            setMessage("Fetching defaults for "+vehicle+" and "+board+" on "+branch);
+            sendAjaxRequestForJsonResponse(request_url)
+                .then((json_response) => {
+                    Features.updateDefaults(json_response);
+                    Features.applyDefaults();
+                })
+                .catch((message) => {
+                    console.log("Default reset failed. "+message);
+                })
+                .finally(() => {
+                    setMessage("");
+                    enableDisableElementsById(elements_to_block, true);
+                });
         }
 
         function refresh_builds() {
@@ -87,45 +261,16 @@
             xhr.send();
         }
 
-        function requestBoardsAndFeatures(branch) {
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', '/boards_and_features/'+branch); // branch consists of both remote and branch_name in format - remote/branch_name. e.g. upstream/master
-            document.getElementById('board_list').innerHTML = "<p>Please wait. Fetching boards on branch "+branch+" ...";
-            document.getElementById('build_options').innerHTML = "<p>Please wait. Fetching build options on branch "+branch+" ...";            
-            document.getElementById("submit").disabled = true;
-            document.getElementById("reset_def").disabled = true;
-            document.getElementById("branch").disabled = true;
-
-            xhr.onload = function () {
-                if (xhr.status == 200) {
-                    response_json = JSON.parse(xhr.response);
-                    boards = response_json['boards'];
-                    default_board = response_json['default_board'];
-                    features = response_json['features'];
-                    fillBoards(boards, default_board);
-                    fillBuildOptions(features);
-                    requestDefaults();
-                    document.getElementById("submit").disabled = false;
-                    document.getElementById("reset_def").disabled = false;
-                } else {
-                    document.getElementById('board_list').innerHTML = "Something went wrong. Please try again. (Response says: "+xhr.response+")";
-                    document.getElementById('build_options').innerHTML = "";      
-                }
-                document.getElementById("branch").disabled = false;
-            }
-            xhr.send();
-        }
-
         function fillBoards(boards, default_board) {
-            var output = document.getElementById('board_list');
+            let output = document.getElementById('board_list');
             output.innerHTML =  "<p>Please select the required options for the custom firmware build, then hit 'Generate'.</p>"+
                                 "<label for='board'>Choose a board: "+
-                                    "<select name='board' id='board'>"+
+                                    "<select name='board' id='board' onchange='onBoardChange(this.value)'>"+
                                     "</select>"+
                                 "</label>";
-            boardList = document.getElementById("board")
+            let boardList = document.getElementById("board")
             boards.forEach(board => {
-                opt = document.createElement('option');
+                let opt = document.createElement('option');
                 opt.value = board;
                 opt.innerHTML = board;
                 opt.selected = (board === default_board);
@@ -134,19 +279,18 @@
         }
 
         function fillBuildOptions(buildOptions) {
-            var output = document.getElementById('build_options');
+            let output = document.getElementById('build_options');
             output.innerHTML =  "<label for='features'>Select Features: "+
                                     "<ul class='collapsibleList' id='outer_list'></ul>"+
                                 "</label>";
-            outerList = document.getElementById("outer_list");
-            define_labels = [];
+            let outerList = document.getElementById("outer_list");
             buildOptions.forEach(category => {
-                outerListItem = document.createElement('li');
+                let outerListItem = document.createElement('li');
                 outerListItem.innerHTML = category['name'];
-                innerList = document.createElement('ul');
+                let innerList = document.createElement('ul');
                 category['options'].forEach(option => {
-                    innerListItem = document.createElement('li');
-                    checkBox = document.createElement('input');
+                    let innerListItem = document.createElement('li');
+                    let checkBox = document.createElement('input');
                     checkBox.type = "checkbox";
                     checkBox.name = option['label'];
                     checkBox.id = option['label'];
@@ -158,7 +302,6 @@
                     innerListItem.appendChild(checkBox);
                     innerListItem.appendChild(document.createTextNode(option['description']));
                     innerList.appendChild(innerListItem);
-                    define_labels[option['define']] = option['label'];
                 });
                 outerListItem.appendChild(innerList);
                 outerList.appendChild(outerListItem);
@@ -172,7 +315,7 @@
                 case f_label:
                     const f_dependency = f_dependency1.split(",")
                     var arrayLength = f_dependency.length;
-                    for (var i = 0; i < arrayLength; i++) {
+                    for (let i = 0; i < arrayLength; i++) {
                         if (document.getElementById(f_dependency[i]).checked == false) {
                             document.getElementById(f_dependency[i]).checked = cb.checked;
                         }
@@ -181,44 +324,30 @@
             }
         }
 
-        function requestBranches(vehicle) {
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', '/get_allowed_branches/'+vehicle);           
-            document.getElementById("submit").disabled = true;
-            document.getElementById("reset_def").disabled = true;
-            document.getElementById("vehicle").disabled = true;
-
-            xhr.onload = function () {
-                if (xhr.status == 200) {
-                    response = JSON.parse(xhr.response);
-                    branches = response['branches'];
-                    default_branch = response['default_branch'];
-                    old_branch = document.getElementById("branch");
-                    fillBranches(branches);
-                    document.getElementById("submit").disabled = false;
-                    document.getElementById("reset_def").disabled = false;
-                    if (old_branch == null || old_branch.value != default_branch){
-                        // branch has changed
-                        // fetch boards and features again
-                        requestBoardsAndFeatures(default_branch);
+        // returns a Promise
+        // the promise is resolved when we recieve status code 200 from the AJAX request
+        // the JSON response for the request is returned in such case
+        // the promise is rejected when the status code is not 200
+        // the status code is returned in such case
+        function sendAjaxRequestForJsonResponse(url) {
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', url);           
+                xhr.onload = function () {
+                    if (xhr.status == 200) {
+                        resolve(JSON.parse(xhr.response));
                     } else {
-                        // the new branch and the current branch are same
-                        // branches need not to be changed
-                        // Since the vehicle has changed, reset the defaults
-                        requestDefaults();
+                        reject("Got response:"+xhr.response+" (Status Code: "+xhr.status+")");
                     }
-                } else {
-                    document.getElementById('branch_list').innerHTML = "Something went wrong. Please try again. (Response says: "+xhr.response+")";
                 }
-                document.getElementById("vehicle").disabled = false;
-            }
-            xhr.send();
+                xhr.send();
+            });
         }
 
-        function fillBranches(branches) {
+        function fillBranches(branches, branch_to_select) {
             var output = document.getElementById('branch_list');
             output.innerHTML =  "<label for='branch'>Choose a branch: "+
-                                    "<select name='branch' id='branch' onchange='requestBoardsAndFeatures(this.value);'>"+
+                                    "<select name='branch' id='branch' onchange='onBranchChange(this.value);'>"+
                                     "</select>"+
                                 "</label>";
             branchList = document.getElementById("branch");
@@ -226,41 +355,9 @@
                 opt = document.createElement('option');
                 opt.value = branch['full_name'];
                 opt.innerHTML = branch['label'];
-                opt.selected = (branch['full_name'] === default_branch);
+                opt.selected = (branch['full_name'] === branch_to_select);
                 branchList.appendChild(opt);
             });
-        }
-
-        function requestDefaults() {
-            branch = document.getElementById('branch').value;
-            vehicle = document.getElementById('vehicle').value;
-            board = document.getElementById('board').value;
-            document.getElementById("reset_def").disabled = true;
-            
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', '/get_defaults/'+vehicle+'/'+branch+'/'+board);
-            xhr.onload = function () {
-                if (xhr.status == 200) {
-                    parsed_response = JSON.parse(xhr.response);
-                    setDefaults(parsed_response);
-                } else {
-                    console.log(xhr.response);
-                }
-                document.getElementById("reset_def").disabled = false;
-            }
-            xhr.send();
-        }
-
-        function setDefaults(defines_arr) {
-            for (var i=0; i<defines_arr.length; i++) {
-                var select_opt = (defines_arr[i][0] != '!');
-                var sanitised_define = (select_opt ? defines_arr[i] : defines_arr[i].substring(1)); // this removes the leading '!' from define if it contatins
-                var opt_label = define_labels[sanitised_define];
-                if (opt_label != undefined) {
-                    document.getElementById(opt_label).checked = select_opt;
-                }
-            }
-            return;
         }
     </script>
 </div>
