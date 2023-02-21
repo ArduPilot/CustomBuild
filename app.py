@@ -385,7 +385,7 @@ def get_build_status():
         elif not os.path.exists(os.path.join(outdir_parent,b,'build.log')):
             status = "Error"
         else:
-            build = open(os.path.join(outdir_parent,b,'build.log')).read()
+            build = open(os.path.join(outdir_parent,b,'build.log'), encoding='utf-8').read()
             if build.find("'%s' finished successfully" % vehicle.lower()) != -1:
                 status = "Finished"
             elif build.find('The configuration failed') != -1 or build.find('Build failed') != -1 or build.find('compilation terminated') != -1:
