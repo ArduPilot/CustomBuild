@@ -23,6 +23,8 @@ os.nice(20)
 
 appdir = os.path.dirname(__file__)
 
+builds_dict = {}
+
 class Vehicle:
     def __init__(self, name, dir):
         self.name = name
@@ -347,67 +349,122 @@ def queue_thread():
             app.logger.error('Failed queue: ', ex)
             pass
 
-def get_build_status():
-    '''return build status tuple list
-     returns tuples of form (status,age,board,vehicle,genlink)
-    '''
-    ret = []
+def get_build_progress(build_id, build_status):
+    '''return build progress on scale of 0 to 100'''
+    if build_status in ['Pending', 'Error']:
+        return 0
+    
+    if build_status == 'Finished':
+        return 100
+    
+    log_file_path = os.path.join(outdir_parent,build_id,'build.log')
+    app.logger.info('Opening ' + log_file_path)
+    build_log = open(log_file_path, encoding='utf-8').read()
+    compiled_regex = re.compile(r'(\[(\d+\/\d+)\])')
+    all_matches = compiled_regex.findall(build_log)
 
+    if (len(all_matches) < 1):
+        return 0
+
+    completed_steps, total_steps = all_matches[-1][1].split('/', 1)
+    if (int(total_steps) < 20):
+        # these steps are just little compilation and linking that happen at initialisation
+        # these do not contribute significant percentage to overall build progress
+        return 1
+    
+    if (int(total_steps) < 200):
+        # these steps are for building the OS
+        # we give this phase 4% weight in the whole build progress
+        return (int(completed_steps) * 4 // int(total_steps)) + 1
+    
+    # these steps are the major part of the build process
+    # we give 95% of weight to these
+    return (int(completed_steps) * 95 // int(total_steps)) + 5
+
+
+def get_build_status(build_id):
+    build_id_split = build_id.split(':')
+    if len(build_id_split) < 2:
+        raise Exception('Invalid build id')
+
+    if os.path.exists(os.path.join(outdir_parent,build_id,'q.json')):
+        status = "Pending"
+    elif not os.path.exists(os.path.join(outdir_parent,build_id,'build.log')):
+        status = "Error"
+    else:
+        log_file_path = os.path.join(outdir_parent,build_id,'build.log')
+        app.logger.info('Opening ' + log_file_path)
+        build_log = open(log_file_path, encoding='utf-8').read()
+        if build_log.find("'%s' finished successfully" % build_id_split[0].lower()) != -1:
+            status = "Finished"
+        elif build_log.find('The configuration failed') != -1 or build_log.find('Build failed') != -1 or build_log.find('compilation terminated') != -1:
+            status = "Failed"
+        elif build_log.find('BUILD_FINISHED') == -1:
+            status = "Running"
+        else:
+            status = "Failed"
+    return status
+
+def update_build_dict():
+    '''update the build_dict dictionary which keeps track of status of all builds'''
+    global builds_dict
     # get list of directories
     blist = []
     for b in os.listdir(outdir_parent):
         if os.path.isdir(os.path.join(outdir_parent,b)):
             blist.append(b)
-    blist.sort(key=lambda x: os.path.getmtime(os.path.join(outdir_parent,x)), reverse=True)
+
+    #remove deleted builds from build_dict
+    for build in builds_dict:
+        if build not in blist:
+            builds_dict.pop(build, None)
 
     for b in blist:
-        a = b.split(':')
-        if len(a) < 2:
+        build_id_split = b.split(':')
+        if len(build_id_split) < 2:
             continue
-        vehicle = a[0].capitalize()
-        board = a[1]
-        link = "/view?token=%s" % b
+        build_info = builds_dict.get(b, None)
+        # add an entry for the build in build_dict if not exists
+        if (build_info is None):
+            build_info = {}
+            build_info['vehicle'] = build_id_split[0].capitalize()
+            build_info['board'] = build_id_split[1]
+            feature_file = os.path.join(outdir_parent, b, 'selected_features.json')
+            app.logger.info('Opening ' + feature_file)
+            selected_features_dict = json.loads(open(feature_file).read())
+            selected_features = selected_features_dict['selected_features']
+            build_info['git_hash_short'] = selected_features_dict['git_hash_short']
+            features = ''
+            for feature in selected_features:
+                if features == '':
+                    features = features + feature
+                else:
+                    features = features + ", " + feature
+            build_info['features'] = features
+
         age_min = int(file_age(os.path.join(outdir_parent,b))/60.0)
-        age_str = "%u:%02u" % ((age_min // 60), age_min % 60)
-        feature_file = os.path.join(outdir_parent, b, 'selected_features.json')
-        app.logger.info('Opening ' + feature_file)
-        selected_features_dict = json.loads(open(feature_file).read())
-        selected_features = selected_features_dict['selected_features']
-        git_hash_short = selected_features_dict['git_hash_short']
-        features = ''
-        for feature in selected_features:
-            if features == '':
-                features = features + feature
-            else:
-                features = features + ", " + feature
-        if os.path.exists(os.path.join(outdir_parent,b,'q.json')):
-            status = "Pending"
-        elif not os.path.exists(os.path.join(outdir_parent,b,'build.log')):
-            status = "Error"
-        else:
-            build = open(os.path.join(outdir_parent,b,'build.log'), encoding='utf-8').read()
-            if build.find("'%s' finished successfully" % vehicle.lower()) != -1:
-                status = "Finished"
-            elif build.find('The configuration failed') != -1 or build.find('Build failed') != -1 or build.find('compilation terminated') != -1:
-                status = "Failed"
-            elif build.find('BUILD_FINISHED') == -1:
-                status = "Running"
-            else:
-                status = "Failed"
-        ret.append((status,age_str,board,vehicle,link,features,git_hash_short))
-    return ret
+        build_info['age'] = "%u:%02u" % ((age_min // 60), age_min % 60)
+
+        # refresh build status only if it was pending, running or not initialised
+        if (build_info.get('status', None) in ['Pending', 'Running', None]):
+            build_info['status'] = get_build_status(b)
+            build_info['progress'] = get_build_progress(b, build_info['status'])
+
+        # update dictionary entry
+        builds_dict[b] = build_info
+
+    temp_list = sorted(list(builds_dict.items()), key=lambda x: os.path.getmtime(os.path.join(outdir_parent,x[0])), reverse=True)
+    builds_dict = {ele[0] : ele[1]  for ele in temp_list}
 
 def create_status():
-    '''create status.html'''
-    build_status = get_build_status()
+    '''create status.json'''
+    global builds_dict
+    update_build_dict()
     tmpfile = os.path.join(outdir_parent, "status.tmp")
-    statusfile = os.path.join(outdir_parent, "status.html")
-    f = open(tmpfile, "w")
-    app2 = Flask("status")
-    with app2.app_context():
-        f.write(render_template_string(open(os.path.join(appdir, 'templates', 'status.html')).read(),
-                                       build_status=build_status))
-    f.close()
+    statusfile = os.path.join(outdir_parent, "status.json")
+    json_object = json.dumps(builds_dict)
+    with open(tmpfile, "w") as outfile:
+        outfile.write(json_object)
     os.replace(tmpfile, statusfile)
 
 def status_thread():
@@ -596,6 +653,13 @@ def view():
     token=request.args['token']
     app.logger.info("viewing %s" % token)
     return render_template('generate.html', token=token)
+
+@app.route('/add_build')
+def add_build():
+    app.logger.info('Rendering add_build.html')
+    return render_template('add_build.html',
+                            get_vehicle_names=get_vehicle_names,
+                            get_default_vehicle_name=get_default_vehicle_name)
 
 
 def filter_build_options_by_category(build_options, category):
