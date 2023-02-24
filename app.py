@@ -640,12 +640,12 @@ def generate():
 
         base_url = request.url_root
         app.logger.info(base_url)
-        app.logger.info('Rendering generate.html')
-        return render_template('generate.html', token=token)
+        app.logger.info('Rendering index.html')
+        return render_template('index.html', token=token)
 
     except Exception as ex:
         app.logger.error(ex)
-        return render_template('generate.html', error='Error occured: ', ex=ex)
+        return render_template('error.html', ex=ex)
 
 @app.route('/view', methods=['GET'])
 def view():
@@ -672,8 +672,7 @@ def parse_build_categories(build_options):
 def home():
     app.logger.info('Rendering index.html')
     return render_template('index.html',
-                           get_vehicle_names=get_vehicle_names,
-                           get_default_vehicle_name=get_default_vehicle_name)
+                           token=None)
 
 @app.route("/builds/<path:name>")
 def download_file(name):
