@@ -5,364 +5,117 @@
     <meta charset="utf-8">
     <title>ArduPilot Custom Firmware Builder</title>
     <meta name="description"
-          content="ArduPilot Custom Firmware Builder. It allows to build custom ArduPilot firmware by selecting the wanted features.">
+        content="ArduPilot Custom Firmware Builder. It allows to build custom ArduPilot firmware by selecting the wanted features.">
     <meta name="author" content="ArduPilot Team">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <!-- OG Meta Tags to improve the way the post looks when you share the page on LinkedIn, Facebook, Google+ -->
-    <meta property="og:site_name" content="ArduPilot"/>
-    <meta property="og:site" content=""/>
-    <meta property="og:title" content="ArduPilot Custom Firmware Builder"/>
+    <meta property="og:site_name" content="ArduPilot" />
+    <meta property="og:site" content="" />
+    <meta property="og:title" content="ArduPilot Custom Firmware Builder" />
     <meta property="og:description"
-          content="ArduPilot Custom Firmware Builder. It allows to build custom ArduPilot firmware by selecting the wanted features."/>
+        content="ArduPilot Custom Firmware Builder. It allows to build custom ArduPilot firmware by selecting the wanted features." />
     <!-- description shown in the actual shared post -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://custom.ardupilot.org/">
     <meta property="og:image" content="https://ardupilot.org/application/files/6315/7552/1962/ArduPilot-Motto.png">
 
     <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/main.css') }}">
-    <script type="text/javascript" src="{{ url_for('static', filename='js/CollapsibleLists.js')}}"></script>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
 </head>
 
-<body onload="javascript: init()">
-<div id="main">
-    <a href="https://custom.ardupilot.org/">
-        <div id="logo">
-        </div>
-    </a>
-
-    <div id="menu">
-        <h2>ArduPilot Custom Firmware Builder</h2>
-        <p style="color: red;">To try out the newest features of the application, visit our beta server at <a href="https://custom-beta.ardupilot.org">custom-beta.ardupilot.org</a></p>
-        <form action="/generate" method="post">
-            <div id="vehicle_list">
-                <label for="vehicle">Choose a vehicle:
-                    <select name="vehicle" id="vehicle" onchange="onVehicleChange(this.value);">
-                        {% for vehicle in get_vehicle_names() %}
-                        <option value="{{vehicle}}" {% if vehicle == get_default_vehicle_name() %} selected {% endif %}>{{vehicle}}</option>
-                        {% endfor %}
-                    </select>
-                </label>
+<body class="bg-light" onload="javascript: init()">
+    <nav class="navbar bg-dark">
+        <div class="container-fluid">
+            <div>
+                <a class="navbar-brand" href="./">
+                    <img src="{{ url_for('static', filename='images/ardupilot_logo.png')}}" alt="ArduPilot" height="24"
+                        class="d-inline-block align-text-top">
+                    <span class="ms-2 text-white" style="font-size: 25px;">Custom Firmware Builder</span>
+                </a>
             </div>
-            <p></p>
-            <div id="branch_list"></div>
-            <p></p>
-            <div id="board_list"></div>
-            <p></p>
-            <div id="build_options"></div>
-            <br>
-            <div id="message" style="color:red"></div>
-            <br>
-            <input type="submit" value="Generate" id="submit">
-            <input type="button" value="Reset option defaults" id="reset_def" onclick="Features.applyDefaults();">
-        </form>
+            <div>
+                <a href="https://github.com/ArduPilot/CustomBuild/issues/new" class="btn btn-outline-light me-1"><i
+                        class="bi bi-github me-2"></i>Report an issue</a>
+                <a href="./builds" class="btn btn-outline-light me-1"><i class="bi bi-folder2-open me-2"></i>Go to
+                    builds directory</a>
+                <a href="./add_build" class="btn btn-success"><i class="bi bi-plus-square me-2"></i>Add a build</a>
+            </div>
+        </div>
+    </nav>
+    <div class="container-fluid px-3 py-3" id="build_table_container">
+        <div class="container-fluid d-flex align-items-center justify-content-center" style="height: 100vh;">
+            <div class="container-fluid w-25 d-flex align-content-between">
+                <strong>Fetching builds...</strong>
+                <div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>
+            </div>
+        </div>
     </div>
-    <hr>
-    <p>Exisiting builds (click on the status of a build to view it):</p>
-    <div id="build_status"></div>
-    <br/>
+
+    <!-- Log Modal -->
+    <div class="modal fade" id="logModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-labelledby="logModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="logModalLabel">Build log</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <textarea class="form-control" id="logTextArea" rows="30" col="100" readonly
+                        style="font-family: Consolas, monaco, monospace; font-size: smaller;"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <div class="container-fluid d-flex justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="autoScrollSwitch" checked>
+                                <label class="form-check-label" for="autoScrollSwitch">Auto-Scroll</label>
+                            </div>
+                        </div>
+                        <div class="p-2">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Modal -->
+    <div class="modal fade" id="featureModal" tabindex="-1" aria-labelledby="featureModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="featureModalLabel">Included features</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4" id="featureModalBody"></div>
+                <div class="modal-footer">
+                    <div class="container-fluid d-flex justify-content-end">
+                        <div class="p-2">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.3.min.js" integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU=" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js" integrity="sha256-lSjKY0/srUM9BE3dPm+c4fBo1dky2v27Gdjm2uoZaL0=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js" integrity="sha384-oBqDVmMz9ATKxIep9tiCxS/Z9fNfEXiDAYTujMAeBAsjFuCZSmKbSSUnQlmh/jp3" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js" integrity="sha384-mQ93GR66B00ZXjt0YO5KlohRA5SY2XofN4zfuZxLkoj1gXtW8ANNCe9d5Y3eG5eD" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/index.js')}}"></script>
+
+    {% if token != None %}
     <script>
-
-        const Features = (() => {
-            let features = {};
-            let features_dictionary = {};
-
-            function resetDictionary() {
-                features_dictionary = {};
-                features.forEach((category, cat_idx) => {
-                    category['options'].forEach((option, opt_idx) => {
-                        features_dictionary[option.define] = {
-                            'category_index' : cat_idx,
-                            'option_index' : opt_idx,
-                        };
-                    });
-                });
-            }
-
-            function reset(new_features) {
-                features = new_features;
-                resetDictionary();
-            }
-
-            function getByDefine(define) {
-                let dict_value = features_dictionary[define];
-                if (dict_value == undefined) {
-                    return null;
-                }
-                return features[dict_value['category_index']]['options'][dict_value['option_index']];
-            }
-
-            function updateDefaults(defines_array) {
-                // updates default on the basis of define array passed
-                // the define array consists define in format, EXAMPLE_DEFINE or !EXAMPLE_DEFINE
-                // we update the defaults in features object by processing those defines
-                for (let i=0; i<defines_array.length; i++) {
-                    let select_opt = (defines_array[i][0] != '!');
-                    let sanitised_define = (select_opt ? defines_array[i] : defines_array[i].substring(1)); // this removes the leading '!' from define if it contatins
-                    if (getByDefine(sanitised_define)) {
-                        let cat_idx = features_dictionary[sanitised_define]['category_index'];
-                        let opt_idx = features_dictionary[sanitised_define]['option_index'];
-                        getByDefine(sanitised_define).default = select_opt ? 1 : 0;
-                    }
-                }
-            }
-
-            function applyDefaults() {
-                features.forEach(category => {
-                    category['options'].forEach(option => {
-                        element = document.getElementById(option['label']);
-                        if (element != undefined) {
-                            element.checked = (option['default'] == 1);
-                        }
-                    });
-                });
-            }
-
-            return {reset, getByDefine, updateDefaults, applyDefaults};
-        })();
-        
-        var pending_update_calls = 0;   // to keep track of unresolved Promises
-
-        function init() {
-            refresh_builds();
-            onVehicleChange(document.getElementById("vehicle").value);
-        }
-
-        function setMessage (messageText) {
-            document.getElementById("message").innerHTML = messageText;
-        }
-
-        // enables or disables the elements with ids passed as an array
-        // if enable is true, the elements are enabled and vice-versa
-        function enableDisableElementsById(ids, enable) {
-            for (let i=0; i<ids.length; i++) {
-                let element = document.getElementById(ids[i]);
-                if (element) {
-                    element.disabled = (!enable);
-                }
-            }
-        }
-
-        function onVehicleChange(new_vehicle) {
-            // following elemets will be blocked (disabled) when we make the request
-            let elements_to_block = ['vehicle', 'submit', 'reset_def'];
-            enableDisableElementsById(elements_to_block, false);
-            let request_url = '/get_allowed_branches/'+new_vehicle;
-            setMessage("Fetching the list of available branches for "+new_vehicle);
-            pending_update_calls += 1;
-            sendAjaxRequestForJsonResponse(request_url)
-                .then((json_response) => {
-                    let new_branch = json_response.default_branch;
-                    let all_branches = json_response.branches;
-                    updateBranches(all_branches, new_branch);
-                })
-                .catch((message) => {
-                    console.log("Branch update failed. "+message);
-                })
-                .finally(() => {
-                    setMessage("");
-                    enableDisableElementsById(elements_to_block, true);
-                    pending_update_calls -= 1;
-                    fetchAndUpdateDefaults();
-                });
-        }
-
-        function updateBranches(all_branches, new_branch) {
-            let branch_element = document.getElementById('branch');
-            let old_branch = branch_element ? branch_element.value : '';
-            fillBranches(all_branches, new_branch);
-            if (old_branch != new_branch) {
-                onBranchChange(new_branch);
-            }
-        }
-
-        function onBranchChange(new_branch) {
-            // following elemets will be blocked (disabled) when we make the request
-            let elements_to_block = ['branch', 'submit', 'reset_def'];
-            enableDisableElementsById(elements_to_block, false);
-            let request_url = '/boards_and_features/'+new_branch;
-            setMessage("Fetching the list of boards and features for "+new_branch);
-            pending_update_calls += 1;
-            sendAjaxRequestForJsonResponse(request_url)
-                .then((json_response) => {
-                    let boards = json_response.boards;
-                    let new_board = json_response.default_board;
-                    let new_features = json_response.features;
-                    updateBoards(boards, new_board);
-                    Features.reset(new_features);
-                    fillBuildOptions(new_features);
-                })
-                .catch((message) => {
-                    console.log("Boards and features update failed. "+message);
-                })
-                .finally(() => {
-                    setMessage("");
-                    enableDisableElementsById(elements_to_block, true);
-                    pending_update_calls -= 1;
-                    fetchAndUpdateDefaults();
-                });
-        }
-
-        function updateBoards(all_boards, new_board) {
-            let board_element = document.getElementById('board');
-            let old_board = board_element ? board.value : '';
-            fillBoards(all_boards, new_board);
-            if (old_board != new_board) {
-                onBoardChange(new_board);
-            }
-        }
- 
-        function onBoardChange(new_board) {
-            fetchAndUpdateDefaults();
-        }
-
-        function fetchAndUpdateDefaults() {
-            // return early if there is an unresolved promise (i.e., there is an ongoing ajax call)
-            if (pending_update_calls > 0) {
-                return;
-            }
-            elements_to_block = ['reset_def']
-            enableDisableElementsById(elements_to_block, false);
-            let branch = document.getElementById('branch').value;
-            let vehicle = document.getElementById('vehicle').value;
-            let board = document.getElementById('board').value;
-            let request_url = '/get_defaults/'+vehicle+'/'+branch+'/'+board;
-            setMessage("Fetching defaults for "+vehicle+" and "+board+" on "+branch);
-            sendAjaxRequestForJsonResponse(request_url)
-                .then((json_response) => {
-                    Features.updateDefaults(json_response);
-                    Features.applyDefaults();
-                })
-                .catch((message) => {
-                    console.log("Default reset failed. "+message);
-                })
-                .finally(() => {
-                    setMessage("");
-                    enableDisableElementsById(elements_to_block, true);
-                });
-        }
-
-        function refresh_builds() {
-            var output = document.getElementById('build_status');
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', "/builds/status.html");
-
-            // disable cache, thanks to: https://stackoverflow.com/questions/22356025/force-cache-control-no-cache-in-chrome-via-xmlhttprequest-on-f5-reload
-            xhr.setRequestHeader("Cache-Control", "no-cache, no-store, max-age=0");
-            xhr.setRequestHeader("Expires", "Tue, 01 Jan 1980 1:00:00 GMT");
-            xhr.setRequestHeader("Pragma", "no-cache");
-
-            xhr.onload = function () {
-                if (xhr.status === 200) {
-                    output.innerHTML = xhr.responseText;
-                }
-                setTimeout(refresh_builds, 5000)
-            }
-            xhr.send();
-        }
-
-        function fillBoards(boards, default_board) {
-            let output = document.getElementById('board_list');
-            output.innerHTML =  "<p>Please select the required options for the custom firmware build, then hit 'Generate'.</p>"+
-                                "<label for='board'>Choose a board: "+
-                                    "<select name='board' id='board' onchange='onBoardChange(this.value)'>"+
-                                    "</select>"+
-                                "</label>";
-            let boardList = document.getElementById("board")
-            boards.forEach(board => {
-                let opt = document.createElement('option');
-                opt.value = board;
-                opt.innerHTML = board;
-                opt.selected = (board === default_board);
-                boardList.appendChild(opt);
-            });
-        }
-
-        function fillBuildOptions(buildOptions) {
-            let output = document.getElementById('build_options');
-            output.innerHTML =  "<label for='features'>Select Features: "+
-                                    "<ul class='collapsibleList' id='outer_list'></ul>"+
-                                "</label>";
-            let outerList = document.getElementById("outer_list");
-            buildOptions.forEach(category => {
-                let outerListItem = document.createElement('li');
-                outerListItem.innerHTML = category['name'];
-                let innerList = document.createElement('ul');
-                category['options'].forEach(option => {
-                    let innerListItem = document.createElement('li');
-                    let checkBox = document.createElement('input');
-                    checkBox.type = "checkbox";
-                    checkBox.name = option['label'];
-                    checkBox.id = option['label'];
-                    checkBox.value = "1";
-                    checkBox.checked = (option['default'] == 1);
-                    checkBox.addEventListener('click', function handleClick(event) {
-                        dependencies(option['label'], option['dependency']);
-                    });
-                    innerListItem.appendChild(checkBox);
-                    innerListItem.appendChild(document.createTextNode(option['description']));
-                    innerList.appendChild(innerListItem);
-                });
-                outerListItem.appendChild(innerList);
-                outerList.appendChild(outerListItem);
-            });
-            CollapsibleLists.apply();
-        }
-
-        function dependencies(f_label, f_dependency1) {
-            cb = document.getElementById(f_label);
-            switch (cb.name) {
-                case f_label:
-                    const f_dependency = f_dependency1.split(",")
-                    var arrayLength = f_dependency.length;
-                    for (let i = 0; i < arrayLength; i++) {
-                        if (document.getElementById(f_dependency[i]).checked == false) {
-                            document.getElementById(f_dependency[i]).checked = cb.checked;
-                        }
-                    }
-                    break;
-            }
-        }
-
-        // returns a Promise
-        // the promise is resolved when we recieve status code 200 from the AJAX request
-        // the JSON response for the request is returned in such case
-        // the promise is rejected when the status code is not 200
-        // the status code is returned in such case
-        function sendAjaxRequestForJsonResponse(url) {
-            return new Promise((resolve, reject) => {
-                var xhr = new XMLHttpRequest();
-                xhr.open('GET', url);           
-                xhr.onload = function () {
-                    if (xhr.status == 200) {
-                        resolve(JSON.parse(xhr.response));
-                    } else {
-                        reject("Got response:"+xhr.response+" (Status Code: "+xhr.status+")");
-                    }
-                }
-                xhr.send();
-            });
-        }
-
-        function fillBranches(branches, branch_to_select) {
-            var output = document.getElementById('branch_list');
-            output.innerHTML =  "<label for='branch'>Choose a branch: "+
-                                    "<select name='branch' id='branch' onchange='onBranchChange(this.value);'>"+
-                                    "</select>"+
-                                "</label>";
-            branchList = document.getElementById("branch");
-            branches.forEach(branch => {
-                opt = document.createElement('option');
-                opt.value = branch['full_name'];
-                opt.innerHTML = branch['label'];
-                opt.selected = (branch['full_name'] === branch_to_select);
-                branchList.appendChild(opt);
-            });
-        }
+        document.addEventListener("load", launchLogModal('{{token}}'));
     </script>
-</div>
+    {% endif %}
+
 </body>
 
-<hr>
-<footer>Created by Will Piper, <a href=https://github.com/ArduPilot/CustomBuild>Source Code</a>.</footer>
 </html>

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+    
+<head>
+    <meta charset="utf-8">
+    <title>ArduPilot Custom Firmware Builder</title>
+    <meta name="description"
+          content="ArduPilot Custom Firmware Builder. It allows to build custom ArduPilot firmware by selecting the wanted features.">
+    <meta name="author" content="ArduPilot Team">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- OG Meta Tags to improve the way the post looks when you share the page on LinkedIn, Facebook, Google+ -->
+    <meta property="og:site_name" content="ArduPilot"/>
+    <meta property="og:site" content=""/>
+    <meta property="og:title" content="ArduPilot Custom Firmware Builder"/>
+    <meta property="og:description"
+          content="ArduPilot Custom Firmware Builder. It allows to build custom ArduPilot firmware by selecting the wanted features."/>
+    <!-- description shown in the actual shared post -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://custom.ardupilot.org/">
+    <meta property="og:image" content="https://ardupilot.org/application/files/6315/7552/1962/ArduPilot-Motto.png">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/main.css') }}">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js" integrity="sha384-oBqDVmMz9ATKxIep9tiCxS/Z9fNfEXiDAYTujMAeBAsjFuCZSmKbSSUnQlmh/jp3" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js" integrity="sha384-mQ93GR66B00ZXjt0YO5KlohRA5SY2XofN4zfuZxLkoj1gXtW8ANNCe9d5Y3eG5eD" crossorigin="anonymous"></script>
+</head>
+
+<body class="bg-light" onload="javascript: init()">
+    <nav class="navbar bg-dark">
+        <div class="container-fluid">
+            <div>
+                <a class="navbar-brand" href="./" >
+                    <img src="{{ url_for('static', filename='images/ardupilot_logo.png')}}" alt="ArduPilot" height="24" class="d-inline-block align-text-top">
+                    <span class="ms-2 text-white" style="font-size: 25px;">Custom Firmware Builder</span>
+                </a>
+            </div>
+            <div>
+                <a href="https://github.com/ArduPilot/CustomBuild/issues/new" class="btn btn-outline-light me-1"><i class="bi bi-github me-2"></i>Report an issue</a>
+                <a href="./builds/" class="btn btn-outline-light me-1"><i class="bi bi-folder2-open me-2"></i>Go to builds directory</a>
+                <a href="./" class="btn btn-primary"><i class="bi bi-eye me-2"></i>View all builds</a>     
+            </div>
+        </div>
+    </nav>
+    <div class="container-fluid px-3 py-3">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between">
+              <span class="d-flex align-items-center"><i class="bi bi-hammer me-2"></i><strong>ADD NEW BUILD</strong></span>
+              <button class="btn btn-primary" id="exp_col_button" onclick="toggle_all_categories();"><i class="bi bi-chevron-expand me-2"></i>Expand/Collapse all categories</button>    
+            </div>
+            <div class="card-body">
+              <form id="build-form" action="/generate" method="post">
+                <div class="row">
+                    <div class="col-md-4 col-sm-6 mb-2 d-flex align-items-end">
+                        <div class="container-fluid">
+                            <label for="vehicle" class="form-label"><strong>Select vehicle</strong></label>
+                            <select name="vehicle" id="vehicle" class="form-select" aria-label="Select vehicle" onchange="onVehicleChange(this.value);">
+                                {% for vehicle in get_vehicle_names() %}
+                                <option value="{{vehicle}}" {% if vehicle == get_default_vehicle_name() %} selected {% endif %}>{{vehicle}}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4 col-sm-6 mb-2 d-flex align-items-end">
+                        <div class="container-fluid" id="branch_list">
+                            <div class="container-fluid d-flex align-content-between">
+                                <strong>Fetching branches...</strong>
+                                <div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 col-sm-12 mb-2 d-flex align-items-end">
+                        <div class="container-fluid" id="board_list">
+                            <div class="container-fluid d-flex align-content-between">
+                                <strong>Fetching boards...</strong>
+                                <div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="container-fluid" id="build_options">
+                    <div class="container-fluid w-25">
+                        <div class="container-fluid d-flex align-content-between">
+                            <strong>Fetching features...</strong>
+                            <div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>
+                        </div>
+                    </div>
+                </div>
+              </form>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between p-0">
+                    <div class="d-flex align-items-center">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="auto_apply_def" checked>
+                            <label class="form-check-label" for="auto_apply_def">Auto-apply feature defaults</label>
+                        </div>
+                    </div>
+                    <div>
+                        <button class="btn btn-outline-primary me-2" id="reset_def" onclick="Features.applyDefaults();"><i class="bi bi-arrow-counterclockwise me-2"></i>Reset feature defaults</button>
+                        <button type="submit" form="build-form" class="btn btn-primary" id="submit"><i class="bi bi-hammer me-2"></i>Generate build</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+  
+    <!-- Dependency check modal -->
+    <div class="modal fade" id="dependencyCheckModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-labelledby="dependencyCheckModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+            <h5 class="modal-title" id="dependencyCheckModalLabel">Attention!</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="modalCloseButton"></button>
+            </div>
+            <div class="modal-body" id="modalBody">
+            </div>
+            <div class="modal-footer">
+            <button type="button" class="btn btn-danger" data-bs-dismiss="modal" id="modalDisableButton">Disable all</button>
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal" id="modalCancelButton">Cancel</button>
+            </div>
+        </div>
+        </div>
+    </div>
+  
+    <script type="text/javascript" src="{{ url_for('static', filename='js/add_build.js')}}"></script>
+</body>
+</html>
