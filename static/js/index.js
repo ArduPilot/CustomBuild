@@ -87,7 +87,7 @@ function updateBuildsTable(status_json) {
         row_num += 1;
     });
 
-    let table_html =    `<table class="table table-hover table-light">
+    let table_html =    `<table class="table table-hover table-light shadow">
                             <thead class="table-dark">
                                 <th scope="col" style="width: 5%">Status</th>
                                 <th scope="col" style="width: 5%">Age (hr:min)</th>
