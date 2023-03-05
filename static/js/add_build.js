@@ -392,7 +392,12 @@ function createCategoryCard(category_name, options, expanded) {
 
 function fillBuildOptions(buildOptions) {
     let output = document.getElementById('build_options');
-    output.innerHTML =  '<p class="card-text"><strong>Available features for the current selection are:</strong></p>';
+    output.innerHTML =  `<div class="d-flex mb-3 justify-content-between">
+                            <div class="d-flex d-flex align-items-center">
+                                <p class="card-text"><strong>Available features for the current selection are:</strong></p>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary" id="exp_col_button" onclick="toggle_all_categories();"><i class="bi bi-chevron-expand me-2"></i>Expand/Collapse all categories</button> 
+                        </div>`;
 
     buildOptions.forEach((category, cat_idx) => {
         if (cat_idx % 4 == 0) {
