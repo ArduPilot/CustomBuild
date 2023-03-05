@@ -170,7 +170,7 @@ const Features = (() => {
     return {reset, handleDependenciesForFeature, disableDependents, updateDefaults, applyDefaults};
 })();
 
-var all_categories_expanded = false;
+var init_categories_expanded = false;
 
 var pending_update_calls = 0;   // to keep track of unresolved Promises
 
@@ -333,21 +333,29 @@ function fillBoards(boards, default_board) {
     });
 }
 
-function toggle_all_categories() {
-    // toggle global state
-    all_categories_expanded = !all_categories_expanded;
 
-    all_collapse_elements = document.getElementsByClassName('collapse');
+var toggle_all_categories = (() => {
+    let all_categories_expanded = init_categories_expanded;
 
-    for (let i=0; i<all_collapse_elements.length;) {
-        collapse_instance = bootstrap.Collapse.getOrCreateInstance(all_collapse_elements[i]);
-        if (all_categories_expanded) {
-            collapse_instance.show();
-        } else {
-            collapse_instance.hide();
+    function toggle_method() {
+        // toggle global state
+        all_categories_expanded = !all_categories_expanded;
+
+        let all_collapse_elements = document.getElementsByClassName('feature-group');
+
+        for (let i=0; i<all_collapse_elements.length; i+=1) {
+            let collapse_element = all_collapse_elements[i];
+            collapse_instance = bootstrap.Collapse.getOrCreateInstance(collapse_element);
+            if (all_categories_expanded && !collapse_element.classList.contains('show')) {
+                collapse_instance.show();
+            } else if (!all_categories_expanded && collapse_element.classList.contains('show')) {
+                collapse_instance.hide();
+            }
         }
     }
-}
+
+    return toggle_method;
+})();
 
 function createCategoryCard(category_name, options, expanded) {
     options_html = "";
@@ -373,7 +381,7 @@ function createCategoryCard(category_name, options, expanded) {
                                     '</div>' +
                                 '</div>';
     let collapse_element = document.createElement('div');
-    collapse_element.setAttribute('class', 'collapse '+(expanded == true ? 'show' : ''));
+    collapse_element.setAttribute('class', 'feature-group collapse '+(expanded == true ? 'show' : ''));
     collapse_element.id = id_prefix + '_collapse';
     collapse_element.innerHTML = '<div class="container-fluid px-2 py-2">'+options_html+'</div>';
     card_element.appendChild(collapse_element);
@@ -408,7 +416,7 @@ function fillBuildOptions(buildOptions) {
         }
         let col_element = document.createElement('div');
         col_element.setAttribute('class', 'col-md-3 col-sm-6 mb-2');
-        col_element.appendChild(createCategoryCard(category['name'], category['options'], all_categories_expanded));
+        col_element.appendChild(createCategoryCard(category['name'], category['options'], init_categories_expanded));
         document.getElementById('category_'+parseInt(cat_idx/4)+'_row').appendChild(col_element);
     });
 }
