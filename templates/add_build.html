@@ -46,9 +46,8 @@
     </nav>
     <div class="container-fluid px-3 py-3">
         <div class="card">
-            <div class="card-header d-flex justify-content-between">
-              <span class="d-flex align-items-center"><i class="bi bi-hammer me-2"></i><strong>ADD NEW BUILD</strong></span>
-              <button class="btn btn-primary" id="exp_col_button" onclick="toggle_all_categories();"><i class="bi bi-chevron-expand me-2"></i>Expand/Collapse all categories</button>    
+            <div class="card-header">
+              <span class="d-flex align-items-center"><i class="bi bi-hammer me-2"></i><strong>ADD NEW BUILD</strong></span>   
             </div>
             <div class="card-body">
               <form id="build-form" action="/generate" method="post">
@@ -80,6 +79,7 @@
                         </div>
                     </div>
                 </div>
+                <hr>
                 <div class="container-fluid" id="build_options">
                     <div class="container-fluid w-25">
                         <div class="container-fluid d-flex align-content-between">
