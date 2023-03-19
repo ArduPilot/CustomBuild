@@ -167,7 +167,18 @@ const Features = (() => {
         fixAllDependencies();
     }
 
-    return {reset, handleDependenciesForFeature, disableDependents, updateDefaults, applyDefaults};
+    function checkUncheckAll(check) {
+        features.forEach(category => { 
+            category['options'].forEach(option => {
+                element = document.getElementById(option['label']);
+                if (element != undefined) {
+                    element.checked = check;
+                }
+            });
+        });
+    }
+
+    return {reset, handleDependenciesForFeature, disableDependents, updateDefaults, applyDefaults, checkUncheckAll};
 })();
 
 var init_categories_expanded = false;
