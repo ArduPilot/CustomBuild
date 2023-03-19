@@ -167,7 +167,18 @@ const Features = (() => {
         fixAllDependencies();
     }
 
-    return {reset, handleDependenciesForFeature, disableDependents, updateDefaults, applyDefaults};
+    function checkUncheckAll(checked) {
+        features.forEach(category => { 
+            category['options'].forEach(option => {
+                element = document.getElementById(option['label']);
+                if (element != undefined) {
+                    element.checked = checked;
+                }
+            });
+        });
+    }
+
+    return {reset, handleDependenciesForFeature, disableDependents, updateDefaults, applyDefaults, checkUncheckAll};
 })();
 
 var init_categories_expanded = false;
@@ -317,6 +328,14 @@ function fetchAndUpdateDefaults() {
             enableDisableElementsById(elements_to_block, true);
             document.getElementById('reset_def').innerHTML = '<i class="bi bi-arrow-counterclockwise me-2"></i>Reset feature defaults';
         });
+}
+
+function AllCheckUncheck() {
+    if (document.getElementById('check-uncheck-all').checked) {
+        Features.checkUncheckAll(true);
+    } else {
+        Features.checkUncheckAll(false);
+    }
 }
 
 function fillBoards(boards, default_board) {
