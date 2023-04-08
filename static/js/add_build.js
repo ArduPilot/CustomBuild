@@ -6,12 +6,9 @@ const Features = (() => {
     function resetDictionaries() {
         defines_dictionary = {}; // clear old dictionary
         labels_dictionary = {}; // clear old dictionary
-        features.forEach((category, cat_idx) => {
-            category['options'].forEach((option, opt_idx) => {
-                defines_dictionary[option.define] = labels_dictionary[option.label] = {
-                    'category_index' : cat_idx,
-                    'option_index' : opt_idx,
-                };
+        features.forEach((category) => {
+            category['options'].forEach((option) => {
+                defines_dictionary[option.define] = labels_dictionary[option.label] = option;
             });
         });
     }
@@ -39,19 +36,11 @@ const Features = (() => {
     }
 
     function getByDefine(define) {
-        let dict_value = defines_dictionary[define];
-        if (dict_value == undefined) {
-            return null;
-        }
-        return features[dict_value['category_index']]['options'][dict_value['option_index']];
+        return defines_dictionary[define];
     }
 
     function getByLabel(label) {
-        let dict_value = labels_dictionary[label];
-        if (dict_value == undefined) {
-            return null;
-        }
-        return features[dict_value['category_index']]['options'][dict_value['option_index']];
+        return labels_dictionary[label];
     }
 
     function updateDefaults(defines_array) {
@@ -62,8 +51,6 @@ const Features = (() => {
             let select_opt = (defines_array[i][0] != '!');
             let sanitised_define = (select_opt ? defines_array[i] : defines_array[i].substring(1)); // this removes the leading '!' from define if it contatins
             if (getByDefine(sanitised_define)) {
-                let cat_idx = defines_dictionary[sanitised_define]['category_index'];
-                let opt_idx = defines_dictionary[sanitised_define]['option_index'];
                 getByDefine(sanitised_define).default = select_opt ? 1 : 0;
             }
         }
