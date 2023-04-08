@@ -2,13 +2,26 @@ const Features = (() => {
     let features = {};
     let defines_dictionary = {};
     let labels_dictionary = {};
+    let category_dictionary = {};
 
     function resetDictionaries() {
-        defines_dictionary = {}; // clear old dictionary
-        labels_dictionary = {}; // clear old dictionary
+        // clear old dictionaries
+        defines_dictionary = {};
+        labels_dictionary = {};
+        category_dictionary = {};
+
         features.forEach((category) => {
+            category_dictionary[category.name] = category;
             category['options'].forEach((option) => {
                 defines_dictionary[option.define] = labels_dictionary[option.label] = option;
+            });
+        });
+    }
+
+    function store_category_in_options() {
+        features.forEach((category) => {
+            category['options'].forEach((option) => {
+                option.category_name = category.name;
             });
         });
     }
@@ -33,6 +46,7 @@ const Features = (() => {
         features = new_features;
         resetDictionaries();
         updateRequiredFor();
+        store_category_in_options();
     }
 
     function getOptionByDefine(define) {
@@ -41,6 +55,14 @@ const Features = (() => {
 
     function getOptionByLabel(label) {
         return labels_dictionary[label];
+    }
+
+    function getCategoryByName(category_name) {
+        return category_dictionary[category_name];
+    }
+
+    function getCategoryIdByName(category_name) {
+        return 'category_'+category_name.split(" ").join("_");
     }
 
     function updateDefaults(defines_array) {
@@ -56,13 +78,7 @@ const Features = (() => {
         }
     }
 
-    function fixDepencencyHelper(feature_label, visited) {
-        if (visited[feature_label] != undefined ) {
-            return;
-        }
-
-        visited[feature_label] = true;
-        document.getElementById(feature_label).checked = true;
+    function enableDependenciesForFeature(feature_label) {
         let feature = getOptionByLabel(feature_label);
 
         if (feature.dependency == null) {
@@ -71,34 +87,93 @@ const Features = (() => {
 
         let children = feature.dependency.split(',');
         children.forEach((child) => {
-            fixDepencencyHelper(child, visited);
+            const check = true;
+            checkUncheckOptionByLabel(child, check);
         });
     }
 
-    function fixAllDependencies() {
-        var visited = {};
-        Object.keys(labels_dictionary).forEach((label) => {
-            if (document.getElementById(label).checked) {
-                fixDepencencyHelper(label, visited);
-            }
-        });
-    }
-
-    function handleDependenciesForFeature(feature_label) {
-        var visited = {};
+    function handleOptionStateChange(feature_label, triggered_by_ui) {
         if (document.getElementById(feature_label).checked) {
-            fixDepencencyHelper(feature_label, visited);
+            enableDependenciesForFeature(feature_label);
         } else {
-            enabled_dependent_features = getEnabledDependentFeaturesFor(feature_label);
-            if (enabled_dependent_features.length > 0) {
-                document.getElementById('modalBody').innerHTML = "The feature(s) <strong>"+enabled_dependent_features.join(", ")+"</strong> is/are dependant on <strong>"+feature_label+"</strong>" +
-                                                                 " and hence will be disabled too.<br><strong>Do you want to continue?</strong>";
-                document.getElementById('modalDisableButton').onclick = () => { disableCheckboxesByIds(enabled_dependent_features); }
-                document.getElementById('modalCancelButton').onclick = document.getElementById('modalCloseButton').onclick = () => { document.getElementById(feature_label).checked = true; };
-                var confirmationModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('dependencyCheckModal'));
-                confirmationModal.show();
+            if (triggered_by_ui) {
+                askToDisableDependentsForFeature(feature_label);
+            } else {
+                disabledDependentsForFeature(feature_label);
             }
         }
+
+        updateCategoryCheckboxState(getOptionByLabel(feature_label).category_name);
+    }
+
+    function askToDisableDependentsForFeature(feature_label) {
+        let enabled_dependent_features = getEnabledDependentFeaturesFor(feature_label);
+        
+        if (enabled_dependent_features.length <= 0) {
+            return;
+        }
+
+        document.getElementById('modalBody').innerHTML = "The feature(s) <strong>"+enabled_dependent_features.join(", ")+"</strong> is/are dependant on <strong>"+feature_label+"</strong>" +
+                                                         " and hence will be disabled too.<br><strong>Do you want to continue?</strong>";
+        document.getElementById('modalDisableButton').onclick = () => { disabledDependentsForFeature(feature_label); };
+        document.getElementById('modalCancelButton').onclick = document.getElementById('modalCloseButton').onclick = () => {
+            const check = true; 
+            checkUncheckOptionByLabel(feature_label, check);
+        };
+        var confirmationModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('dependencyCheckModal'));
+        confirmationModal.show();
+    }
+
+    function disabledDependentsForFeature(feature_label) {
+        let feature = getOptionByLabel(feature_label);
+
+        if (feature.requiredFor == undefined) {
+            return;
+        }
+
+        let dependents = feature.requiredFor;
+        dependents.forEach((dependent) => {
+            const check = false;
+            checkUncheckOptionByLabel(dependent, false);
+        });
+    }
+
+    function updateCategoryCheckboxState(category_name) {
+        let category = getCategoryByName(category_name);
+
+        if (category == undefined) {
+            console.log("Could not find category by given name");
+        }
+
+        let checked_options_count = 0;
+
+        category.options.forEach((option) => {
+            let element = document.getElementById(option.label);
+
+            if (element && element.checked) {
+                checked_options_count += 1;
+            }
+        });
+
+        let category_checkbox_element = document.getElementById(getCategoryIdByName(category_name));
+        if (category_checkbox_element == undefined) {
+            console.log("Could not find element for given category");
+        }   
+
+        let indeterminate_state = false;
+        switch(checked_options_count) {
+            case 0:
+                category_checkbox_element.checked = false;
+                break;
+            case category.options.length:
+                category_checkbox_element.checked = true;
+                break;
+            default:
+                indeterminate_state = true;
+                break;
+        }
+
+        category_checkbox_element.indeterminate = indeterminate_state;
     }
 
     function getEnabledDependentFeaturesHelper(feature_label,  visited, dependent_features) {
@@ -132,40 +207,38 @@ const Features = (() => {
         return dependent_features;
     }
 
-    function disableDependents(feature_label) {
-        if (getOptionByLabel(feature_label).requiredFor == undefined) {
-            return;
-        }
-
-        getOptionByLabel(feature_label).requiredFor.forEach((dependent_feature) => {
-            document.getElementById(dependent_feature).checked = false;
-        });
-    }
-
     function applyDefaults() {
         features.forEach(category => {
             category['options'].forEach(option => {
-                element = document.getElementById(option['label']);
-                if (element != undefined) {
-                    element.checked = (option['default'] == 1);
-                }
+                const check = option['default'] == 1;
+                checkUncheckOptionByLabel(option.label, check);
             });
         });
-        fixAllDependencies();
+    }
+
+    function checkUncheckOptionByLabel(label, check) {
+        let element = document.getElementById(label);
+        if (element == undefined || element.checked == check) {
+            return;
+        }
+        element.checked = check;
+        const triggered_by_ui = false;
+        handleOptionStateChange(label, triggered_by_ui);
     }
 
     function checkUncheckAll(check) {
         features.forEach(category => { 
-            category['options'].forEach(option => {
-                element = document.getElementById(option['label']);
-                if (element != undefined) {
-                    element.checked = check;
-                }
-            });
+            checkUncheckCategory(category.name, check);
         });
     }
 
-    return {reset, handleDependenciesForFeature, disableDependents, updateDefaults, applyDefaults, checkUncheckAll};
+    function checkUncheckCategory(category_name, check) {
+        getCategoryByName(category_name).options.forEach(option => {
+            checkUncheckOptionByLabel(option.label, check);
+        });
+    }
+
+    return {reset, handleOptionStateChange, getCategoryIdByName, updateDefaults, applyDefaults, checkUncheckAll, checkUncheckCategory};
 })();
 
 var init_categories_expanded = false;
@@ -198,15 +271,6 @@ function setSpinnerToDiv(id, message) {
                                 '<div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>' +
                             '</div>';
     }
-}
-
-function disableCheckboxesByIds(ids) {
-    ids.forEach((id) => {
-        box_element = document.getElementById(id);
-        if (box_element) {
-            box_element.checked = false;
-        }
-    })
 }
 
 function onVehicleChange(new_vehicle) {
@@ -359,20 +423,25 @@ function createCategoryCard(category_name, options, expanded) {
     options_html = "";
     options.forEach(option => {
         options_html += '<div class="form-check">' +
-                            '<input class="form-check-input" type="checkbox" value="1" name="'+option['label']+'" id="'+option['label']+'" onclick="Features.handleDependenciesForFeature(this.id);">' +
-                            '<label class="form-check-label" for="'+option['label']+'">' +
+                            '<input class="form-check-input" type="checkbox" value="1" name="'+option['label']+'" id="'+option['label']+'" onclick="Features.handleOptionStateChange(this.id, true);">' +
+                            '<label class="form-check-label ms-2" for="'+option['label']+'">' +
                                 option['description'].replace(/enable/i, "") +
                             '</label>' +
                         '</div>';
     });
 
-    let id_prefix = category_name.split(" ").join("_");
+    let id_prefix = Features.getCategoryIdByName(category_name);
     let card_element = document.createElement('div');
     card_element.setAttribute('class', 'card ' + (expanded == true ? 'h-100' : ''));
     card_element.id = id_prefix + '_card';
-    card_element.innerHTML =    '<div class="card-header">' +
+    card_element.innerHTML =    '<div class="card-header ps-3">' +
                                     '<div class="d-flex justify-content-between">' +
-                                        '<span class="d-flex align-items-center"><strong>'+category_name+'</strong></span>' +
+                                        '<div class="d-inline-flex">' +
+                                            '<span class="align-middle me-3"><input class="form-check-input" type="checkbox" id="'+Features.getCategoryIdByName(category_name)+'" onclick="Features.checkUncheckCategory(\''+category_name+'\', this.checked);"></span>' +
+                                            '<strong>' +
+                                                '<label for="check-uncheck-category">' + category_name + '</label>' +
+                                            '</strong>' +
+                                        '</div>' +
                                         '<button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#'+id_prefix+'_collapse" aria-expanded="false" aria-controls="'+id_prefix+'_collapse">' +
                                             '<i class="bi bi-chevron-'+(expanded == true ? 'up' : 'down')+'" id="'+id_prefix+'_icon'+'"></i>' +
                                         '</button>' +
@@ -381,7 +450,7 @@ function createCategoryCard(category_name, options, expanded) {
     let collapse_element = document.createElement('div');
     collapse_element.setAttribute('class', 'feature-group collapse '+(expanded == true ? 'show' : ''));
     collapse_element.id = id_prefix + '_collapse';
-    collapse_element.innerHTML = '<div class="container-fluid px-2 py-2">'+options_html+'</div>';
+    collapse_element.innerHTML = '<div class="container-fluid px-3 py-2">'+options_html+'</div>';
     card_element.appendChild(collapse_element);
 
     // add relevent event listeners
@@ -393,6 +462,7 @@ function createCategoryCard(category_name, options, expanded) {
         card_element.classList.add('h-100');
         document.getElementById(id_prefix+'_icon').setAttribute('class', 'bi bi-chevron-up');
     });
+
     return card_element;                  
 }
 
