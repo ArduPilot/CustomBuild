@@ -18,7 +18,7 @@ const Features = (() => {
             category['options'].forEach((option) => {
                 if (option.dependency != null) {
                     option.dependency.split(',').forEach((dependency) => {
-                        let dep = getByLabel(dependency);
+                        let dep = getOptionByLabel(dependency);
                         if (dep.requiredFor == undefined) {
                             dep.requiredFor = [];
                         }
@@ -35,11 +35,11 @@ const Features = (() => {
         updateRequiredFor();
     }
 
-    function getByDefine(define) {
+    function getOptionByDefine(define) {
         return defines_dictionary[define];
     }
 
-    function getByLabel(label) {
+    function getOptionByLabel(label) {
         return labels_dictionary[label];
     }
 
@@ -50,8 +50,8 @@ const Features = (() => {
         for (let i=0; i<defines_array.length; i++) {
             let select_opt = (defines_array[i][0] != '!');
             let sanitised_define = (select_opt ? defines_array[i] : defines_array[i].substring(1)); // this removes the leading '!' from define if it contatins
-            if (getByDefine(sanitised_define)) {
-                getByDefine(sanitised_define).default = select_opt ? 1 : 0;
+            if (getOptionByDefine(sanitised_define)) {
+                getOptionByDefine(sanitised_define).default = select_opt ? 1 : 0;
             }
         }
     }
@@ -63,7 +63,7 @@ const Features = (() => {
 
         visited[feature_label] = true;
         document.getElementById(feature_label).checked = true;
-        let feature = getByLabel(feature_label);
+        let feature = getOptionByLabel(feature_label);
 
         if (feature.dependency == null) {
             return;
@@ -109,7 +109,7 @@ const Features = (() => {
         visited[feature_label] = true;
         dependent_features.push(feature_label);
 
-        let feature = getByLabel(feature_label);
+        let feature = getOptionByLabel(feature_label);
         if (feature.requiredFor == null) {
             return;
         }
@@ -123,8 +123,8 @@ const Features = (() => {
         let dependent_features = [];
         let visited = {};
 
-        if (getByLabel(feature_label).requiredFor) {
-            getByLabel(feature_label).requiredFor.forEach((dependent_feature) => {
+        if (getOptionByLabel(feature_label).requiredFor) {
+            getOptionByLabel(feature_label).requiredFor.forEach((dependent_feature) => {
                 getEnabledDependentFeaturesHelper(dependent_feature, visited, dependent_features);
             });
         }
@@ -133,11 +133,11 @@ const Features = (() => {
     }
 
     function disableDependents(feature_label) {
-        if (getByLabel(feature_label).requiredFor == undefined) {
+        if (getOptionByLabel(feature_label).requiredFor == undefined) {
             return;
         }
 
-        getByLabel(feature_label).requiredFor.forEach((dependent_feature) => {
+        getOptionByLabel(feature_label).requiredFor.forEach((dependent_feature) => {
             document.getElementById(dependent_feature).checked = false;
         });
     }
