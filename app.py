@@ -360,13 +360,13 @@ def get_build_progress(build_id, build_status):
     log_file_path = os.path.join(outdir_parent,build_id,'build.log')
     app.logger.info('Opening ' + log_file_path)
     build_log = open(log_file_path, encoding='utf-8').read()
-    compiled_regex = re.compile(r'(\[(\d+\/\d+)\])')
+    compiled_regex = re.compile(r'(\[\D*(\d+)\D*\/\D*(\d+)\D*\])')
     all_matches = compiled_regex.findall(build_log)
 
     if (len(all_matches) < 1):
         return 0
 
-    completed_steps, total_steps = all_matches[-1][1].split('/', 1)
+    completed_steps, total_steps = all_matches[-1][1:]
     if (int(total_steps) < 20):
         # these steps are just little compilation and linking that happen at initialisation
         # these do not contribute significant percentage to overall build progress
