@@ -65,6 +65,14 @@ const Features = (() => {
         return 'category_'+category_name.split(" ").join("_");
     }
 
+    function featureIsDisabledByDefault(feature_label) {
+        return getOptionByLabel(feature_label).default == 0;
+    }
+
+    function featureisEnabledByDefault(feature_label) {
+        return !featureIsDisabledByDefault(feature_label);
+    }
+
     function updateDefaults(defines_array) {
         // updates default on the basis of define array passed
         // the define array consists define in format, EXAMPLE_DEFINE or !EXAMPLE_DEFINE
@@ -210,7 +218,7 @@ const Features = (() => {
     function applyDefaults() {
         features.forEach(category => {
             category['options'].forEach(option => {
-                const check = option['default'] == 1;
+                const check = featureisEnabledByDefault(option.label);
                 checkUncheckOptionByLabel(option.label, check);
             });
         });
