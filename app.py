@@ -668,13 +668,15 @@ def filter_build_options_by_category(build_options, category):
 def parse_build_categories(build_options):
     return sorted(list(set([f.category for f in build_options])))
 
+GIT_VERSION_SHORT = get_git_hash('HEAD', os.path.abspath(os.path.dirname(__file__)))[:10]
+
 @app.route('/', defaults={'token': None}, methods=['GET'])
 @app.route('/<token>', methods=['GET'])
 def home(token):
     if token:
         app.logger.info("Showing log for build id " + token)
     app.logger.info('Rendering index.html')
-    return render_template('index.html', token=token)
+    return render_template('index.html', token=token, app_git_version=GIT_VERSION_SHORT)
 
 @app.route("/builds/<path:name>")
 def download_file(name):
