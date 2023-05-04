@@ -97,14 +97,14 @@ def run_git(cmd, cwd):
     app.logger.info("Running git: %s" % ' '.join(cmd))
     return subprocess.run(cmd, cwd=cwd, shell=False)
 
-def get_git_hash(branch):
-    app.logger.info("Running git rev-parse %s in %s" % (branch, sourcedir))
-    return subprocess.check_output(['git', 'rev-parse', branch], cwd=sourcedir, encoding='utf-8', shell=False).rstrip()
+def get_git_hash(branch, cwd):
+    app.logger.info("Running git rev-parse %s in %s" % (branch, cwd))
+    return subprocess.check_output(['git', 'rev-parse', branch], cwd=cwd, encoding='utf-8', shell=False).rstrip()
 
-def on_branch(branch):
-    git_hash_target = get_git_hash(branch)
+def on_branch(branch, cwd):
+    git_hash_target = get_git_hash(branch, cwd)
     app.logger.info("Expected branch git-hash '%s'" % git_hash_target)
-    git_hash_current = get_git_hash('HEAD')
+    git_hash_current = get_git_hash('HEAD', cwd)
     app.logger.info("Current branch git-hash '%s'" % git_hash_current)
     return git_hash_target == git_hash_current
 
@@ -119,7 +119,7 @@ def checkout_branch(targetBranch, s_dir, fetch_and_reset=False, temp_branch_name
         app.logger.error("Checkout requested for an invalid branch")
         return None 
     remote =  targetBranch.split('/', 1)[0]
-    if not on_branch(targetBranch):
+    if not on_branch(targetBranch, cwd=s_dir):
         app.logger.info("Checking out to %s branch" % targetBranch)
         run_git(['git', 'checkout', targetBranch], cwd=s_dir)
     if fetch_and_reset:
@@ -128,7 +128,7 @@ def checkout_branch(targetBranch, s_dir, fetch_and_reset=False, temp_branch_name
     if temp_branch_name is not None:
         delete_branch(temp_branch_name, s_dir=s_dir) # delete temp branch if it already exists
         run_git(['git', 'checkout', '-b', temp_branch_name, targetBranch], cwd=s_dir)    # creates new temp branch
-    git_hash = get_git_hash('HEAD')
+    git_hash = get_git_hash('HEAD', cwd=s_dir)
     return git_hash
 
 def clone_branch(targetBranch, sourcedir, out_dir, temp_branch_name):
@@ -584,7 +584,7 @@ def generate():
                         os.path.join(outdir_parent, 'extra_hwdef.dat'))
         os.remove(os.path.join(outdir_parent, 'extra_hwdef.dat'))
 
-        new_git_hash = get_git_hash(chosen_branch)
+        new_git_hash = get_git_hash(chosen_branch, sourcedir)
         git_hash_short = new_git_hash[:10]
         app.logger.info('Git hash = ' + new_git_hash)
         selected_features_dict['git_hash_short'] = git_hash_short
