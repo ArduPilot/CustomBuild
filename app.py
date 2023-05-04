@@ -11,7 +11,7 @@ import fcntl
 import hashlib
 import fnmatch
 from distutils.dir_util import copy_tree
-from flask import Flask, render_template, request, send_from_directory, render_template_string, jsonify
+from flask import Flask, render_template, request, send_from_directory, render_template_string, jsonify, redirect
 from threading import Thread, Lock
 import sys
 import re
@@ -640,8 +640,8 @@ def generate():
 
         base_url = request.url_root
         app.logger.info(base_url)
-        app.logger.info('Rendering index.html')
-        return render_template('index.html', token=token)
+        app.logger.info('Redirecting to /viewlog')
+        return redirect('/viewlog/'+token)
 
     except Exception as ex:
         app.logger.error(ex)
@@ -668,11 +668,13 @@ def filter_build_options_by_category(build_options, category):
 def parse_build_categories(build_options):
     return sorted(list(set([f.category for f in build_options])))
 
-@app.route('/')
-def home():
+@app.route('/', defaults={'token': None}, methods=['GET'])
+@app.route('/viewlog/<token>', methods=['GET'])
+def home(token):
+    if token:
+        app.logger.info("Showing log for build id " + token)
     app.logger.info('Rendering index.html')
-    return render_template('index.html',
-                           token=None)
+    return render_template('index.html', token=token)
 
 @app.route("/builds/<path:name>")
 def download_file(name):
