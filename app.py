@@ -647,13 +647,6 @@ def generate():
         app.logger.error(ex)
         return render_template('error.html', ex=ex)
 
-@app.route('/view', methods=['GET'])
-def view():
-    '''view a build from status'''
-    token=request.args['token']
-    app.logger.info("viewing %s" % token)
-    return render_template('generate.html', token=token)
-
 @app.route('/add_build')
 def add_build():
     app.logger.info('Rendering add_build.html')
