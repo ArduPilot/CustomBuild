@@ -3,6 +3,7 @@ const Features = (() => {
     let defines_dictionary = {};
     let labels_dictionary = {};
     let category_dictionary = {};
+    let selected_options = 0;
 
     function resetDictionaries() {
         // clear old dictionaries
@@ -102,8 +103,10 @@ const Features = (() => {
 
     function handleOptionStateChange(feature_label, triggered_by_ui) {
         if (document.getElementById(feature_label).checked) {
+            selected_options += 1;
             enableDependenciesForFeature(feature_label);
         } else {
+            selected_options -= 1;
             if (triggered_by_ui) {
                 askToDisableDependentsForFeature(feature_label);
             } else {
@@ -112,6 +115,7 @@ const Features = (() => {
         }
 
         updateCategoryCheckboxState(getOptionByLabel(feature_label).category_name);
+        updateGlobalCheckboxState();
     }
 
     function askToDisableDependentsForFeature(feature_label) {
@@ -182,6 +186,27 @@ const Features = (() => {
         }
 
         category_checkbox_element.indeterminate = indeterminate_state;
+    }
+
+    function updateGlobalCheckboxState() {
+        const total_options = Object.keys(defines_dictionary).length;
+        console.log(selected_options + "/" + total_options);
+        let global_checkbox = document.getElementById("check-uncheck-all");
+
+        let indeterminate_state = false;
+        switch (selected_options) {
+            case 0:
+                global_checkbox.checked = false;
+                break
+            case total_options:
+                global_checkbox.checked = true;
+                break;
+            default:
+                indeterminate_state = true;
+                break;
+        }
+
+        global_checkbox.indeterminate = indeterminate_state;
     }
 
     function getEnabledDependentFeaturesHelper(feature_label,  visited, dependent_features) {
