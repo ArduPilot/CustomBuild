@@ -48,22 +48,44 @@ BRANCHES = [
     {
         'full_name'         : 'upstream/master',
         'label'             : 'Latest',
-        'allowed_vehicles'  : [copter, plane, rover, sub, tracker, blimp, heli]
+        'allowed_vehicles'  : [copter, plane, rover, sub, tracker, blimp, heli],
+        'artifacts_dir'     : '/latest',
     },
     {
         'full_name'         : 'upstream/Plane-4.3',
         'label'             : 'Plane 4.3 stable',
-        'allowed_vehicles'  : [plane]
+        'allowed_vehicles'  : [plane],
+        'artifacts_dir'     : '/stable',
     },
     {
         'full_name'         : 'upstream/Copter-4.3',
         'label'             : 'Copter 4.3 stable',
-        'allowed_vehicles'  : [copter, heli]
+        'allowed_vehicles'  : [copter, heli],
+        'artifacts_dir'     : '/stable',
     },
     {
         'full_name'         : 'upstream/Rover-4.3',
         'label'             : 'Rover 4.3 stable',
-        'allowed_vehicles'  : [rover]
+        'allowed_vehicles'  : [rover],
+        'artifacts_dir'     : '/stable',
+    },
+    {
+        'full_name'         : 'upstream/Copter-4.4',
+        'label'             : 'Copter 4.4 beta',
+        'allowed_vehicles'  : [copter, heli],
+        'artifacts_dir'     : '/beta',
+    },
+    {
+        'full_name'         : 'upstream/Plane-4.4',
+        'label'             : 'Plane 4.4 beta',
+        'allowed_vehicles'  : [plane],
+        'artifacts_dir'     : '/beta',
+    },
+    {
+        'full_name'         : 'upstream/Rover-4.4',
+        'label'             : 'Rover 4.4 beta',
+        'allowed_vehicles'  : [rover],
+        'artifacts_dir'     : '/beta',
     },
 ]
 default_branch = BRANCHES[0]
@@ -756,6 +778,12 @@ def get_firmware_version(vehicle_name, branch):
     firmware_version = match.group(1)
     return firmware_version
 
+def get_artifacts_dir(branch_full_name):
+    for branch in BRANCHES:
+        if branch_full_name == branch['full_name']:
+            return branch['artifacts_dir']
+    return ""
+
 @app.route("/get_defaults/<string:vehicle_name>/<string:remote>/<string:branch_name>/<string:board>", methods = ['GET'])
 def get_deafults(vehicle_name, remote, branch_name, board):
     if not remote == "upstream":
@@ -775,13 +803,12 @@ def get_deafults(vehicle_name, remote, branch_name, board):
     if vehicle_name == "Heli":
         vehicle_name = "Copter"
 
-    artifacts_dir = vehicle_name
-    if branch_name == "master":
-        artifacts_dir += "/latest"
-    else:
-        artifacts_dir += ("/stable-"+get_firmware_version(vehicle_name, branch))
+    artifacts_dir = get_artifacts_dir(branch)
 
-    artifacts_dir += "/"+board
+    if artifacts_dir == "":
+        return ("Could not determine artifacts directory for given combination", 400)
+
+    artifacts_dir = vehicle_name + artifacts_dir + "/" + board
     path = "https://firmware.ardupilot.org/"+artifacts_dir+"/features.txt"
     response = requests.get(path, timeout=30)
 
