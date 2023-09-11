@@ -121,7 +121,7 @@ def run_git(cmd, cwd):
 
 def get_git_hash(branch):
     app.logger.info("Running git rev-parse %s in %s" % (branch, sourcedir))
-    return subprocess.check_output(['git', 'rev-parse', branch], cwd=sourcedir, encoding='utf-8', shell=False).rstrip()
+    return subprocess.check_output(['git', 'rev-parse', "--"+branch], cwd=sourcedir, encoding='utf-8', shell=False).rstrip()
 
 def on_branch(branch):
     git_hash_target = get_git_hash(branch)
