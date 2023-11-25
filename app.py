@@ -38,8 +38,9 @@ sub = Vehicle('Sub', 'ArduSub')
 tracker = Vehicle('AntennaTracker', 'AntennaTracker')
 blimp = Vehicle('Blimp', 'Blimp')
 heli = Vehicle('Heli', 'ArduCopter')
+periph = Vehicle('Periph', 'AP_Periph')
 
-VEHICLES = [copter, plane, rover, sub, tracker, blimp, heli]
+VEHICLES = [copter, plane, rover, sub, tracker, blimp, heli, periph]
 default_vehicle = copter
 # Note: Current implementation of BRANCHES means we can't have multiple branches with the same name even if they're in different remote repos.
 # Branch names (the git branch name not the Label) also cannot contain anything not valid in folder names.
@@ -48,7 +49,7 @@ BRANCHES = [
     {
         'full_name'         : 'upstream/master',
         'label'             : 'Latest',
-        'allowed_vehicles'  : [copter, plane, rover, sub, tracker, blimp, heli],
+        'allowed_vehicles'  : [copter, plane, rover, sub, tracker, blimp, heli, periph],
         'artifacts_dir'     : '/latest',
     },
     {
