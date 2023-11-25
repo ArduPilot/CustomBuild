@@ -740,8 +740,9 @@ def boards_and_features(remote, branch_name):
 @app.route("/get_allowed_branches/<string:vehicle_name>", methods=['GET'])
 def get_allowed_branches(vehicle_name):
     if not is_valid_vehicle(vehicle_name):
+        valid_vehicles =  get_vehicle_names()
         app.logger.error("Bad vehicle")
-        return ("Bad Vehicle", 400)
+        return (f"Bad Vehicle. Expected {valid_vehicles}", 400)
 
     app.logger.info("Supported branches requested for %s" % vehicle_name)
     branches = []
