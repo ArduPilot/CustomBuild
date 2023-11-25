@@ -265,7 +265,7 @@ def run_build(task, tmpdir, outdir, logpath):
         env['CCACHE_DIR'] = cachedir
 
         app.logger.info('Running waf configure')
-        log.write('Running waf configure')
+        log.write('Running waf configure\n')
         log.flush()
         subprocess.run(['python3', './waf', 'configure',
                         '--board', task['board'], 
@@ -275,20 +275,20 @@ def run_build(task, tmpdir, outdir, logpath):
                         env=env,
                         stdout=log, stderr=log, shell=False)
         app.logger.info('Running clean')
-        log.write('Running clean')
+        log.write('Running clean\n')
         log.flush()
         subprocess.run(['python3', './waf', 'clean'],
                         cwd = tmp_src_dir, 
                         env=env,
                         stdout=log, stderr=log, shell=False)
         app.logger.info('Running build')
-        log.write('Running build')
+        log.write('Running build\n')
         log.flush()
         subprocess.run(['python3', './waf', task['vehicle']],
                         cwd = tmp_src_dir,
                         env=env,
                         stdout=log, stderr=log, shell=False)
-        log.write('done build')
+        log.write('done build\n')
         log.flush()
 
 def sort_json_files(reverse=False):
