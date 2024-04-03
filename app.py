@@ -53,21 +53,27 @@ BRANCHES = [
     },
     {
         'full_name'         : 'upstream/Copter-4.5',
-        'label'             : 'Copter 4.5 beta',
+        'label'             : 'Copter 4.5 stable',
         'allowed_vehicles'  : [copter, heli],
-        'artifacts_dir'     : '/beta',
+        'artifacts_dir'     : '/stable-4.5.0',
     },
     {
         'full_name'         : 'upstream/Plane-4.5',
-        'label'             : 'Plane 4.5 beta',
+        'label'             : 'Plane 4.5 stable',
         'allowed_vehicles'  : [plane],
-        'artifacts_dir'     : '/beta',
+        'artifacts_dir'     : '/stable-4.5.0',
     },
     {
         'full_name'         : 'upstream/Rover-4.5',
-        'label'             : 'Rover 4.5 beta',
+        'label'             : 'Rover 4.5 stable',
         'allowed_vehicles'  : [rover],
-        'artifacts_dir'     : '/beta',
+        'artifacts_dir'     : '/stable-4.5.0',
+    },
+    {
+        'full_name'         : 'upstream/Tracker-4.5',
+        'label'             : 'Tracker 4.5 stable',
+        'allowed_vehicles'  : [tracker],
+        'artifacts_dir'     : '/stable-4.5.0',
     },
     {
         'full_name'         : 'upstream/Sub-4.5',
