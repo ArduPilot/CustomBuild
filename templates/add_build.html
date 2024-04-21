@@ -53,19 +53,17 @@
               <form id="build-form" action="/generate" method="post">
                 <div class="row">
                     <div class="col-md-4 col-sm-6 mb-2 d-flex align-items-end">
-                        <div class="container-fluid">
-                            <label for="vehicle" class="form-label"><strong>Select vehicle</strong></label>
-                            <select name="vehicle" id="vehicle" class="form-select" aria-label="Select vehicle" onchange="onVehicleChange(this.value);">
-                                {% for vehicle in get_vehicle_names() %}
-                                <option value="{{vehicle}}" {% if vehicle == get_default_vehicle_name() %} selected {% endif %}>{{vehicle}}</option>
-                                {% endfor %}
-                            </select>
+                        <div class="container-fluid" id="vehicle_list">
+                            <div class="container-fluid d-flex align-content-between">
+                                <strong>Fetching Vehicles...</strong>
+                                <div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>
+                            </div>
                         </div>
                     </div>
                     <div class="col-md-4 col-sm-6 mb-2 d-flex align-items-end">
-                        <div class="container-fluid" id="branch_list">
+                        <div class="container-fluid" id="version_list">
                             <div class="container-fluid d-flex align-content-between">
-                                <strong>Fetching branches...</strong>
+                                <strong>Fetching versions...</strong>
                                 <div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>
                             </div>
                         </div>
