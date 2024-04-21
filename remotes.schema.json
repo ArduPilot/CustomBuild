@@ -1,0 +1,70 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Remotes",
+    "type": "array",
+    "description": "remote-wise list of vehicles and their available versions to build on Custom Build Server",
+    "items": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Remote name"
+        },
+        "url": {
+          "type": "string",
+          "description": "Remote url"
+        },
+        "vehicles": {
+          "type": "array",
+          "description": "list of vehicles listed for building for that remote",
+          "items": {
+            "type": "object",
+            "description": "Vehicle object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of vehicle"
+              },
+              "releases": {
+                "type": "array",
+                "description": "list of releases for that vehicle",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "release_type": {
+                      "type": "string",
+                      "description": "release type, i.e., stable, beta, master"
+                    },
+                    "version_number": {
+                      "type": "string",
+                      "description": "Ardupilot version number for that release"
+                    },
+                    "ap_build_atrifacts_url": {
+                      "type": "string",
+                      "description": "url to build artifacts at AP firmware server to fetch features.txt"
+                    },
+                    "commit_reference": {
+                      "type": "string",
+                      "description": "reference to commit for that release, this can be branch name, tag or git hash"
+                    }
+                  },
+                  "required": [
+                    "commit_reference"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "name",
+              "releases"
+            ]
+          }
+        }
+      },
+      "required": [
+        "name",
+        "url",
+        "vehicles"
+      ]
+    }
+  }
