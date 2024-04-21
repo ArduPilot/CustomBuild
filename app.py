@@ -790,25 +790,6 @@ def get_allowed_branches(vehicle_name):
     # return jsonified result dictionary
     return jsonify(result)
 
-def get_firmware_version(vehicle_name, branch):
-    app.logger.info("Retrieving firmware version information for %s on branch: %s" % (vehicle_name, branch))
-    dir = ""
-    for vehicle in VEHICLES:
-        if vehicle.name == vehicle_name:
-            dir = vehicle.dir
-            break
-
-    if dir == "":
-        raise Exception("Could not determine vehicle directory")
-    head_lock.acquire()
-    output = subprocess.check_output(['git', 'show', branch+':'+dir+'/version.h'], cwd=sourcedir, encoding='utf-8', shell=False).rstrip()
-    head_lock.release()
-    match = re.search('define.THISFIRMWARE[\s\S]+V([0-9]+.[0-9]+.[0-9]+)', output)
-    if match is None:
-        raise Exception("Failed to retrieve firmware version from version.h")
-    firmware_version = match.group(1)
-    return firmware_version
-
 def get_artifacts_dir(branch_full_name):
     for branch in BRANCHES:
         if branch_full_name == branch['full_name']:
