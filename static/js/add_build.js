@@ -278,7 +278,7 @@ var init_categories_expanded = false;
 var pending_update_calls = 0;   // to keep track of unresolved Promises
 
 function init() {
-    onVehicleChange(document.getElementById("vehicle").value);
+    fetchVehicles();
 }
 
 // enables or disables the elements with ids passed as an array
@@ -305,21 +305,21 @@ function setSpinnerToDiv(id, message) {
     }
 }
 
-function onVehicleChange(new_vehicle) {
+function fetchVehicles() {
     // following elemets will be blocked (disabled) when we make the request
-    let elements_to_block = ['vehicle', 'branch', 'board', 'submit', 'reset_def', 'exp_col_button'];
+    let elements_to_block = ['vehicle', 'version', 'board', 'submit', 'reset_def', 'exp_col_button'];
     enableDisableElementsById(elements_to_block, false);
-    let request_url = '/get_allowed_branches/'+new_vehicle;
-    setSpinnerToDiv('branch_list', 'Fetching branches...');
+    let request_url = '/get_vehicles';
+    setSpinnerToDiv('vehicle_list', 'Fetching vehicles...');
     pending_update_calls += 1;
     sendAjaxRequestForJsonResponse(request_url)
         .then((json_response) => {
-            let new_branch = json_response.default_branch;
-            let all_branches = json_response.branches;
-            updateBranches(all_branches, new_branch);
+            let all_vehicles = json_response;
+            let new_vehicle = all_vehicles.find(vehicle => vehicle === "Copter") ? "Copter": all_vehicles[0];
+            updateVehicles(all_vehicles, new_vehicle);
         })
         .catch((message) => {
-            console.log("Branch update failed. "+message);
+            console.log("Vehicle update failed. "+message);
         })
         .finally(() => {
             enableDisableElementsById(elements_to_block, true);
@@ -328,20 +328,53 @@ function onVehicleChange(new_vehicle) {
         });
 }
 
-function updateBranches(all_branches, new_branch) {
-    let branch_element = document.getElementById('branch');
-    let old_branch = branch_element ? branch_element.value : '';
-    fillBranches(all_branches, new_branch);
-    if (old_branch != new_branch) {
-        onBranchChange(new_branch);
+function updateVehicles(all_vehicles, new_vehicle) {
+    let vehicle_element = document.getElementById('vehicle');
+    let old_vehicle = vehicle_element ? vehicle_element.value : '';
+    fillVehicles(all_vehicles, new_vehicle);
+    if (old_vehicle != new_vehicle) {
+        onVehicleChange(new_vehicle);
     }
 }
 
-function onBranchChange(new_branch) {
+function onVehicleChange(new_vehicle) {
     // following elemets will be blocked (disabled) when we make the request
-    let elements_to_block = ['vehicle', 'branch', 'board', 'submit', 'reset_def', 'exp_col_button'];
+    let elements_to_block = ['vehicle', 'version', 'board', 'submit', 'reset_def', 'exp_col_button'];
     enableDisableElementsById(elements_to_block, false);
-    let request_url = '/boards_and_features/'+new_branch;
+    let request_url = '/get_versions/'+new_vehicle;
+    setSpinnerToDiv('version_list', 'Fetching versions...');
+    pending_update_calls += 1;
+    sendAjaxRequestForJsonResponse(request_url)
+        .then((json_response) => {
+            let new_version = json_response[0].id;
+            let all_versions = json_response;
+            updateVersions(all_versions, new_version);
+        })
+        .catch((message) => {
+            console.log("Version update failed. "+message);
+        })
+        .finally(() => {
+            enableDisableElementsById(elements_to_block, true);
+            pending_update_calls -= 1;
+            fetchAndUpdateDefaults();
+        });
+}
+
+function updateVersions(all_versions, new_version) {
+    let version_element = document.getElementById('version');
+    let old_version = version_element ? version_element.value : '';
+    fillVersions(all_versions, new_version);
+    if (old_version != new_version) {
+        onVersionChange(new_version);
+    }
+}
+
+function onVersionChange(new_version) {
+    // following elemets will be blocked (disabled) when we make the request
+    let elements_to_block = ['vehicle', 'version', 'board', 'submit', 'reset_def', 'exp_col_button'];
+    enableDisableElementsById(elements_to_block, false);
+    let vehicle = document.getElementById("vehicle").value;
+    let request_url = `/boards_and_features/${vehicle}/${new_version}`;
 
     // create a temporary container to set spinner inside it
     let temp_container = document.createElement('div');
@@ -393,10 +426,10 @@ function fetchAndUpdateDefaults() {
     elements_to_block = ['reset_def'];
     document.getElementById('reset_def').innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Fetching defaults';
     enableDisableElementsById(elements_to_block, false);
-    let branch = document.getElementById('branch').value;
+    let version = document.getElementById('version').value;
     let vehicle = document.getElementById('vehicle').value;
     let board = document.getElementById('board').value;
-    let request_url = '/get_defaults/'+vehicle+'/'+branch+'/'+board;
+    let request_url = '/get_defaults/'+vehicle+'/'+version+'/'+board;
     sendAjaxRequestForJsonResponse(request_url)
         .then((json_response) => {
             Features.updateDefaults(json_response);
@@ -547,16 +580,30 @@ function sendAjaxRequestForJsonResponse(url) {
     });
 }
 
-function fillBranches(branches, branch_to_select) {
-    var output = document.getElementById('branch_list');
-    output.innerHTML =  '<label for="branch" class="form-label"><strong>Select Branch</strong></label>' +
-                        '<select name="branch" id="branch" class="form-select" aria-label="Select Branch" onchange="onBranchChange(this.value);"></select>';
-    branchList = document.getElementById("branch");
-    branches.forEach(branch => {
+function fillVehicles(vehicles, vehicle_to_select) {
+    var output = document.getElementById('vehicle_list');
+    output.innerHTML =  '<label for="vehicle" class="form-label"><strong>Select Vehicle</strong></label>' +
+                        '<select name="vehicle" id="vehicle" class="form-select" aria-label="Select Vehicle" onchange="onVehicleChange(this.value);"></select>';
+    vehicleList = document.getElementById("vehicle");
+    vehicles.forEach(vehicle_name => {
         opt = document.createElement('option');
-        opt.value = branch['full_name'];
-        opt.innerHTML = branch['label'];
-        opt.selected = (branch['full_name'] === branch_to_select);
-        branchList.appendChild(opt);
+        opt.value = vehicle_name;
+        opt.innerHTML = vehicle_name;
+        opt.selected = (vehicle_name === vehicle_to_select);
+        vehicleList.appendChild(opt);
+    });
+}
+
+function fillVersions(versions, version_to_select) {
+    var output = document.getElementById('version_list');
+    output.innerHTML =  '<label for="version" class="form-label"><strong>Select Version</strong></label>' +
+                        '<select name="version" id="version" class="form-select" aria-label="Select Version" onchange="onVersionChange(this.value);"></select>';
+    versionList = document.getElementById("version");
+    versions.forEach(version => {
+        opt = document.createElement('option');
+        opt.value = version.id;
+        opt.innerHTML = version.title;
+        opt.selected = (version.id === version_to_select);
+        versionList.appendChild(opt);
     });
 }
