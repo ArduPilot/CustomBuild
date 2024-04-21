@@ -17,6 +17,7 @@ from threading import Thread, Lock
 import sys
 import re
 import requests
+import jsonschema
 # run at lower priority
 os.nice(20)
 
@@ -74,8 +75,11 @@ def ref_is_tag(commit_reference):
 
 def load_remotes():
     # load file contianing vehicles listed to be built for each remote along with the braches/tags/commits on which the firmware can be built
-    with open(os.path.join(basedir, 'configs', 'remotes.json'), 'r')  as f:
+    with open(os.path.join(basedir, 'configs', 'remotes.json'), 'r')  as f, open(os.path.join(appdir, 'remotes.schema.json'), 'r') as s:
         remotes = json.loads(f.read())
+        schema = json.loads(s.read())
+        # validate schema
+        jsonschema.validate(remotes, schema=schema)
         set_remotes(remotes)
 
 
