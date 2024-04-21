@@ -8,6 +8,7 @@ import shutil
 import glob
 import time
 import fcntl
+import base64
 import hashlib
 import fnmatch
 from distutils.dir_util import copy_tree
@@ -19,177 +20,123 @@ import requests
 # run at lower priority
 os.nice(20)
 
-#BOARDS = [ 'BeastF7', 'BeastH7' ]
+import optparse
+parser = optparse.OptionParser("app.py")
+
+parser.add_option("", "--basedir", type="string",
+                  default=os.path.abspath(os.path.join(os.path.dirname(__file__),"..","base")),
+                  help="base directory")
+
+cmd_opts, cmd_args = parser.parse_args()
+
+# define directories
+basedir = os.path.abspath(cmd_opts.basedir)
+sourcedir = os.path.join(basedir, 'ardupilot')
+outdir_parent = os.path.join(basedir, 'builds')
+tmpdir_parent = os.path.join(basedir, 'tmp')
 
 appdir = os.path.dirname(__file__)
 
 builds_dict = {}
-
-class Vehicle:
-    def __init__(self, name, dir):
-        self.name = name
-        self.dir = dir
-
-# create vehicle objects
-copter = Vehicle('Copter', 'ArduCopter')
-plane = Vehicle('Plane', 'ArduPlane')
-rover = Vehicle('Rover', 'Rover')
-sub = Vehicle('Sub', 'ArduSub')
-tracker = Vehicle('AntennaTracker', 'AntennaTracker')
-blimp = Vehicle('Blimp', 'Blimp')
-heli = Vehicle('Heli', 'ArduCopter')
-
-VEHICLES = [copter, plane, rover, sub, tracker, blimp, heli]
-default_vehicle = copter
-# Note: Current implementation of BRANCHES means we can't have multiple branches with the same name even if they're in different remote repos.
-# Branch names (the git branch name not the Label) also cannot contain anything not valid in folder names.
-# the first branch in this list is always the default branch
-BRANCHES = [
-    {
-        'full_name'         : 'upstream/master',
-        'label'             : 'Latest',
-        'allowed_vehicles'  : [copter, plane, rover, sub, tracker, blimp, heli],
-        'artifacts_dir'     : '/latest',
-    },
-    {
-        'full_name'         : 'upstream/Copter-4.5',
-        'label'             : 'Copter 4.5 stable',
-        'allowed_vehicles'  : [copter, heli],
-        'artifacts_dir'     : '/stable-4.5.0',
-    },
-    {
-        'full_name'         : 'upstream/Plane-4.5',
-        'label'             : 'Plane 4.5 stable',
-        'allowed_vehicles'  : [plane],
-        'artifacts_dir'     : '/stable-4.5.0',
-    },
-    {
-        'full_name'         : 'upstream/Rover-4.5',
-        'label'             : 'Rover 4.5 stable',
-        'allowed_vehicles'  : [rover],
-        'artifacts_dir'     : '/stable-4.5.0',
-    },
-    {
-        'full_name'         : 'upstream/Tracker-4.5',
-        'label'             : 'Tracker 4.5 stable',
-        'allowed_vehicles'  : [tracker],
-        'artifacts_dir'     : '/stable-4.5.0',
-    },
-    {
-        'full_name'         : 'upstream/Sub-4.5',
-        'label'             : 'Sub 4.5 beta',
-        'allowed_vehicles'  : [sub],
-        'artifacts_dir'     : '/beta',
-    },
-    {
-        'full_name'         : 'upstream/Plane-4.4',
-        'label'             : 'Plane 4.4 stable',
-        'allowed_vehicles'  : [plane],
-        'artifacts_dir'     : '/stable-4.4.4',
-    },
-    {
-        'full_name'         : 'upstream/Copter-4.4',
-        'label'             : 'Copter 4.4 stable',
-        'allowed_vehicles'  : [copter, heli],
-        'artifacts_dir'     : '/stable-4.4.4',
-    },
-    {
-        'full_name'         : 'upstream/Rover-4.4',
-        'label'             : 'Rover 4.4 stable',
-        'allowed_vehicles'  : [rover],
-        'artifacts_dir'     : '/stable-4.4.4',
-    },
-    {
-        'full_name'         : 'upstream/Plane-4.3',
-        'label'             : 'Plane 4.3 stable',
-        'allowed_vehicles'  : [plane],
-        'artifacts_dir'     : '/stable-4.3.8',
-    },
-    {
-        'full_name'         : 'upstream/Copter-4.3',
-        'label'             : 'Copter 4.3 stable',
-        'allowed_vehicles'  : [copter, heli],
-        'artifacts_dir'     : '/stable-4.3.8',
-    },
-    {
-        'full_name'         : 'upstream/Rover-4.3',
-        'label'             : 'Rover 4.3 stable',
-        'allowed_vehicles'  : [rover],
-        'artifacts_dir'     : '/stable-4.3.8',
-    },
-]
-default_branch = BRANCHES[0]
-
-def get_vehicle_names():
-    return sorted([vehicle.name for vehicle in VEHICLES])
-
-def get_default_vehicle_name():
-    return default_vehicle.name
-
-def get_branch_names():
-    return sorted([branch['full_name'] for branch in BRANCHES])
-
-def get_branches():
-    return sorted(BRANCHES, key=lambda x: x['full_name'])
-
-def get_default_branch_name():
-    return default_branch['full_name']
+REMOTES = None
 
 # LOCKS
 queue_lock = Lock()
 head_lock = Lock()  # lock git HEAD, i.e., no branch change until this lock is released
+remotes_lock = Lock()  # lock for accessing and updating REMOTES list
 
-def is_valid_vehicle(vehicle_name):
-    return vehicle_name in get_vehicle_names()
+def get_remotes():
+    with remotes_lock:
+        return REMOTES
+    
+def set_remotes(remotes):
+    with remotes_lock:
+        global REMOTES
+        REMOTES = remotes
 
-def is_valid_branch(branch_name):
-    return branch_name in get_branch_names()
+def find_hash_for_ref(remote_name, ref):
+    result = subprocess.run(['git', 'ls-remote', remote_name], cwd=sourcedir, encoding='utf-8', capture_output=True, shell=False)
+
+    for line in result.stdout.split('\n')[:-1]:
+        (git_hash, r) = line.split('\t')
+        if r == ref:
+            return git_hash
+
+    raise Exception('Branch ref not found on remote')
+
+def ref_is_branch(commit_reference):
+    prefix = 'refs/heads'
+    return commit_reference[:len(prefix)] == prefix
+
+def ref_is_tag(commit_reference):
+    prefix = 'refs/tags'
+    return commit_reference[:len(prefix)] == prefix
+
+def load_remotes():
+    # load file contianing vehicles listed to be built for each remote along with the braches/tags/commits on which the firmware can be built
+    with open(os.path.join(basedir, 'configs', 'remotes.json'), 'r')  as f:
+        remotes = json.loads(f.read())
+        set_remotes(remotes)
+
+
+def find_version_info(vehicle_name, remote_name, commit_reference):
+    if None in (vehicle_name, remote_name, commit_reference):
+        return None
+    
+    # find the object for requested remote
+    remote = next((r for r in get_remotes() if r['name'] == remote_name), None)
+
+    if remote is None:
+        return None
+    
+    # find the object requested vehicle in remote metadata
+    vehicle = next((v for v in remote['vehicles'] if v['name'] == vehicle_name), None)
+
+    if vehicle is None:
+        return None
+    
+    # find version metadata for asked commit reference
+    release = next((r for r in vehicle['releases'] if r['commit_reference'] == commit_reference), None)
+    return release
+
 
 def run_git(cmd, cwd):
     app.logger.info("Running git: %s" % ' '.join(cmd))
     return subprocess.run(cmd, cwd=cwd, shell=False)
 
-def get_git_hash(branch):
-    app.logger.info("Running git rev-parse %s in %s" % (branch, sourcedir))
-    return subprocess.check_output(['git', 'rev-parse', branch], cwd=sourcedir, encoding='utf-8', shell=False).rstrip()
-
-def on_branch(branch):
-    git_hash_target = get_git_hash(branch)
-    app.logger.info("Expected branch git-hash '%s'" % git_hash_target)
-    git_hash_current = get_git_hash('HEAD')
-    app.logger.info("Current branch git-hash '%s'" % git_hash_current)
-    return git_hash_target == git_hash_current
-
 def delete_branch(branch_name, s_dir):
-    run_git(['git', 'checkout', get_default_branch_name()], cwd=s_dir) # to make sure we are not already on branch to be deleted
+    run_git(['git', 'checkout', 'master'], cwd=s_dir) # to make sure we are not already on branch to be deleted
     run_git(['git', 'branch', '-D', branch_name], cwd=s_dir)    # delete branch
 
-def checkout_branch(targetBranch, s_dir, fetch_and_reset=False, temp_branch_name=None):
-    '''checkout to given branch and return the git hash'''
+def do_checkout(remote, commit_reference, s_dir, force_fetch=False, temp_branch_name=None):
+    '''checkout to given commit/branch and return the git hash'''
     # Note: remember to acquire head_lock before calling this method
-    if not is_valid_branch(targetBranch):
-        app.logger.error("Checkout requested for an invalid branch")
-        return None 
-    remote =  targetBranch.split('/', 1)[0]
-    if not on_branch(targetBranch):
-        app.logger.info("Checking out to %s branch" % targetBranch)
-        run_git(['git', 'checkout', targetBranch], cwd=s_dir)
-    if fetch_and_reset:
+    if force_fetch:
         run_git(['git', 'fetch', remote], cwd=s_dir)
-        run_git(['git', 'reset', '--hard', targetBranch], cwd=s_dir)
+
+    git_hash_target = commit_reference
+    if ref_is_branch(commit_reference) or ref_is_tag(commit_reference):
+        git_hash_target = find_hash_for_ref(remote, commit_reference)
+
+    app.logger.info("Checking out to %s (%s/%s)" % (git_hash_target, remote, commit_reference))
+
+    result = run_git(['git', 'checkout', git_hash_target], cwd=s_dir)
+    if result.returncode != 0:
+        # commit with the given hash isn't fetched? fetch and try again
+        run_git(['git', 'fetch', remote], cwd=s_dir)
+        result = run_git(['git', 'checkout', git_hash_target], cwd=s_dir)
+        if result.returncode != 0:
+            raise Exception("Could not checkout to the requested commit")
+
     if temp_branch_name is not None:
         delete_branch(temp_branch_name, s_dir=s_dir) # delete temp branch if it already exists
-        run_git(['git', 'checkout', '-b', temp_branch_name, targetBranch], cwd=s_dir)    # creates new temp branch
-    git_hash = get_git_hash('HEAD')
-    return git_hash
+        run_git(['git', 'checkout', '-b', temp_branch_name, git_hash_target], cwd=s_dir)    # creates new temp branch
+    return git_hash_target
 
-def clone_branch(targetBranch, sourcedir, out_dir, temp_branch_name):
-    # check if target branch is a valid branch
-    if not is_valid_branch(targetBranch):
-        return False
+def branch_and_clone(remote, commit_reference, sourcedir, out_dir, temp_branch_name):
     remove_directory_recursive(out_dir)
     head_lock.acquire()
-    checkout_branch(targetBranch, s_dir=sourcedir, fetch_and_reset=True, temp_branch_name=temp_branch_name)
+    do_checkout(remote, commit_reference, s_dir=sourcedir, force_fetch=True, temp_branch_name=temp_branch_name)
     output = run_git(['git', 'clone', '--single-branch', '--branch='+temp_branch_name, sourcedir, out_dir], cwd=sourcedir)
     delete_branch(temp_branch_name, sourcedir) # delete temp branch
     head_lock.release()
@@ -273,11 +220,13 @@ def run_build(task, tmpdir, outdir, logpath):
     '''run a build with parameters from task'''
     remove_directory_recursive(tmpdir_parent)
     create_directory(tmpdir)
-    # clone target branch in temporary source directory
+    # creates a branch from the commit reference and clones it into a new repository
     tmp_src_dir = os.path.join(tmpdir, 'build_src')
-    clone_branch(task['branch'], sourcedir, tmp_src_dir, task['branch']+'_clone')
+    branch_and_clone(task['remote'], task['git_hash_short'], sourcedir, tmp_src_dir, task['git_hash_short']+'_clone')
     # update submodules in temporary source directory
     update_submodules(tmp_src_dir)
+    # checkout to the commit pointing to the requested commit
+    do_checkout(task['remote'], task['git_hash_short'], tmp_src_dir)
     if not os.path.isfile(os.path.join(outdir, 'extra_hwdef.dat')):
         app.logger.error('Build aborted, missing extra_hwdef.dat')
     app.logger.info('Appending to build.log')
@@ -534,21 +483,6 @@ def update_submodules(s_dir):
     app.logger.info('Updating submodules')
     run_git(['git', 'submodule', 'update', '--recursive', '--force', '--init'], cwd=s_dir)
 
-import optparse
-parser = optparse.OptionParser("app.py")
-
-
-parser.add_option("", "--basedir", type="string",
-                  default=os.path.abspath(os.path.join(os.path.dirname(__file__),"..","base")),
-                  help="base directory")
-cmd_opts, cmd_args = parser.parse_args()
-                
-# define directories
-basedir = os.path.abspath(cmd_opts.basedir)
-sourcedir = os.path.join(basedir, 'ardupilot')
-outdir_parent = os.path.join(basedir, 'builds')
-tmpdir_parent = os.path.join(basedir, 'tmp')
-
 app = Flask(__name__, template_folder='templates')
 
 if not os.path.isdir(outdir_parent):
@@ -569,27 +503,54 @@ try:
 except IOError:
     app.logger.info("No queue lock")
 
+load_remotes()
 app.logger.info('Initial fetch')
 # checkout to default branch, fetch remote, update submodules
-checkout_branch(get_default_branch_name(), s_dir=sourcedir, fetch_and_reset=True)
+do_checkout("upstream", "master", s_dir=sourcedir, force_fetch=True)
 update_submodules(s_dir=sourcedir)
 
 app.logger.info('Python version is: %s' % sys.version)
 
+def get_auth_token():
+    try:
+        # try to read the secret token from the file
+        with open(os.path.join(basedir, 'secrets', 'reload_token'), 'r') as file:
+            token = file.read().strip()
+            return token
+    except (FileNotFoundError, PermissionError):
+        app.logger.error("Couldn't open token file. Checking environment for token.")
+        # if the file does not exist, check the environment variable
+        return os.getenv('CBS_REMOTES_RELOAD_TOKEN')
+
+@app.route('/refresh_remotes', methods=['POST'])
+def refresh_remotes():
+    auth_token = get_auth_token()
+
+    if auth_token is None:
+        app.logger.error("Couldn't retrieve authorization token")
+        return "Internal Server Error", 500
+
+    token = request.get_json().get('token')
+    if not token or token != auth_token:
+        return "Unauthorized", 401
+
+    load_remotes()
+    return "Successfully refreshed remotes", 200
+
 @app.route('/generate', methods=['GET', 'POST'])
 def generate():
     try:
-        chosen_branch = request.form['branch']
-        if not is_valid_branch(chosen_branch):
-            raise Exception("bad branch")
-
+        chosen_version = request.form['version']
+        chosen_remote, chosen_commit_reference = chosen_version.split('/', 1)
         chosen_vehicle = request.form['vehicle']
-        if not is_valid_vehicle(chosen_vehicle):
-            raise Exception("bad vehicle")
+        chosen_version_info = find_version_info(vehicle_name=chosen_vehicle, remote_name=chosen_remote, commit_reference=chosen_commit_reference)
+
+        if chosen_version_info is None:
+            raise Exception("Commit reference invalid or not listed to be built for given vehicle for remote")
 
         chosen_board = request.form['board']
         head_lock.acquire()
-        checkout_branch(targetBranch=chosen_branch, s_dir=sourcedir)
+        do_checkout(chosen_remote, chosen_commit_reference, s_dir=sourcedir)
         if chosen_board not in get_boards_from_ardupilot_tree(s_dir=sourcedir)[0]:
             raise Exception("bad board")
 
@@ -636,7 +597,9 @@ def generate():
                         os.path.join(outdir_parent, 'extra_hwdef.dat'))
         os.remove(os.path.join(outdir_parent, 'extra_hwdef.dat'))
 
-        new_git_hash = get_git_hash(chosen_branch)
+        new_git_hash = chosen_commit_reference
+        if ref_is_branch(chosen_commit_reference) or ref_is_tag(chosen_commit_reference):
+            new_git_hash = find_hash_for_ref(chosen_remote, chosen_commit_reference)
         git_hash_short = new_git_hash[:10]
         app.logger.info('Git hash = ' + new_git_hash)
         selected_features_dict['git_hash_short'] = git_hash_short
@@ -654,7 +617,9 @@ def generate():
             # create build.log
             build_log_info = ('Vehicle: ' + chosen_vehicle +
                 '\nBoard: ' + chosen_board +
-                '\nBranch: ' + chosen_branch +
+                '\nRemote: ' + chosen_remote +
+                '\ngit-sha: ' + git_hash_short +
+                '\nVersion: ' + chosen_version_info['release_type'] + '-' + chosen_version_info['version_number'] +
                 '\nSelected Features:\n' + feature_list +
                 '\n\nWaiting for build to start...\n\n')
             app.logger.info('Creating build.log')
@@ -671,7 +636,9 @@ def generate():
             # fill dictionary of variables and create json file
             task = {}
             task['token'] = token
-            task['branch'] = chosen_branch
+            task['remote'] = chosen_remote
+            task['git_hash_short'] = git_hash_short
+            task['version'] = chosen_version_info['release_type'] + '-' + chosen_version_info['version_number']
             task['extra_hwdef'] = os.path.join(outdir, 'extra_hwdef.dat')
             task['vehicle'] = chosen_vehicle.lower()
             task['board'] = chosen_board
@@ -702,9 +669,7 @@ def generate():
 @app.route('/add_build')
 def add_build():
     app.logger.info('Rendering add_build.html')
-    return render_template('add_build.html',
-                            get_vehicle_names=get_vehicle_names,
-                            get_default_vehicle_name=get_default_vehicle_name)
+    return render_template('add_build.html')
 
 
 def filter_build_options_by_category(build_options, category):
@@ -726,17 +691,17 @@ def download_file(name):
     app.logger.info('Downloading %s' % name)
     return send_from_directory(os.path.join(basedir,'builds'), name, as_attachment=False)
 
-@app.route("/boards_and_features/<string:remote>/<string:branch_name>", methods = ['GET'])
-def boards_and_features(remote, branch_name):
-    branch = remote + '/' + branch_name
-    if not is_valid_branch(branch):
-        app.logger.error("Bad branch")
-        return ("Bad branch", 400)
+@app.route("/boards_and_features/<string:vehicle_name>/<string:remote_name>/<string:commit_reference>", methods=['GET'])
+def boards_and_features(vehicle_name, remote_name, commit_reference):
+    commit_reference = base64.urlsafe_b64decode(commit_reference).decode()
 
-    app.logger.info('Board list and build options requested for %s' % branch)
+    if find_version_info(vehicle_name, remote_name, commit_reference) is None:
+        return "Bad request. Commit reference not allowed to build for the vehicle.", 400
+
+    app.logger.info('Board list and build options requested for %s %s %s' % (vehicle_name, remote_name, commit_reference))
     # getting board list for the branch
     head_lock.acquire()
-    checkout_branch(targetBranch=branch, s_dir=sourcedir)
+    do_checkout(remote_name, commit_reference, s_dir=sourcedir)
     (boards, default_board) = get_boards_from_ardupilot_tree(s_dir=sourcedir)
     options = get_build_options_from_ardupilot_tree(s_dir=sourcedir)   # this is a list of Feature() objects defined in build_options.py
     head_lock.release()
@@ -767,69 +732,59 @@ def boards_and_features(remote, branch_name):
     # return jsonified result dict
     return jsonify(result)
 
-@app.route("/get_allowed_branches/<string:vehicle_name>", methods=['GET'])
-def get_allowed_branches(vehicle_name):
-    if not is_valid_vehicle(vehicle_name):
-        valid_vehicles =  get_vehicle_names()
-        app.logger.error("Bad vehicle")
-        return (f"Bad Vehicle. Expected {valid_vehicles}", 400)
+@app.route("/get_versions/<string:vehicle_name>", methods=['GET'])
+def get_versions(vehicle_name):
+    versions = list()
+    for remote in get_remotes():
+        for vehicle in remote['vehicles']:
+            if vehicle['name'] == vehicle_name:
+                for release in vehicle['releases']:
+                    if release['release_type'] == "latest":
+                        title = f'Latest ({remote["name"]})'
+                    else:
+                        title = f'{release["release_type"]} {release["version_number"]} ({remote["name"]})'
+                    id = f'{remote["name"]}/{release["commit_reference"]}'
+                    versions.append({
+                        "title" :   title,
+                        "id"    :   id,
+                    })
 
-    app.logger.info("Supported branches requested for %s" % vehicle_name)
-    branches = []
-    for branch in get_branches():
-        if vehicle_name in [vehicle.name for vehicle in branch['allowed_vehicles']]:
-            branches.append({
-                'full_name': branch['full_name'],
-                'label' : branch['label']
-            })
+    return jsonify(sorted(versions, key=lambda x: x['title']))
 
-    result = {
-        'branches' : branches,
-        'default_branch' : get_default_branch_name()
-    }
-    # return jsonified result dictionary
-    return jsonify(result)
+@app.route("/get_vehicles")
+def get_vehicles():
+    vehicle_set = set()
+    for remote in get_remotes():
+        vehicle_set = vehicle_set.union(set([vehicle['name'] for vehicle in remote['vehicles']]))
 
-def get_artifacts_dir(branch_full_name):
-    for branch in BRANCHES:
-        if branch_full_name == branch['full_name']:
-            return branch['artifacts_dir']
-    return ""
+    return jsonify(sorted(list(vehicle_set)))
 
-@app.route("/get_defaults/<string:vehicle_name>/<string:remote>/<string:branch_name>/<string:board>", methods = ['GET'])
-def get_deafults(vehicle_name, remote, branch_name, board):
-    if not remote == "upstream":
-        app.logger.error("Defaults requested for remote '%s' which is not supported" % remote)
-        return ("Bad remote. Only upstream is supported.", 400)
-
-    branch = remote + '/' + branch_name
-    if not is_valid_branch(branch):
-        app.logger.error("Bad branch")
-        return ("Bad branch", 400)
-
-    if not is_valid_vehicle(vehicle_name):
-        app.logger.error("Bad vehicle")
-        return ("Bad Vehicle", 400)
-
+@app.route("/get_defaults/<string:vehicle_name>/<string:remote_name>/<string:commit_reference>/<string:board_name>", methods = ['GET'])
+def get_deafults(vehicle_name, remote_name, commit_reference, board_name):
     # Heli is built on copter
     if vehicle_name == "Heli":
         vehicle_name = "Copter"
 
-    artifacts_dir = get_artifacts_dir(branch)
+    commit_reference = base64.urlsafe_b64decode(commit_reference).decode()
+    version_info = find_version_info(vehicle_name, remote_name, commit_reference)
 
-    if artifacts_dir == "":
-        return ("Could not determine artifacts directory for given combination", 400)
+    if version_info is None:
+        return "Bad request. Commit reference %s is not allowed for builds for the %s for %s remote." % (commit_reference, vehicle_name, remote_name), 400
 
-    artifacts_dir = vehicle_name + artifacts_dir + "/" + board
-    path = "https://firmware.ardupilot.org/"+artifacts_dir+"/features.txt"
-    response = requests.get(path, timeout=30)
+    artifacts_dir = version_info.get("ap_build_atrifacts_url", None)
+
+    if artifacts_dir is None:
+        return "Couldn't find artifacts for requested release/branch/commit on ardupilot server", 404
+
+    url_to_features_txt = artifacts_dir + '/' + board_name + '/features.txt'
+    response = requests.get(url_to_features_txt, timeout=30)
 
     if not response.status_code == 200:
-        return ("Could not retrieve features.txt for given vehicle, branch and board combination (Status Code: %d, path: %s)" % (response.status_code, path), response.status_code)
+        return ("Could not retrieve features.txt for given vehicle, version and board combination (Status Code: %d, url: %s)" % (response.status_code, url_to_features_txt), response.status_code)
     # split response by new line character to get a list of defines
     result = response.text.split('\n')
-    # omit the last string as its always blank
-    return jsonify(result[:-1])
+    # omit the last two elements as they are always blank
+    return jsonify(result[:-2])
 
 if __name__ == '__main__':
     app.run()
