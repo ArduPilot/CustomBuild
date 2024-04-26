@@ -190,7 +190,6 @@ const Features = (() => {
 
     function updateGlobalCheckboxState() {
         const total_options = Object.keys(defines_dictionary).length;
-        console.log(selected_options + "/" + total_options);
         let global_checkbox = document.getElementById("check-uncheck-all");
 
         let indeterminate_state = false;
