@@ -63,6 +63,18 @@ def find_hash_for_ref(remote_name, ref):
         if r == ref:
             return git_hash
 
+def fetch_remote(remote_name):
+    app.logger.info("Fetching remote %s" % remote_name)
+    run_git(['git', 'fetch', remote_name], sourcedir)
+
+def get_git_hash(remote, commit_reference, fetch=False):
+    if remote is None or commit_reference  is None:
+        return ''
+
+    # fetch remote
+    if fetch:
+        fetch_remote(remote)
+
     raise Exception('Branch ref not found on remote')
 
 def ref_is_branch(commit_reference):
@@ -80,6 +92,7 @@ def load_remotes():
         schema = json.loads(s.read())
         # validate schema
         jsonschema.validate(remotes, schema=schema)
+        setup_remotes_urls(remotes)
         set_remotes(remotes)
 
 
@@ -116,7 +129,7 @@ def do_checkout(remote, commit_reference, s_dir, force_fetch=False, temp_branch_
     '''checkout to given commit/branch and return the git hash'''
     # Note: remember to acquire head_lock before calling this method
     if force_fetch:
-        run_git(['git', 'fetch', remote], cwd=s_dir)
+        fetch_remote(remote)
 
     git_hash_target = commit_reference
     if ref_is_branch(commit_reference) or ref_is_tag(commit_reference):
@@ -127,7 +140,7 @@ def do_checkout(remote, commit_reference, s_dir, force_fetch=False, temp_branch_
     result = run_git(['git', 'checkout', git_hash_target], cwd=s_dir)
     if result.returncode != 0:
         # commit with the given hash isn't fetched? fetch and try again
-        run_git(['git', 'fetch', remote], cwd=s_dir)
+        fetch_remote(remote)
         result = run_git(['git', 'checkout', git_hash_target], cwd=s_dir)
         if result.returncode != 0:
             raise Exception("Could not checkout to the requested commit")
@@ -201,6 +214,30 @@ dictConfig({
         'handlers': ['wsgi']
     }
 })
+
+def setup_remotes_urls(remotes):
+    added_remotes = 0
+    for remote in remotes:
+        # add new remote
+        result = subprocess.run(['git', 'remote', 'add', remote['name'], remote['url']], cwd=sourcedir, encoding='utf-8', capture_output=True, shell=False)
+
+        # non-zero returncode? the remote already exists probably
+        # To-do
+        # change this condition to be specific for returncode 3
+        # which is returned when remote already exists, this change came after git version 2.30
+        if result.returncode != 0:
+            app.logger.info("Remote %s already exists, updating url" % remote['name'])
+            result = subprocess.run(['git', 'remote', 'set-url', remote['name'], remote['url']], cwd=sourcedir, encoding='utf-8', capture_output=True, shell=False)
+
+        # did we succeed?
+        if result.returncode != 0:
+            app.logger.error("Failed to add/update remote %s %s %s" % (remote['name'], remote['url'], result.stderr.rstrip()))
+        else:
+            app.logger.info("Initial fetch")
+            fetch_remote(remote['name'])
+            added_remotes += 1
+
+    app.logger.info("%d/%d remotes added to base repo" % (added_remotes, len(remotes)))
 
 def remove_directory_recursive(dirname):
     '''remove a directory recursively'''
@@ -508,10 +545,6 @@ except IOError:
     app.logger.info("No queue lock")
 
 load_remotes()
-app.logger.info('Initial fetch')
-# checkout to default branch, fetch remote, update submodules
-do_checkout("upstream", "master", s_dir=sourcedir, force_fetch=True)
-update_submodules(s_dir=sourcedir)
 
 app.logger.info('Python version is: %s' % sys.version)
 
