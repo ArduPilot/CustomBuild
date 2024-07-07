@@ -808,7 +808,7 @@ def get_deafults(vehicle_name, remote_name, commit_reference, board_name):
     if version_info is None:
         return "Bad request. Commit reference %s is not allowed for builds for the %s for %s remote." % (commit_reference, vehicle_name, remote_name), 400
 
-    artifacts_dir = version_info.get("ap_build_atrifacts_url", None)
+    artifacts_dir = version_info.get("ap_build_artifacts_url", None)
 
     if artifacts_dir is None:
         return "Couldn't find artifacts for requested release/branch/commit on ardupilot server", 404
