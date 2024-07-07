@@ -9,7 +9,7 @@
           {
             "release_type": "latest",
             "version_number": "4.6.0",
-            "ap_build_atrifacts_url": "https://firmware.ardupilot.org/Copter/latest",
+            "ap_build_artifacts_url": "https://firmware.ardupilot.org/Copter/latest",
             "commit_reference": "refs/heads/master"
           }
         ]
@@ -42,13 +42,13 @@
           {
             "release_type": "latest",
             "version_number": "4.6.0",
-            "ap_build_atrifacts_url": "https://firmware.ardupilot.org/Copter/latest",
+            "ap_build_artifacts_url": "https://firmware.ardupilot.org/Copter/latest",
             "commit_reference": "202cc6ae9d326a172be5ec1120d79595a6ddae36"
           },
           {
             "release_type": "stable",
             "version_number": "4.3.0",
-            "ap_build_atrifacts_url": "https://firmware.ardupilot.org/Copter/stable-4.3.0",
+            "ap_build_artifacts_url": "https://firmware.ardupilot.org/Copter/stable-4.3.0",
             "commit_reference": "93448b71380c417644c9082b7b23e80fb982b626"
           }
         ]
