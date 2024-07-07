@@ -125,7 +125,7 @@ def construct_vehicle_versions_list(vehicle, ap_source_subdir,
             ret.append({
                 'release_type': v_type,
                 'version_number': v_num,
-                'ap_build_atrifacts_url': afcts_url,
+                'ap_build_artifacts_url': afcts_url,
                 'commit_reference': tag_info['object']['sha']
             })
 
@@ -135,7 +135,7 @@ def construct_vehicle_versions_list(vehicle, ap_source_subdir,
     ret.append({
         'release_type': 'latest',
         'version_number': 'NA',
-        'ap_build_atrifacts_url': (
+        'ap_build_artifacts_url': (
             f'https://firmware.ardupilot.org/{fw_server_vehicle_sdir}/latest'
         ),
         'commit_reference': 'refs/heads/master'
