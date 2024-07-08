@@ -147,21 +147,6 @@ def construct_vehicle_versions_list(vehicle, ap_source_subdir,
     }
 
 
-# swiped from app.py
-def get_auth_token():
-    try:
-        # try to read the secret token from the file
-        with open(
-            os.path.join(basedir, 'secrets', 'reload_token'),
-            'r'
-        ) as file:
-            token = file.read().strip()
-            return token
-    except (FileNotFoundError, PermissionError):
-        # if the file does not exist, check the environment variable
-        return os.getenv('CBS_REMOTES_RELOAD_TOKEN')
-
-
 parser = optparse.OptionParser("fetch_releases.py")
 parser.add_option(
     "", "--basedir", type="string",
@@ -175,12 +160,6 @@ parser.add_option(
     "", "--remotename", type="string",
     default="ardupilot",
     help="Remote name to write in json file"
-)
-
-parser.add_option(
-    "", "--appurl", type="string",
-    default="https://custom.ardupilot.org/refresh_remotes",
-    help="URL for triggering remotes.json refresh on custom build server app"
 )
 
 cmd_opts, cmd_args = parser.parse_args()
@@ -290,17 +269,3 @@ with open(remotes_json_path, 'w') as f:
     remotes.append(remotes_json)
     f.write(json.dumps(remotes, indent=2))
     print(f"Wrote {remotes_json_path}")
-
-# retrieve authentication token
-auth_token = get_auth_token()
-# hit reload endpoint on custom build server app
-if not auth_token:
-    print("Failed to retrieve authentication token. Aborting.")
-else:
-    headers = {'Content-Type': 'application/json'}
-    data = {'token': auth_token}
-    response = requests.post(url=cmd_opts.appurl, json=data, headers=headers)
-    if response.status_code == 200:
-        print("Successfully refreshed remotes.json on app")
-    else:
-        print("Failed to refresh remotes.json on app")
