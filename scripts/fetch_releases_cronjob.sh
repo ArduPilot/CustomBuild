@@ -40,12 +40,40 @@ cleanup_old_logs() {
   fi
 }
 
+# Method to reload remotes on custom build server app
+reload_remotes_on_app() {
+    local token_file="$BASEDIR/secrets/reload_token"
+    local token
+
+    # Check if the token file exists and is readable
+    if [[ -f "$token_file" && -r "$token_file" ]]; then
+        # Read the token from the file
+        token=$(cat "$token_file")
+    else
+        echo "Token can't be retrieved from the file."
+        # Try to get the token from the environment variable
+        token=$CBS_REMOTES_RELOAD_TOKEN
+    fi
+
+    # Check if token is still empty
+    if [[ -z "$token" ]]; then
+        echo "Error: Token could not be retrieved."
+        return 1
+    fi
+
+    # Send the curl request
+    curl -X POST https://custom-beta.ardupilot.org/refresh_remotes \
+        -H "Content-Type: application/json" \
+        -d "{\"token\": \"$token\"}"
+
+    return 0
+}
+
 # Call the cleanup function before executing the main script
 cleanup_old_logs
 
 # Run fetch_releases.py to add official releases from AP
 python3 $TOPDIR/CustomBuild/scripts/fetch_releases.py \
-        --appurl https://custom-beta.ardupilot.org/refresh_remotes \
         --basedir $BASEDIR \
         >> $LOGDIR/fetch_releases_${TIMESTAMP}.log 2>&1
 
@@ -53,3 +81,6 @@ python3 $TOPDIR/CustomBuild/scripts/fetch_releases.py \
 python3 $TOPDIR/CustomBuild/scripts/fetch_whitelisted_tags.py \
         --basedir $BASEDIR \
         >> $LOGDIR/fetch_whitelisted_tags_${TIMESTAMP}.log 2>&1
+
+# Call the reload_remotes_on_app function to refresh remotes.json on app
+reload_remotes_on_app
