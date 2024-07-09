@@ -24,7 +24,9 @@ TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 # Function to clean up old log files
 cleanup_old_logs() {
   # Find and sort log files by modification time, oldest first
-  LOG_FILES=($(ls -1t ${LOGDIR}/fetch_releases_*.log 2>/dev/null))
+  LOG_FILES=($(ls -1t ${LOGDIR}/fetch_releases_*.log \
+                      ${LOGDIR}/fetch_whitelisted_tags_*.log \
+                      2>/dev/null))
 
   # Count the number of log files
   NUM_LOG_FILES=${#LOG_FILES[@]}
