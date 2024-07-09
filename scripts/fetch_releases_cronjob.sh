@@ -21,9 +21,6 @@ MAX_LOG_FILES=50
 # Get the current timestamp
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
-# Log file name
-LOG_FILE="${LOGDIR}/fetch_releases_${TIMESTAMP}.log"
-
 # Function to clean up old log files
 cleanup_old_logs() {
   # Find and sort log files by modification time, oldest first
@@ -46,8 +43,13 @@ cleanup_old_logs() {
 # Call the cleanup function before executing the main script
 cleanup_old_logs
 
-# Call the main python script
+# Run fetch_releases.py to add official releases from AP
 python3 $TOPDIR/CustomBuild/scripts/fetch_releases.py \
         --appurl https://custom-beta.ardupilot.org/refresh_remotes \
         --basedir $BASEDIR \
-        >> $LOG_FILE 2>&1
+        >> $LOGDIR/fetch_releases_${TIMESTAMP}.log 2>&1
+
+# Run fetch_whitelisted_tags.py to add tags from whitelisted repos
+python3 $TOPDIR/CustomBuild/scripts/fetch_whitelisted_tags.py \
+        --basedir $BASEDIR \
+        >> $LOGDIR/fetch_whitelisted_tags_${TIMESTAMP}.log 2>&1
