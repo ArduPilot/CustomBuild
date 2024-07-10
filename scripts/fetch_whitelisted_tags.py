@@ -119,20 +119,27 @@ def construct_versions_map(remotes, vehicles):
             s = ref.split('/', 3)
 
             # skip if tag name does not start with custom-build/
-            if s[0] != 'custom-build':
+            if len(s) <= 1 or s[0] != 'custom-build':
                 continue
 
             vehicles_for_tag = []
-            if len(s) == 2:
+            if s[1] in vehicles:
+                if len(s) == 2:
+                    print(f'Found {ref}. Incomplete tag. Skipping.')
+                    # tag is named like custom-build/vehicle
+                    # this format is incorrect
+                    continue
+
+                # tag is in the format custom-build/vehicle/xyz
+                # list the tag only under this vehicle
+                vehicles_for_tag = [s[1],]
+                print(f'Found {ref}. Adding to {s[1]}.')
+            else:
                 # tag is in the format custom-build/xyz
                 # no vehicle is specified in tag name
                 # list the tag under all vehicles
                 vehicles_for_tag = vehicles
-            else:
-                if s[1] in vehicles:
-                    # tag is in the format custom-build/vehicle/xyz
-                    # list the tag only under this vehicle
-                    vehicles_for_tag = [s[1],]
+                print(f'Found {ref}. Adding to all vehicles.')
 
             for vehicle in vehicles_for_tag:
                 # append an entry to the list of versions listed to be built
@@ -200,6 +207,8 @@ def update_remotes_json(path, new_versions_map):
     for remote_name, vehicles_obj_dict in new_versions_map.items():
         # we do not have the remote listed in existing remotes_json_obj
         if not rname_obj_map.get(remote_name):
+            print(f'Remote {remote_name} '
+                  f'does not exist in existing remotes.json. Adding.')
             # create object containing the information about the remote
             remote_obj = {
                 'name': remote_name,
@@ -218,6 +227,9 @@ def update_remotes_json(path, new_versions_map):
         for vehicle_name, versions in vehicles_obj_dict.items():
             # the vehicle is not listed under this remote
             if not rname_vname_obj_map[remote_name].get(vehicle_name):
+                print(f'Vehicle {vehicle_name} does not exist '
+                      f'for remote {remote_name} '
+                      f'in existing remotes.json. Adding.')
                 # create vehicle object
                 vehicle_obj = {
                     'name': vehicle_name,
