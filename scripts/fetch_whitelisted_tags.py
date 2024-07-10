@@ -1,6 +1,6 @@
 """
 This script automates the listing of tagged versions of
-the ArduPilot source code from various white-listed forks 
+the ArduPilot source code from various white-listed forks
 from GitHub on the Custom Build Server.
 It performs the following tasks:
 
@@ -231,11 +231,18 @@ def update_remotes_json(path, new_versions_map):
                 # and the vehicle name
                 rname_vname_obj_map[remote_name][vehicle_name] = vehicle_obj
 
+            # remove duplicates and merge lists
+            existing_list = rname_vname_obj_map[remote_name][vehicle_name]['releases']  # noqa
+            new_versions_list = []
+            for i in range(len(existing_list)):
+                prefix = "tag"
+                if existing_list[i]['release_type'][:len(prefix)] != prefix:
+                    new_versions_list.append(existing_list[i])
+            new_versions_list.extend(versions)
+
             # add the versions listed for this vehicle and
             # the remote in remotes_json_obj as mentioned above
-            rname_vname_obj_map[remote_name][vehicle_name]['releases'].extend(
-                versions
-            )
+            rname_vname_obj_map[remote_name][vehicle_name]['releases'] = new_versions_list  # noqa
 
     # write the updated obj to the remotes.json file
     write_remotes_json_file(path, remotes_json_obj)
