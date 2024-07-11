@@ -146,8 +146,8 @@ def construct_versions_map(remotes, vehicles):
                 # for the remote and vehicle
                 ret[remote][vehicle].append(
                     {
-                        'release_type': f'tag {s[-1]}',
-                        'version_number': 'unreleased',
+                        'release_type': 'tag',
+                        'version_number': s[-1],
                         'ap_build_artifacts_url': f'https://firmware.ardupilot.org/{vehicle}/latest',  # noqa # use master defaults for auto-fetched tags
                         'commit_reference': tag_info['object']['sha']
                     }
