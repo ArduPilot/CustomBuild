@@ -29,7 +29,6 @@ import json
 import optparse
 import os
 import requests
-import collections
 
 
 # TODO: move this to base/configs/whitelisted_custom_tag_remotes.json
@@ -97,11 +96,11 @@ def construct_versions_map(remotes, vehicles):
     }
     """
 
-    ret = collections.defaultdict(
-        lambda: collections.defaultdict(
-            list
-        )
-    )
+    ret = {
+        remote: {
+            vehicle: [] for vehicle in vehicles
+        } for remote in remotes
+    }
 
     for remote in remotes:
         try:
