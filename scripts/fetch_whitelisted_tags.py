@@ -38,7 +38,8 @@ remotes = [
     "tridge",
     "peterbarker",
     "rmackay9",
-    "shiv-tyagi"
+    "shiv-tyagi",
+    "andyp1per",
 ]
 
 vehicles = ['Copter', 'Plane', 'Rover', 'Sub', 'Tracker', 'Blimp', 'Heli']
