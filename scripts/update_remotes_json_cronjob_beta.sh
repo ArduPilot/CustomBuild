@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # this script is intended to be run from a crontab owned by the
-# www-data user on ArduPilot's autotest server
+# custom user on ArduPilot's autotest server
+# to do a hot reload of remotes.json on custom-beta.ardupilot.org
 
 # CBS_REMOTES_RELOAD_TOKEN can be supplied as an environment
 # variable in the crontab line, for example:
