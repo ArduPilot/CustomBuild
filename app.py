@@ -65,7 +65,7 @@ def find_hash_for_ref(remote_name, ref):
 
 def fetch_remote(remote_name):
     app.logger.info("Fetching remote %s" % remote_name)
-    run_git(['git', 'fetch', remote_name], sourcedir)
+    run_git(['git', 'fetch', remote_name, '--tags', '--force'], sourcedir)
 
 def get_git_hash(remote, commit_reference, fetch=False):
     if remote is None or commit_reference  is None:
