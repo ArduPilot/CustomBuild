@@ -608,6 +608,31 @@ function fillVersions(versions, version_to_select) {
     output.innerHTML =  '<label for="version" class="form-label"><strong>Select Version</strong></label>' +
                         '<select name="version" id="version" class="form-select" aria-label="Select Version" onchange="onVersionChange(this.value);"></select>';
     versionList = document.getElementById("version");
+
+    const order = {
+        "latest": 0,
+        "beta"  : 1,
+        "stable": 2,
+        "tag"   : 3,
+    }
+
+    versions.sort((a, b) => {
+        const version_a_type = a.title.split(" ")[0].toLowerCase();
+        const version_b_type = b.title.split(" ")[0].toLowerCase();
+
+        // sort the version types in order mentioned above
+        if (version_a_type != version_b_type) {
+            return order[version_a_type] - order[version_b_type];
+        }
+
+        // for numbered versions, do reverse sorting to make sure recent versions come first
+        if (version_a_type == "stable" || version_b_type == "beta") {
+            return b.title.localeCompare(a.title);
+        }
+
+        return a.title.localeCompare(b.title);
+    });
+
     versions.forEach(version => {
         opt = document.createElement('option');
         opt.value = version.id;
