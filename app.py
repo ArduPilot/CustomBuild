@@ -137,11 +137,11 @@ def do_checkout(remote, commit_reference, s_dir, force_fetch=False, temp_branch_
 
     app.logger.info("Checking out to %s (%s/%s)" % (git_hash_target, remote, commit_reference))
 
-    result = run_git(['git', 'checkout', git_hash_target], cwd=s_dir)
+    result = run_git(['git', 'checkout', '-f', git_hash_target], cwd=s_dir)
     if result.returncode != 0:
         # commit with the given hash isn't fetched? fetch and try again
         fetch_remote(remote)
-        result = run_git(['git', 'checkout', git_hash_target], cwd=s_dir)
+        result = run_git(['git', 'checkout', '-f', git_hash_target], cwd=s_dir)
         if result.returncode != 0:
             raise Exception("Could not checkout to the requested commit")
 
