@@ -145,6 +145,11 @@ def do_checkout(remote, commit_reference, s_dir, force_fetch=False, temp_branch_
         if result.returncode != 0:
             raise Exception("Could not checkout to the requested commit")
 
+    # we have successfully checked out to requested commit
+    # do git reset and git clean to make sure the tree remains clean
+    run_git(['git', 'reset', '--hard', 'HEAD'], cwd=s_dir)
+    run_git(['git', 'clean', '-dxf', git_hash_target], cwd=s_dir)
+
     if temp_branch_name is not None:
         delete_branch(temp_branch_name, s_dir=s_dir) # delete temp branch if it already exists
         run_git(['git', 'checkout', '-b', temp_branch_name, git_hash_target], cwd=s_dir)    # creates new temp branch
