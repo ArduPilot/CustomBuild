@@ -148,7 +148,7 @@ def do_checkout(remote, commit_reference, s_dir, force_fetch=False, temp_branch_
     # we have successfully checked out to requested commit
     # do git reset and git clean to make sure the tree remains clean
     run_git(['git', 'reset', '--hard', 'HEAD'], cwd=s_dir)
-    run_git(['git', 'clean', '-dxf', git_hash_target], cwd=s_dir)
+    run_git(['git', 'clean', '-dxff', git_hash_target], cwd=s_dir)
 
     if temp_branch_name is not None:
         delete_branch(temp_branch_name, s_dir=s_dir) # delete temp branch if it already exists
