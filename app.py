@@ -36,6 +36,9 @@ dictConfig({
         'handlers': ['wsgi']
     }
 })
+
+import ap_git
+
 # run at lower priority
 os.nice(20)
 
@@ -61,7 +64,6 @@ REMOTES = None
 
 # LOCKS
 queue_lock = Lock()
-head_lock = Lock()  # lock git HEAD, i.e., no branch change until this lock is released
 remotes_lock = Lock()  # lock for accessing and updating REMOTES list
 
 def get_remotes():
@@ -73,35 +75,14 @@ def set_remotes(remotes):
         global REMOTES
         REMOTES = remotes
 
-def find_hash_for_ref(remote_name, ref):
-    result = subprocess.run(['git', 'ls-remote', remote_name], cwd=sourcedir, encoding='utf-8', capture_output=True, shell=False)
-
-    for line in result.stdout.split('\n')[:-1]:
-        (git_hash, r) = line.split('\t')
-        if r == ref:
-            return git_hash
-
-def fetch_remote(remote_name):
-    app.logger.info("Fetching remote %s" % remote_name)
-    run_git(['git', 'fetch', remote_name, '--tags', '--force'], sourcedir)
-
-def get_git_hash(remote, commit_reference, fetch=False):
-    if remote is None or commit_reference  is None:
-        return ''
-
-    # fetch remote
-    if fetch:
-        fetch_remote(remote)
-
-    raise Exception('Branch ref not found on remote')
-
-def ref_is_branch(commit_reference):
-    prefix = 'refs/heads'
-    return commit_reference[:len(prefix)] == prefix
-
-def ref_is_tag(commit_reference):
-    prefix = 'refs/tags'
-    return commit_reference[:len(prefix)] == prefix
+try:
+    repo = ap_git.GitRepo(sourcedir)
+except FileNotFoundError:
+    repo = ap_git.GitRepo.clone(
+        source="https://github.com/ardupilot/ardupilot.git",
+        dest=sourcedir,
+        recurse_submodules=True,
+    )
 
 def load_remotes():
     # load file contianing vehicles listed to be built for each remote along with the braches/tags/commits on which the firmware can be built
@@ -133,54 +114,6 @@ def find_version_info(vehicle_name, remote_name, commit_reference):
     # find version metadata for asked commit reference
     release = next((r for r in vehicle['releases'] if r['commit_reference'] == commit_reference), None)
     return release
-
-
-def run_git(cmd, cwd):
-    app.logger.info("Running git: %s" % ' '.join(cmd))
-    return subprocess.run(cmd, cwd=cwd, shell=False)
-
-def delete_branch(branch_name, s_dir):
-    run_git(['git', 'checkout', 'master'], cwd=s_dir) # to make sure we are not already on branch to be deleted
-    run_git(['git', 'branch', '-D', branch_name], cwd=s_dir)    # delete branch
-
-def do_checkout(remote, commit_reference, s_dir, force_fetch=False, temp_branch_name=None):
-    '''checkout to given commit/branch and return the git hash'''
-    # Note: remember to acquire head_lock before calling this method
-    if force_fetch:
-        fetch_remote(remote)
-
-    git_hash_target = commit_reference
-    if ref_is_branch(commit_reference) or ref_is_tag(commit_reference):
-        git_hash_target = find_hash_for_ref(remote, commit_reference)
-
-    app.logger.info("Checking out to %s (%s/%s)" % (git_hash_target, remote, commit_reference))
-
-    result = run_git(['git', 'checkout', '-f', git_hash_target], cwd=s_dir)
-    if result.returncode != 0:
-        # commit with the given hash isn't fetched? fetch and try again
-        fetch_remote(remote)
-        result = run_git(['git', 'checkout', '-f', git_hash_target], cwd=s_dir)
-        if result.returncode != 0:
-            raise Exception("Could not checkout to the requested commit")
-
-    # we have successfully checked out to requested commit
-    # do git reset and git clean to make sure the tree remains clean
-    run_git(['git', 'reset', '--hard', 'HEAD'], cwd=s_dir)
-    run_git(['git', 'clean', '-dxff', git_hash_target], cwd=s_dir)
-
-    if temp_branch_name is not None:
-        delete_branch(temp_branch_name, s_dir=s_dir) # delete temp branch if it already exists
-        run_git(['git', 'checkout', '-b', temp_branch_name, git_hash_target], cwd=s_dir)    # creates new temp branch
-    return git_hash_target
-
-def branch_and_clone(remote, commit_reference, sourcedir, out_dir, temp_branch_name):
-    remove_directory_recursive(out_dir)
-    head_lock.acquire()
-    do_checkout(remote, commit_reference, s_dir=sourcedir, force_fetch=True, temp_branch_name=temp_branch_name)
-    output = run_git(['git', 'clone', '--single-branch', '--branch='+temp_branch_name, sourcedir, out_dir], cwd=sourcedir)
-    delete_branch(temp_branch_name, sourcedir) # delete temp branch
-    head_lock.release()
-    return output.returncode == 0
 
 def get_boards_from_ardupilot_tree(s_dir):
     '''return a list of boards to build'''
@@ -223,24 +156,21 @@ def get_build_options_from_ardupilot_tree(s_dir):
 def setup_remotes_urls(remotes):
     added_remotes = 0
     for remote in remotes:
-        # add new remote
-        result = subprocess.run(['git', 'remote', 'add', remote['name'], remote['url']], cwd=sourcedir, encoding='utf-8', capture_output=True, shell=False)
-
-        # non-zero returncode? the remote already exists probably
-        # To-do
-        # change this condition to be specific for returncode 3
-        # which is returned when remote already exists, this change came after git version 2.30
-        if result.returncode != 0:
-            app.logger.info("Remote %s already exists, updating url" % remote['name'])
-            result = subprocess.run(['git', 'remote', 'set-url', remote['name'], remote['url']], cwd=sourcedir, encoding='utf-8', capture_output=True, shell=False)
-
-        # did we succeed?
-        if result.returncode != 0:
-            app.logger.error("Failed to add/update remote %s %s %s" % (remote['name'], remote['url'], result.stderr.rstrip()))
-        else:
-            app.logger.info("Initial fetch")
-            fetch_remote(remote['name'])
-            added_remotes += 1
+        try:
+            repo.remote_add(
+                remote=remote['name'],
+                url=remote['url'],
+            )
+        except ap_git.DuplicateRemoteError:
+            app.logger.info(
+                f"remote '{remote['name']}' already exists. "
+                f"Updating url to '{remote['url']}'."
+            )
+            repo.remote_set_url(
+                remote=remote['name'],
+                url=remote['url'],
+            )
+        added_remotes += 1
 
     app.logger.info("%d/%d remotes added to base repo" % (added_remotes, len(remotes)))
 
@@ -266,13 +196,23 @@ def run_build(task, tmpdir, outdir, logpath):
     '''run a build with parameters from task'''
     remove_directory_recursive(tmpdir_parent)
     create_directory(tmpdir)
-    # creates a branch from the commit reference and clones it into a new repository
     tmp_src_dir = os.path.join(tmpdir, 'build_src')
-    branch_and_clone(task['remote'], task['git_hash_short'], sourcedir, tmp_src_dir, task['git_hash_short']+'_clone')
+    source_repo = ap_git.GitRepo.shallow_clone_at_commit_from_local(
+        source=sourcedir,
+        remote=task['remote'],
+        commit_ref=task['git_hash_short'],
+        dest=tmp_src_dir
+    )
     # update submodules in temporary source directory
-    update_submodules(tmp_src_dir)
+    source_repo.submodule_update(init=True, recursive=True, force=True)
     # checkout to the commit pointing to the requested commit
-    do_checkout(task['remote'], task['git_hash_short'], tmp_src_dir)
+    source_repo.checkout_remote_commit_ref(
+        remote=task['remote'],
+        commit_ref=task['git_hash_short'],
+        force=True,
+        hard_reset=True,
+        clean_working_tree=True
+    )
     if not os.path.isfile(os.path.join(outdir, 'extra_hwdef.dat')):
         app.logger.error('Build aborted, missing extra_hwdef.dat')
     app.logger.info('Appending to build.log')
@@ -523,12 +463,6 @@ def status_thread():
             pass
         time.sleep(3)
 
-def update_submodules(s_dir):
-    if not os.path.exists(s_dir):
-        return
-    app.logger.info('Updating submodules')
-    run_git(['git', 'submodule', 'update', '--recursive', '--force', '--init'], cwd=s_dir)
-
 app = Flask(__name__, template_folder='templates')
 
 if not os.path.isdir(outdir_parent):
@@ -591,14 +525,19 @@ def generate():
             raise Exception("Commit reference invalid or not listed to be built for given vehicle for remote")
 
         chosen_board = request.form['board']
-        head_lock.acquire()
-        do_checkout(chosen_remote, chosen_commit_reference, s_dir=sourcedir)
-        if chosen_board not in get_boards_from_ardupilot_tree(s_dir=sourcedir)[0]:
-            raise Exception("bad board")
+        with repo.get_checkout_lock():
+            repo.checkout_remote_commit_ref(
+                remote=chosen_remote,
+                commit_ref=chosen_commit_reference,
+                force=True,
+                hard_reset=True,
+                clean_working_tree=True
+            )
+            if chosen_board not in get_boards_from_ardupilot_tree(s_dir=sourcedir)[0]:
+                raise Exception("bad board")
 
-        #ToDo - maybe have the if-statement to check if it's changed.
-        build_options = get_build_options_from_ardupilot_tree(s_dir=sourcedir)
-        head_lock.release()
+            #ToDo - maybe have the if-statement to check if it's changed.
+            build_options = get_build_options_from_ardupilot_tree(s_dir=sourcedir)
 
         # fetch features from user input
         extra_hwdef = []
@@ -639,9 +578,10 @@ def generate():
                         os.path.join(outdir_parent, 'extra_hwdef.dat'))
         os.remove(os.path.join(outdir_parent, 'extra_hwdef.dat'))
 
-        new_git_hash = chosen_commit_reference
-        if ref_is_branch(chosen_commit_reference) or ref_is_tag(chosen_commit_reference):
-            new_git_hash = find_hash_for_ref(chosen_remote, chosen_commit_reference)
+        new_git_hash = repo.commit_id_for_remote_ref(
+            remote=chosen_remote,
+            commit_ref=chosen_commit_reference
+        )
         git_hash_short = new_git_hash[:10]
         app.logger.info('Git hash = ' + new_git_hash)
         selected_features_dict['git_hash_short'] = git_hash_short
@@ -742,11 +682,16 @@ def boards_and_features(vehicle_name, remote_name, commit_reference):
 
     app.logger.info('Board list and build options requested for %s %s %s' % (vehicle_name, remote_name, commit_reference))
     # getting board list for the branch
-    head_lock.acquire()
-    do_checkout(remote_name, commit_reference, s_dir=sourcedir)
-    (boards, default_board) = get_boards_from_ardupilot_tree(s_dir=sourcedir)
-    options = get_build_options_from_ardupilot_tree(s_dir=sourcedir)   # this is a list of Feature() objects defined in build_options.py
-    head_lock.release()
+    with repo.get_checkout_lock():
+        repo.checkout_remote_commit_ref(
+            remote=remote_name,
+            commit_ref=commit_reference,
+            force=True,
+            hard_reset=True,
+            clean_working_tree=True,
+        )
+        (boards, default_board) = get_boards_from_ardupilot_tree(s_dir=sourcedir)
+        options = get_build_options_from_ardupilot_tree(s_dir=sourcedir)   # this is a list of Feature() objects defined in build_options.py
     # parse the set of categories from these objects
     categories = parse_build_categories(options)
     features = []
