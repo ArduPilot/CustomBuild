@@ -18,6 +18,24 @@ import sys
 import re
 import requests
 import jsonschema
+
+from logging.config import dictConfig
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi']
+    }
+})
 # run at lower priority
 os.nice(20)
 
@@ -201,24 +219,6 @@ def get_build_options_from_ardupilot_tree(s_dir):
     spec.loader.exec_module(mod)
     app.logger.info('Took %f seconds to get build options' % (time.time() - tstart))
     return mod.BUILD_OPTIONS
-
-from logging.config import dictConfig
-
-dictConfig({
-    'version': 1,
-    'formatters': {'default': {
-        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
-    }},
-    'handlers': {'wsgi': {
-        'class': 'logging.StreamHandler',
-        'stream': 'ext://flask.logging.wsgi_errors_stream',
-        'formatter': 'default'
-    }},
-    'root': {
-        'level': 'INFO',
-        'handlers': ['wsgi']
-    }
-})
 
 def setup_remotes_urls(remotes):
     added_remotes = 0
