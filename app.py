@@ -38,6 +38,7 @@ dictConfig({
 })
 
 import ap_git
+import metadata_manager
 
 # run at lower priority
 os.nice(20)
@@ -84,6 +85,10 @@ except FileNotFoundError:
         recurse_submodules=True,
     )
 
+ap_src_metadata_fetcher = metadata_manager.APSourceMetadataFetcher(
+    ap_repo_path=sourcedir
+)
+
 def load_remotes():
     # load file contianing vehicles listed to be built for each remote along with the braches/tags/commits on which the firmware can be built
     with open(os.path.join(basedir, 'configs', 'remotes.json'), 'r')  as f, open(os.path.join(appdir, 'remotes.schema.json'), 'r') as s:
@@ -114,44 +119,6 @@ def find_version_info(vehicle_name, remote_name, commit_reference):
     # find version metadata for asked commit reference
     release = next((r for r in vehicle['releases'] if r['commit_reference'] == commit_reference), None)
     return release
-
-def get_boards_from_ardupilot_tree(s_dir):
-    '''return a list of boards to build'''
-    tstart = time.time()
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("board_list.py",
-                                                  os.path.join(s_dir, 
-                                                  'Tools', 'scripts', 
-                                                  'board_list.py'))
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    all_boards = mod.AUTOBUILD_BOARDS
-    exclude_patterns = [ 'fmuv*', 'SITL*' ]
-    boards = []
-    for b in all_boards:
-        excluded = False
-        for p in exclude_patterns:
-            if fnmatch.fnmatch(b.lower(), p.lower()):
-                excluded = True
-                break
-        if not excluded:
-            boards.append(b)
-    app.logger.info('Took %f seconds to get boards' % (time.time() - tstart))
-    boards.sort()
-    default_board = boards[0]
-    return (boards, default_board)
-
-def get_build_options_from_ardupilot_tree(s_dir):
-    '''return a list of build options'''
-    tstart = time.time()
-    import importlib.util
-    spec = importlib.util.spec_from_file_location(
-        "build_options.py",
-        os.path.join(s_dir, 'Tools', 'scripts', 'build_options.py'))
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    app.logger.info('Took %f seconds to get build options' % (time.time() - tstart))
-    return mod.BUILD_OPTIONS
 
 def setup_remotes_urls(remotes):
     added_remotes = 0
@@ -525,19 +492,18 @@ def generate():
             raise Exception("Commit reference invalid or not listed to be built for given vehicle for remote")
 
         chosen_board = request.form['board']
-        with repo.get_checkout_lock():
-            repo.checkout_remote_commit_ref(
-                remote=chosen_remote,
-                commit_ref=chosen_commit_reference,
-                force=True,
-                hard_reset=True,
-                clean_working_tree=True
-            )
-            if chosen_board not in get_boards_from_ardupilot_tree(s_dir=sourcedir)[0]:
-                raise Exception("bad board")
+        boards_at_commit, _ = ap_src_metadata_fetcher.get_boards_at_commit(
+            remote=chosen_remote,
+            commit_ref=chosen_commit_reference
+        )
+        if chosen_board not in boards_at_commit:
+            raise Exception("bad board")
 
-            #ToDo - maybe have the if-statement to check if it's changed.
-            build_options = get_build_options_from_ardupilot_tree(s_dir=sourcedir)
+        #ToDo - maybe have the if-statement to check if it's changed.
+        build_options = ap_src_metadata_fetcher.get_build_options_at_commit(
+            remote=chosen_remote,
+            commit_ref=chosen_commit_reference
+        )
 
         # fetch features from user input
         extra_hwdef = []
@@ -690,8 +656,16 @@ def boards_and_features(vehicle_name, remote_name, commit_reference):
             hard_reset=True,
             clean_working_tree=True,
         )
-        (boards, default_board) = get_boards_from_ardupilot_tree(s_dir=sourcedir)
-        options = get_build_options_from_ardupilot_tree(s_dir=sourcedir)   # this is a list of Feature() objects defined in build_options.py
+        (boards, default_board) = ap_src_metadata_fetcher.get_boards_at_commit(
+            remote=remote_name,
+            commit_ref=commit_reference
+        )
+
+        options = ap_src_metadata_fetcher.get_build_options_at_commit(
+            remote=remote_name,
+            commit_ref=commit_reference
+        )   # this is a list of Feature() objects defined in build_options.py
+
     # parse the set of categories from these objects
     categories = parse_build_categories(options)
     features = []
