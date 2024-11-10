@@ -10,14 +10,12 @@ import time
 import fcntl
 import base64
 import hashlib
-import fnmatch
 from distutils.dir_util import copy_tree
 from flask import Flask, render_template, request, send_from_directory, render_template_string, jsonify, redirect
 from threading import Thread, Lock
 import sys
 import re
 import requests
-import jsonschema
 
 from logging.config import dictConfig
 
@@ -38,6 +36,7 @@ dictConfig({
 })
 
 import ap_git
+import metadata_manager
 
 # run at lower priority
 os.nice(20)
@@ -64,16 +63,6 @@ REMOTES = None
 
 # LOCKS
 queue_lock = Lock()
-remotes_lock = Lock()  # lock for accessing and updating REMOTES list
-
-def get_remotes():
-    with remotes_lock:
-        return REMOTES
-    
-def set_remotes(remotes):
-    with remotes_lock:
-        global REMOTES
-        REMOTES = remotes
 
 try:
     repo = ap_git.GitRepo(sourcedir)
@@ -84,95 +73,27 @@ except FileNotFoundError:
         recurse_submodules=True,
     )
 
+ap_src_metadata_fetcher = metadata_manager.APSourceMetadataFetcher(
+    ap_repo_path=sourcedir
+)
+versions_fetcher = metadata_manager.VersionsFetcher(
+    remotes_json_path=os.path.join(basedir, 'configs', 'remotes.json')
+)
+
 def load_remotes():
-    # load file contianing vehicles listed to be built for each remote along with the braches/tags/commits on which the firmware can be built
-    with open(os.path.join(basedir, 'configs', 'remotes.json'), 'r')  as f, open(os.path.join(appdir, 'remotes.schema.json'), 'r') as s:
-        remotes = json.loads(f.read())
-        schema = json.loads(s.read())
-        # validate schema
-        jsonschema.validate(remotes, schema=schema)
-        setup_remotes_urls(remotes)
-        set_remotes(remotes)
-
-
-def find_version_info(vehicle_name, remote_name, commit_reference):
-    if None in (vehicle_name, remote_name, commit_reference):
-        return None
-    
-    # find the object for requested remote
-    remote = next((r for r in get_remotes() if r['name'] == remote_name), None)
-
-    if remote is None:
-        return None
-    
-    # find the object requested vehicle in remote metadata
-    vehicle = next((v for v in remote['vehicles'] if v['name'] == vehicle_name), None)
-
-    if vehicle is None:
-        return None
-    
-    # find version metadata for asked commit reference
-    release = next((r for r in vehicle['releases'] if r['commit_reference'] == commit_reference), None)
-    return release
-
-def get_boards_from_ardupilot_tree(s_dir):
-    '''return a list of boards to build'''
-    tstart = time.time()
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("board_list.py",
-                                                  os.path.join(s_dir, 
-                                                  'Tools', 'scripts', 
-                                                  'board_list.py'))
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    all_boards = mod.AUTOBUILD_BOARDS
-    exclude_patterns = [ 'fmuv*', 'SITL*' ]
-    boards = []
-    for b in all_boards:
-        excluded = False
-        for p in exclude_patterns:
-            if fnmatch.fnmatch(b.lower(), p.lower()):
-                excluded = True
-                break
-        if not excluded:
-            boards.append(b)
-    app.logger.info('Took %f seconds to get boards' % (time.time() - tstart))
-    boards.sort()
-    default_board = boards[0]
-    return (boards, default_board)
-
-def get_build_options_from_ardupilot_tree(s_dir):
-    '''return a list of build options'''
-    tstart = time.time()
-    import importlib.util
-    spec = importlib.util.spec_from_file_location(
-        "build_options.py",
-        os.path.join(s_dir, 'Tools', 'scripts', 'build_options.py'))
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    app.logger.info('Took %f seconds to get build options' % (time.time() - tstart))
-    return mod.BUILD_OPTIONS
-
-def setup_remotes_urls(remotes):
+    versions_fetcher.reload_remotes_json()
     added_remotes = 0
-    for remote in remotes:
+    for remote_info in versions_fetcher.get_all_remotes_info():
         try:
-            repo.remote_add(
-                remote=remote['name'],
-                url=remote['url'],
-            )
+            repo.remote_add(remote=remote_info.name, url=remote_info.url)
         except ap_git.DuplicateRemoteError:
             app.logger.info(
-                f"remote '{remote['name']}' already exists. "
-                f"Updating url to '{remote['url']}'."
+                f"Remote '{remote_info.name}' already exists. "
+                f"Updating url to '{remote_info.url}'."
             )
-            repo.remote_set_url(
-                remote=remote['name'],
-                url=remote['url'],
-            )
+            repo.remote_set_url(remote=remote_info.name, url=remote_info.url)
         added_remotes += 1
-
-    app.logger.info("%d/%d remotes added to base repo" % (added_remotes, len(remotes)))
+    app.logger.info(f"{added_remotes} remotes added to base repo")
 
 def remove_directory_recursive(dirname):
     '''remove a directory recursively'''
@@ -519,25 +440,28 @@ def generate():
         chosen_version = request.form['version']
         chosen_remote, chosen_commit_reference = chosen_version.split('/', 1)
         chosen_vehicle = request.form['vehicle']
-        chosen_version_info = find_version_info(vehicle_name=chosen_vehicle, remote_name=chosen_remote, commit_reference=chosen_commit_reference)
+        chosen_version_info = versions_fetcher.get_version_info(
+            vehicle=chosen_vehicle,
+            remote=chosen_remote,
+            commit_ref=chosen_commit_reference
+        )
 
         if chosen_version_info is None:
             raise Exception("Commit reference invalid or not listed to be built for given vehicle for remote")
 
         chosen_board = request.form['board']
-        with repo.get_checkout_lock():
-            repo.checkout_remote_commit_ref(
-                remote=chosen_remote,
-                commit_ref=chosen_commit_reference,
-                force=True,
-                hard_reset=True,
-                clean_working_tree=True
-            )
-            if chosen_board not in get_boards_from_ardupilot_tree(s_dir=sourcedir)[0]:
-                raise Exception("bad board")
+        boards_at_commit, _ = ap_src_metadata_fetcher.get_boards_at_commit(
+            remote=chosen_remote,
+            commit_ref=chosen_commit_reference
+        )
+        if chosen_board not in boards_at_commit:
+            raise Exception("bad board")
 
-            #ToDo - maybe have the if-statement to check if it's changed.
-            build_options = get_build_options_from_ardupilot_tree(s_dir=sourcedir)
+        #ToDo - maybe have the if-statement to check if it's changed.
+        build_options = ap_src_metadata_fetcher.get_build_options_at_commit(
+            remote=chosen_remote,
+            commit_ref=chosen_commit_reference
+        )
 
         # fetch features from user input
         extra_hwdef = []
@@ -601,7 +525,7 @@ def generate():
                 '\nBoard: ' + chosen_board +
                 '\nRemote: ' + chosen_remote +
                 '\ngit-sha: ' + git_hash_short +
-                '\nVersion: ' + chosen_version_info['release_type'] + '-' + chosen_version_info['version_number'] +
+                '\nVersion: ' + chosen_version_info.release_type + '-' + chosen_version_info.version_number +
                 '\nSelected Features:\n' + feature_list +
                 '\n\nWaiting for build to start...\n\n')
             app.logger.info('Creating build.log')
@@ -620,7 +544,7 @@ def generate():
             task['token'] = token
             task['remote'] = chosen_remote
             task['git_hash_short'] = git_hash_short
-            task['version'] = chosen_version_info['release_type'] + '-' + chosen_version_info['version_number']
+            task['version'] = chosen_version_info.release_type + '-' + chosen_version_info.version_number
             task['extra_hwdef'] = os.path.join(outdir, 'extra_hwdef.dat')
             task['vehicle'] = chosen_vehicle.lower()
             task['board'] = chosen_board
@@ -677,7 +601,7 @@ def download_file(name):
 def boards_and_features(vehicle_name, remote_name, commit_reference):
     commit_reference = base64.urlsafe_b64decode(commit_reference).decode()
 
-    if find_version_info(vehicle_name, remote_name, commit_reference) is None:
+    if not versions_fetcher.is_version_listed(vehicle=vehicle_name, remote=remote_name, commit_ref=commit_reference):
         return "Bad request. Commit reference not allowed to build for the vehicle.", 400
 
     app.logger.info('Board list and build options requested for %s %s %s' % (vehicle_name, remote_name, commit_reference))
@@ -690,8 +614,16 @@ def boards_and_features(vehicle_name, remote_name, commit_reference):
             hard_reset=True,
             clean_working_tree=True,
         )
-        (boards, default_board) = get_boards_from_ardupilot_tree(s_dir=sourcedir)
-        options = get_build_options_from_ardupilot_tree(s_dir=sourcedir)   # this is a list of Feature() objects defined in build_options.py
+        (boards, default_board) = ap_src_metadata_fetcher.get_boards_at_commit(
+            remote=remote_name,
+            commit_ref=commit_reference
+        )
+
+        options = ap_src_metadata_fetcher.get_build_options_at_commit(
+            remote=remote_name,
+            commit_ref=commit_reference
+        )   # this is a list of Feature() objects defined in build_options.py
+
     # parse the set of categories from these objects
     categories = parse_build_categories(options)
     features = []
@@ -722,29 +654,22 @@ def boards_and_features(vehicle_name, remote_name, commit_reference):
 @app.route("/get_versions/<string:vehicle_name>", methods=['GET'])
 def get_versions(vehicle_name):
     versions = list()
-    for remote in get_remotes():
-        for vehicle in remote['vehicles']:
-            if vehicle['name'] == vehicle_name:
-                for release in vehicle['releases']:
-                    if release['release_type'] == "latest":
-                        title = f'Latest ({remote["name"]})'
-                    else:
-                        title = f'{release["release_type"]} {release["version_number"]} ({remote["name"]})'
-                    id = f'{remote["name"]}/{release["commit_reference"]}'
-                    versions.append({
-                        "title" :   title,
-                        "id"    :   id,
-                    })
+    for version_info in versions_fetcher.get_versions_for_vehicle(vehicle_name=vehicle_name):
+        if version_info.release_type == "latest":
+            title = f"Latest ({version_info.remote})"
+        else:
+            title = f"{version_info.release_type} {version_info.version_number} ({version_info.remote})"
+        id = f"{version_info.remote}/{version_info.commit_ref}"
+        versions.append({
+            "title" :   title,
+            "id"    :   id,
+        })
 
     return jsonify(sorted(versions, key=lambda x: x['title']))
 
 @app.route("/get_vehicles")
 def get_vehicles():
-    vehicle_set = set()
-    for remote in get_remotes():
-        vehicle_set = vehicle_set.union(set([vehicle['name'] for vehicle in remote['vehicles']]))
-
-    return jsonify(sorted(list(vehicle_set)))
+    return jsonify(versions_fetcher.get_all_vehicles_sorted_uniq())
 
 @app.route("/get_defaults/<string:vehicle_name>/<string:remote_name>/<string:commit_reference>/<string:board_name>", methods = ['GET'])
 def get_deafults(vehicle_name, remote_name, commit_reference, board_name):
@@ -753,12 +678,12 @@ def get_deafults(vehicle_name, remote_name, commit_reference, board_name):
         vehicle_name = "Copter"
 
     commit_reference = base64.urlsafe_b64decode(commit_reference).decode()
-    version_info = find_version_info(vehicle_name, remote_name, commit_reference)
+    version_info = versions_fetcher.get_version_info(vehicle=vehicle_name, remote=remote_name, commit_ref=commit_reference)
 
     if version_info is None:
         return "Bad request. Commit reference %s is not allowed for builds for the %s for %s remote." % (commit_reference, vehicle_name, remote_name), 400
 
-    artifacts_dir = version_info.get("ap_build_artifacts_url", None)
+    artifacts_dir = version_info.ap_build_artifacts_url
 
     if artifacts_dir is None:
         return "Couldn't find artifacts for requested release/branch/commit on ardupilot server", 404
