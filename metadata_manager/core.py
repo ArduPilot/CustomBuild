@@ -175,13 +175,17 @@ class VersionsFetcher:
 
     __singleton = None
 
-    def __init__(self, remotes_json_path: str):
+    def __init__(self, remotes_json_path: str,
+                 ap_repo: ap_git.GitRepo):
         """
         Initializes the VersionsFetcher instance
         with a given remotes.json path.
 
         Parameters:
             remotes_json_path (str): Path to the remotes.json file.
+            ap_repo (GitRepo): ArduPilot local git repository. This local
+                               repository is shared between the VersionsFetcher
+                               and the APSourceMetadataFetcher.
 
         Raises:
             TooManyInstancesError: If an instance of this class already exists,
@@ -200,6 +204,7 @@ class VersionsFetcher:
             (self.fetch_whitelisted_tags, 1200),
         )
         self.__task__runner = TaskRunner(tasks=tasks)
+        self.repo = ap_repo
         VersionsFetcher.__singleton = self
 
     def start(self) -> None:
@@ -351,6 +356,9 @@ class VersionsFetcher:
             jsonschema.validate(instance=versions_metadata, schema=schema)
             self.__set_versions_metadata(versions_metadata=versions_metadata)
 
+        # update git repo with latest remotes list
+        self.__sync_remotes_with_ap_repo()
+
     def __set_versions_metadata(self, versions_metadata: list) -> None:
         """
         Set versions metadata property with the one passed as parameter
@@ -375,6 +383,17 @@ class VersionsFetcher:
         """
         with self.__access_lock_versions_metadata:
             return self.__versions_metadata
+
+    def __sync_remotes_with_ap_repo(self):
+        """
+        Update the remotes in ArduPilot local repository with the latest
+        remotes list.
+        """
+        remotes = tuple(
+            (remote.name, remote.url)
+            for remote in self.get_all_remotes_info()
+        )
+        self.repo.remote_add_bulk(remotes=remotes, force=True)
 
     def fetch_ap_releases(self) -> None:
         """
