@@ -7,6 +7,7 @@ import json
 import jsonschema
 from . import exceptions as ex
 from threading import Lock
+from utils import TaskRunner
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +195,19 @@ class VersionsFetcher:
         self.__remotes_json_path = remotes_json_path
         self.__access_lock_versions_metadata = Lock()
         self.__versions_metadata = []
+        tasks = (
+            (self.fetch_ap_releases, 1200),
+            (self.fetch_whitelisted_tags, 1200),
+        )
+        self.__task__runner = TaskRunner(tasks=tasks)
         VersionsFetcher.__singleton = self
+
+    def start(self) -> None:
+        """
+        Start auto-fetch jobs.
+        """
+        logger.info("Starting VersionsFetcher background auto-fetch jobs.")
+        self.__task__runner.start()
 
     def get_all_remotes_info(self) -> list[RemoteInfo]:
         """
@@ -362,6 +375,37 @@ class VersionsFetcher:
         """
         with self.__access_lock_versions_metadata:
             return self.__versions_metadata
+
+    def fetch_ap_releases(self) -> None:
+        """
+        Execute the fetch_releases.py script to update remotes.json
+        with Ardupilot's official releases
+        """
+        from scripts import fetch_releases
+        fetch_releases.run(
+            base_dir=os.path.join(
+                os.path.dirname(self.__remotes_json_path),
+                '..',
+            ),
+            remote_name="ardupilot",
+        )
+        self.reload_remotes_json()
+        return
+
+    def fetch_whitelisted_tags(self) -> None:
+        """
+        Execute the fetch_whitelisted_tags.py script to update
+        remotes.json with tags from whitelisted repos
+        """
+        from scripts import fetch_whitelisted_tags
+        fetch_whitelisted_tags.run(
+            base_dir=os.path.join(
+                os.path.dirname(self.__remotes_json_path),
+                '..',
+            )
+        )
+        self.reload_remotes_json()
+        return
 
     @staticmethod
     def get_singleton():
