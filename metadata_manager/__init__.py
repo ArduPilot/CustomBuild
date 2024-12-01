@@ -1,4 +1,8 @@
-from .core import APSourceMetadataFetcher, VersionsFetcher
+from .core import (
+    APSourceMetadataFetcher,
+    VersionsFetcher,
+    RemoteInfo,
+)
 from .exceptions import (
     MetadataManagerException,
     TooManyInstancesError
@@ -8,5 +12,6 @@ __all__ = [
     "APSourceMetadataFetcher",
     "VersionsFetcher",
     "MetadataManagerException",
-    "TooManyInstancesError"
+    "TooManyInstancesError",
+    "RemoteInfo",
 ]
