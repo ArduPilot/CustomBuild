@@ -227,6 +227,21 @@ class VersionsFetcher:
             for remote in self.__get_versions_metadata()
         ]
 
+    def get_remote_info(self, remote_name: str) -> RemoteInfo:
+        """
+        Return the RemoteInfo for the given remote name, None otherwise.
+
+        Returns:
+            RemoteInfo: The remote information object.
+        """
+        return next(
+            (
+                remote for remote in self.get_all_remotes_info()
+                if remote.name == remote_name
+            ),
+            None
+        )
+
     def get_versions_for_vehicle(self, vehicle_name: str) -> list[VersionInfo]:
         """
         Return the list of dictionaries containing the info about the
