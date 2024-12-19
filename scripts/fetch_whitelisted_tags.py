@@ -261,18 +261,22 @@ def update_remotes_json(path, new_versions_map):
     return
 
 
-parser = optparse.OptionParser("fetch_releases.py")
-parser.add_option(
-    "", "--basedir", type="string",
-    default=os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "base")
-    ),
-    help="base directory"
-)
+def run(base_dir):
+    remotes_json_path = os.path.join(base_dir, 'configs', 'remotes.json')
+    new_versions_map = construct_versions_map(remotes, vehicles)
+    update_remotes_json(remotes_json_path, new_versions_map)
 
-cmd_opts, cmd_args = parser.parse_args()
-basedir = os.path.abspath(cmd_opts.basedir)
-remotes_json_path = os.path.join(basedir, 'configs', 'remotes.json')
 
-new_versions_map = construct_versions_map(remotes, vehicles)
-update_remotes_json(remotes_json_path, new_versions_map)
+if __name__ == "__main__":
+    parser = optparse.OptionParser("fetch_releases.py")
+    parser.add_option(
+        "", "--basedir", type="string",
+        default=os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "base")
+        ),
+        help="base directory"
+    )
+
+    cmd_opts, cmd_args = parser.parse_args()
+    basedir = os.path.abspath(cmd_opts.basedir)
+    run(base_dir=basedir)

@@ -147,125 +147,131 @@ def construct_vehicle_versions_list(vehicle, ap_source_subdir,
     }
 
 
-parser = optparse.OptionParser("fetch_releases.py")
-parser.add_option(
-    "", "--basedir", type="string",
-    default=os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "base")
-    ),
-    help="base directory"
-)
+def run(base_dir, remote_name):
+    remotes_json_path = os.path.join(base_dir, 'configs', 'remotes.json')
 
-parser.add_option(
-    "", "--remotename", type="string",
-    default="ardupilot",
-    help="Remote name to write in json file"
-)
+    tags = fetch_tags_from_github()
+    vehicles = []
 
-cmd_opts, cmd_args = parser.parse_args()
-basedir = os.path.abspath(cmd_opts.basedir)
-remotes_json_path = os.path.join(basedir, 'configs', 'remotes.json')
+    vehicles.append(construct_vehicle_versions_list(
+        "Copter",
+        "ArduCopter",
+        "Copter",
+        [
+            "(ArduCopter-(beta-4.3|beta|stable))",
+            "(Copter-(\d+\.\d+\.\d+))"  # noqa
+        ],
+        tags
+    ))
 
-tags = fetch_tags_from_github()
-vehicles = []
+    vehicles.append(construct_vehicle_versions_list(
+        "Plane",
+        "ArduPlane",
+        "Plane",
+        [
+            "(ArduPlane-(beta-4.3|beta|stable))",
+            "(Plane-(\d+\.\d+\.\d+))"  # noqa
+        ],
+        tags
+    ))
 
-vehicles.append(construct_vehicle_versions_list(
-    "Copter",
-    "ArduCopter",
-    "Copter",
-    [
-        "(ArduCopter-(beta-4.3|beta|stable))",
-        "(Copter-(\d+\.\d+\.\d+))"  # noqa
-    ],
-    tags
-))
+    vehicles.append(construct_vehicle_versions_list(
+        "Rover",
+        "Rover",
+        "Rover",
+        [
+            "(APMrover2-(beta-4.3|beta|stable))",
+            "(Rover-(\d+\.\d+\.\d+))"  # noqa
+        ],
+        tags
+    ))
 
-vehicles.append(construct_vehicle_versions_list(
-    "Plane",
-    "ArduPlane",
-    "Plane",
-    [
-        "(ArduPlane-(beta-4.3|beta|stable))",
-        "(Plane-(\d+\.\d+\.\d+))"  # noqa
-    ],
-    tags
-))
+    vehicles.append(construct_vehicle_versions_list(
+        "Sub",
+        "ArduSub",
+        "Sub",
+        [
+            "(ArduSub-(beta-4.3|beta|stable))",
+            "(Sub-(\d+\.\d+\.\d+))"  # noqa
+        ],
+        tags
+    ))
 
-vehicles.append(construct_vehicle_versions_list(
-    "Rover",
-    "Rover",
-    "Rover",
-    [
-        "(APMrover2-(beta-4.3|beta|stable))",
-        "(Rover-(\d+\.\d+\.\d+))"  # noqa
-    ],
-    tags
-))
+    vehicles.append(construct_vehicle_versions_list(
+        "Tracker",
+        "AntennaTracker",
+        "AntennaTracker",
+        [
+            "(AntennaTracker-(beta-4.3|beta|stable))",
+            "(Tracker-(\d+\.\d+\.\d+))"  # noqa
+        ],
+        tags
+    ))
 
-vehicles.append(construct_vehicle_versions_list(
-    "Sub",
-    "ArduSub",
-    "Sub",
-    [
-        "(ArduSub-(beta-4.3|beta|stable))",
-        "(Sub-(\d+\.\d+\.\d+))"  # noqa
-    ],
-    tags
-))
+    vehicles.append(construct_vehicle_versions_list(
+        "Blimp",
+        "Blimp",
+        "Blimp",
+        [
+            "(Blimp-(beta-4.3|beta|stable|\d+\.\d+\.\d+))"  # noqa
+        ],
+        tags
+    ))
 
-vehicles.append(construct_vehicle_versions_list(
-    "Tracker",
-    "AntennaTracker",
-    "AntennaTracker",
-    [
-        "(AntennaTracker-(beta-4.3|beta|stable))",
-        "(Tracker-(\d+\.\d+\.\d+))"  # noqa
-    ],
-    tags
-))
+    vehicles.append(construct_vehicle_versions_list(
+        "Heli",
+        "ArduCopter",
+        "Copter",
+        [
+            "(ArduCopter-(beta-4.3|beta|stable)-heli)"
+        ],
+        tags
+    ))
 
-vehicles.append(construct_vehicle_versions_list(
-    "Blimp",
-    "Blimp",
-    "Blimp",
-    [
-        "(Blimp-(beta-4.3|beta|stable|\d+\.\d+\.\d+))"  # noqa
-    ],
-    tags
-))
+    remotes_json = {
+        "name": remote_name,
+        "url": "https://github.com/ardupilot/ardupilot.git",
+        "vehicles": vehicles
+    }
 
-vehicles.append(construct_vehicle_versions_list(
-    "Heli",
-    "ArduCopter",
-    "Copter",
-    [
-        "(ArduCopter-(beta-4.3|beta|stable)-heli)"
-    ],
-    tags
-))
+    try:
+        with open(remotes_json_path, 'r') as f:
+            remotes = json.loads(f.read())
 
-remotes_json = {
-    "name": cmd_opts.remotename,
-    "url": "https://github.com/ardupilot/ardupilot.git",
-    "vehicles": vehicles
-}
+        # remove existing remote entry from the list
+        temp = []
+        for remote in remotes:
+            if remote['name'] != remote_name:
+                temp.append(remote)
+        remotes = temp
+    except Exception as e:
+        print(e)
+        print("Writing to empty file")
+        remotes = []
 
-try:
-    with open(remotes_json_path, 'r') as f:
-        remotes = json.loads(f.read())
+    with open(remotes_json_path, 'w') as f:
+        remotes.append(remotes_json)
+        f.write(json.dumps(remotes, indent=2))
+        print(f"Wrote {remotes_json_path}")
 
-    # remove existing remote entry from the list
-    temp = []
-    for remote in remotes:
-        if remote['name'] != cmd_opts.remotename:
-            temp.append(remote)
-    remotes = temp
-except Exception as e:
-    print(e)
-    print("Writing to empty file")
-    remotes = []
 
-with open(remotes_json_path, 'w') as f:
-    remotes.append(remotes_json)
-    f.write(json.dumps(remotes, indent=2))
-    print(f"Wrote {remotes_json_path}")
+if __name__ == "__main__":
+    parser = optparse.OptionParser("fetch_releases.py")
+    parser.add_option(
+        "", "--basedir", type="string",
+        default=os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "base")
+        ),
+        help="base directory"
+    )
+
+    parser.add_option(
+        "", "--remotename", type="string",
+        default="ardupilot",
+        help="Remote name to write in json file"
+    )
+
+    cmd_opts, cmd_args = parser.parse_args()
+    basedir = os.path.abspath(cmd_opts.basedir)
+    remotename = cmd_opts.remotename
+    run(base_dir=basedir, remote_name=remotename)
