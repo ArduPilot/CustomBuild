@@ -109,6 +109,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+bin/
+pyvenv.cfg
 
 # Spyder project settings
 .spyderproject
@@ -129,3 +131,6 @@ dmypy.json
 .pyre/
 
 .vagrant
+
+# redis dump
+dump.rdb
