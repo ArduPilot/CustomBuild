@@ -51,11 +51,11 @@ function updateBuildsTable(status_json) {
     Object.keys(status_json).forEach((build_id) => {
         let build_info = status_json[build_id];
         let status_color = 'primary';
-        if (build_info['status'] == 'Finished') {
+        if (build_info['status'] == 'SUCCESS') {
             status_color = 'success';
-        } else if (build_info['status'] == 'Pending') {
+        } else if (build_info['status'] == 'PENDING') {
             status_color = 'warning';
-        } else if (build_info['status'] == 'Failed' || build_info['status'] == 'Error') {
+        } else if (build_info['status'] == 'FAILURE' || build_info['status'] == 'ERROR') {
             status_color = 'danger';
         }
 
