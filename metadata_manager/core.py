@@ -19,14 +19,14 @@ class APSourceMetadataFetcher:
 
     __singleton = None
 
-    def __init__(self, ap_repo_path: str) -> None:
+    def __init__(self, ap_repo: ap_git.GitRepo) -> None:
         """
         Initializes the APSourceMetadataFetcher instance
         with a given repository path.
 
         Parameters:
-            ap_repo_path (str): Path to the repository where
-                                metadata scripts are located.
+            ap_repo (GitRepo): ArduPilot local git repository containing
+                               the metadata generation scripts.
 
         Raises:
             TooManyInstancesError: If an instance of this class already exists,
@@ -37,8 +37,7 @@ class APSourceMetadataFetcher:
         if APSourceMetadataFetcher.__singleton:
             raise ex.TooManyInstancesError()
 
-        # Initialize the Git repository object pointing to the source repo.
-        self.repo = ap_git.GitRepo(local_path=ap_repo_path)
+        self.repo = ap_repo
         APSourceMetadataFetcher.__singleton = self
 
     def get_boards_at_commit(self, remote: str,
