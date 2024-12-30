@@ -74,7 +74,7 @@ except FileNotFoundError:
     )
 
 ap_src_metadata_fetcher = metadata_manager.APSourceMetadataFetcher(
-    ap_repo_path=sourcedir
+    ap_repo=repo
 )
 versions_fetcher = metadata_manager.VersionsFetcher(
     remotes_json_path=os.path.join(basedir, 'configs', 'remotes.json')
