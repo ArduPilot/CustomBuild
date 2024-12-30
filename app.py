@@ -607,13 +607,6 @@ def boards_and_features(vehicle_name, remote_name, commit_reference):
     app.logger.info('Board list and build options requested for %s %s %s' % (vehicle_name, remote_name, commit_reference))
     # getting board list for the branch
     with repo.get_checkout_lock():
-        repo.checkout_remote_commit_ref(
-            remote=remote_name,
-            commit_ref=commit_reference,
-            force=True,
-            hard_reset=True,
-            clean_working_tree=True,
-        )
         (boards, default_board) = ap_src_metadata_fetcher.get_boards_at_commit(
             remote=remote_name,
             commit_ref=commit_reference
