@@ -484,6 +484,35 @@ class GitRepo:
         logger.debug(f"Running {' '.join(cmd)}")
         subprocess.run(cmd, cwd=self.__local_path, shell=False, check=True)
 
+    def remote_add_bulk(self, remotes: tuple, force: bool = False) -> None:
+        """
+        Add multiple remotes to the Git repository at once.
+
+        Parameters:
+            remotes (tuple): Tuple of tuples containing remote name
+            and url.
+            E.g. (
+                    ('remote1', 'https://remote1_url'),
+                    ('remote2', 'https://remote2_url'),
+                )
+            force (bool): Force update the url if remote already exists.
+
+        Raises:
+            DuplicateRemoteError: If remote already exists and
+            overwrite is not allowed.
+        """
+        logger.info(f"Remotes to add: {remotes}.")
+        for (remote, url) in remotes:
+            try:
+                self.remote_add(remote=remote, url=url)
+            except ex.DuplicateRemoteError:
+                if not force:
+                    raise
+
+                logger.info(f"Remote {remote} already exists. Updating url.")
+                self.remote_set_url(remote=remote, url=url)
+            logger.info(f"Remote {remote} added to repo with url {url}.")
+
     @staticmethod
     def clone(source: str,
               dest: str,

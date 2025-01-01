@@ -7,6 +7,7 @@ import json
 import jsonschema
 from . import exceptions as ex
 from threading import Lock
+from utils import TaskRunner
 
 logger = logging.getLogger(__name__)
 
@@ -19,14 +20,14 @@ class APSourceMetadataFetcher:
 
     __singleton = None
 
-    def __init__(self, ap_repo_path: str) -> None:
+    def __init__(self, ap_repo: ap_git.GitRepo) -> None:
         """
         Initializes the APSourceMetadataFetcher instance
         with a given repository path.
 
         Parameters:
-            ap_repo_path (str): Path to the repository where
-                                metadata scripts are located.
+            ap_repo (GitRepo): ArduPilot local git repository containing
+                               the metadata generation scripts.
 
         Raises:
             TooManyInstancesError: If an instance of this class already exists,
@@ -37,8 +38,7 @@ class APSourceMetadataFetcher:
         if APSourceMetadataFetcher.__singleton:
             raise ex.TooManyInstancesError()
 
-        # Initialize the Git repository object pointing to the source repo.
-        self.repo = ap_git.GitRepo(local_path=ap_repo_path)
+        self.repo = ap_repo
         APSourceMetadataFetcher.__singleton = self
 
     def get_boards_at_commit(self, remote: str,
@@ -175,13 +175,17 @@ class VersionsFetcher:
 
     __singleton = None
 
-    def __init__(self, remotes_json_path: str):
+    def __init__(self, remotes_json_path: str,
+                 ap_repo: ap_git.GitRepo):
         """
         Initializes the VersionsFetcher instance
         with a given remotes.json path.
 
         Parameters:
             remotes_json_path (str): Path to the remotes.json file.
+            ap_repo (GitRepo): ArduPilot local git repository. This local
+                               repository is shared between the VersionsFetcher
+                               and the APSourceMetadataFetcher.
 
         Raises:
             TooManyInstancesError: If an instance of this class already exists,
@@ -195,7 +199,20 @@ class VersionsFetcher:
         self.__remotes_json_path = remotes_json_path
         self.__access_lock_versions_metadata = Lock()
         self.__versions_metadata = []
+        tasks = (
+            (self.fetch_ap_releases, 1200),
+            (self.fetch_whitelisted_tags, 1200),
+        )
+        self.__task__runner = TaskRunner(tasks=tasks)
+        self.repo = ap_repo
         VersionsFetcher.__singleton = self
+
+    def start(self) -> None:
+        """
+        Start auto-fetch jobs.
+        """
+        logger.info("Starting VersionsFetcher background auto-fetch jobs.")
+        self.__task__runner.start()
 
     def get_all_remotes_info(self) -> list[RemoteInfo]:
         """
@@ -339,6 +356,9 @@ class VersionsFetcher:
             jsonschema.validate(instance=versions_metadata, schema=schema)
             self.__set_versions_metadata(versions_metadata=versions_metadata)
 
+        # update git repo with latest remotes list
+        self.__sync_remotes_with_ap_repo()
+
     def __set_versions_metadata(self, versions_metadata: list) -> None:
         """
         Set versions metadata property with the one passed as parameter
@@ -363,6 +383,48 @@ class VersionsFetcher:
         """
         with self.__access_lock_versions_metadata:
             return self.__versions_metadata
+
+    def __sync_remotes_with_ap_repo(self):
+        """
+        Update the remotes in ArduPilot local repository with the latest
+        remotes list.
+        """
+        remotes = tuple(
+            (remote.name, remote.url)
+            for remote in self.get_all_remotes_info()
+        )
+        self.repo.remote_add_bulk(remotes=remotes, force=True)
+
+    def fetch_ap_releases(self) -> None:
+        """
+        Execute the fetch_releases.py script to update remotes.json
+        with Ardupilot's official releases
+        """
+        from scripts import fetch_releases
+        fetch_releases.run(
+            base_dir=os.path.join(
+                os.path.dirname(self.__remotes_json_path),
+                '..',
+            ),
+            remote_name="ardupilot",
+        )
+        self.reload_remotes_json()
+        return
+
+    def fetch_whitelisted_tags(self) -> None:
+        """
+        Execute the fetch_whitelisted_tags.py script to update
+        remotes.json with tags from whitelisted repos
+        """
+        from scripts import fetch_whitelisted_tags
+        fetch_whitelisted_tags.run(
+            base_dir=os.path.join(
+                os.path.dirname(self.__remotes_json_path),
+                '..',
+            )
+        )
+        self.reload_remotes_json()
+        return
 
     @staticmethod
     def get_singleton():
