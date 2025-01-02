@@ -204,6 +204,37 @@ class GitRepo:
         logger.debug(f"Running {' '.join(cmd)}")
         subprocess.run(cmd, cwd=self.__local_path, check=True)
 
+    def remote_get_url(self, remote: str) -> str:
+        """
+        Get the URL for a specific remote.
+
+        Parameters:
+            remote (str): Name of the remote
+
+        Returns:
+            str: The URL associated with the remote
+
+        Raises:
+            ValueError: If remote is None
+        """
+        if remote is None:
+            raise ValueError("remote is required, cannot be None.")
+
+        cmd = ['git', 'remote', 'get-url', remote]
+        logger.debug(f"Running {' '.join(cmd)}")
+
+        # Capture the output of the command
+        result = subprocess.run(
+            cmd,
+            cwd=self.__local_path,
+            check=True,
+            capture_output=True,
+            text=True
+        )
+
+        # Return the URL from the output
+        return result.stdout.strip()
+
     def fetch_remote(self, remote: str, force: bool = False,
                      tags: bool = False, recurse_submodules: bool = False,
                      refetch: bool = False) -> None:
@@ -578,6 +609,10 @@ class GitRepo:
             recurse_submodules=True,
             shallow_submodules=True
         )
+
+        # add the remote containing the commit in cloned repo for reference
+        url = source_repo.remote_get_url(remote=remote)
+        cloned_repo.remote_add(remote=remote, url=url)
 
         # delete the temporary branch in source repository
         # after the clone operation
