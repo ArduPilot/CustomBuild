@@ -5,6 +5,7 @@ import fnmatch
 import ap_git
 import json
 import jsonschema
+from pathlib import Path
 from . import exceptions as ex
 from threading import Lock
 from utils import TaskRunner
@@ -197,6 +198,7 @@ class VersionsFetcher:
             raise ex.TooManyInstancesError()
 
         self.__remotes_json_path = remotes_json_path
+        self.__ensure_remotes_json()
         self.__access_lock_versions_metadata = Lock()
         self.__versions_metadata = []
         tasks = (
@@ -350,7 +352,12 @@ class VersionsFetcher:
         )
         with open(self.__remotes_json_path, 'r') as f, \
              open(remotes_json_schema_path, 'r') as s:
-            versions_metadata = json.loads(f.read())
+            f_content = f.read()
+
+            # Early return if file is empty
+            if not f_content:
+                return
+            versions_metadata = json.loads(f_content)
             schema = json.loads(s.read())
             # validate schema
             jsonschema.validate(instance=versions_metadata, schema=schema)
@@ -358,6 +365,20 @@ class VersionsFetcher:
 
         # update git repo with latest remotes list
         self.__sync_remotes_with_ap_repo()
+    
+    def __ensure_remotes_json(self) -> None:
+        """
+        Ensures remotes.json exists and is a valid JSON file.
+        """
+        p = Path(self.__remotes_json_path)
+
+        if not p.exists():
+            # Ensure parent directory exists
+            Path.mkdir(p.parent, parents=True, exist_ok=True)
+
+            # write empty json list
+            with open(p, 'w') as f:
+                f.write('[]')
 
     def __set_versions_metadata(self, versions_metadata: list) -> None:
         """
