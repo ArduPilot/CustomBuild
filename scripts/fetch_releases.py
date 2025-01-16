@@ -260,7 +260,7 @@ if __name__ == "__main__":
     parser.add_option(
         "", "--basedir", type="string",
         default=os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "base")
+            os.path.join(os.path.dirname(__file__), "..", "base")
         ),
         help="base directory"
     )
