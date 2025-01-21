@@ -41,7 +41,15 @@ remotes = [
     "andyp1per",
 ]
 
-vehicles = ['Copter', 'Plane', 'Rover', 'Sub', 'Tracker', 'Blimp', 'Heli']
+vehicles = [
+    'Copter',
+    'Plane',
+    'Rover',
+    'Sub',
+    'AntennaTracker',
+    'Blimp',
+    'Heli'
+]
 
 
 def fetch_tags_from_github(remote):
