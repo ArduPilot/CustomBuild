@@ -35,6 +35,8 @@ dictConfig({
     }
 })
 
+# let app.py know about the modules in the parent directory
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import ap_git
 import metadata_manager
 
