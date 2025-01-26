@@ -45,7 +45,7 @@ import optparse
 parser = optparse.OptionParser("app.py")
 
 parser.add_option("", "--basedir", type="string",
-                  default=os.path.abspath(os.path.join(os.path.dirname(__file__),".","base")),
+                  default=os.path.abspath(os.path.join(os.path.dirname(__file__),"..","base")),
                   help="base directory")
 
 cmd_opts, cmd_args = parser.parse_args()
