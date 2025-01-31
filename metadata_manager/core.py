@@ -207,6 +207,7 @@ class VersionsFetcher:
         )
         self.__task__runner = TaskRunner(tasks=tasks)
         self.repo = ap_repo
+        self.reload_remotes_json()
         VersionsFetcher.__singleton = self
 
     def start(self) -> None:
