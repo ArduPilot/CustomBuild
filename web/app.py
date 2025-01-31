@@ -393,8 +393,6 @@ try:
 except IOError:
     app.logger.info("No queue lock")
 
-versions_fetcher.reload_remotes_json()
-
 app.logger.info('Python version is: %s' % sys.version)
 
 def get_auth_token():
