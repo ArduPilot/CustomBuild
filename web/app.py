@@ -30,7 +30,7 @@ dictConfig({
         'formatter': 'default'
     }},
     'root': {
-        'level': 'INFO',
+        'level': os.getenv('CBS_LOG_LEVEL', default='INFO'),
         'handlers': ['wsgi']
     }
 })
