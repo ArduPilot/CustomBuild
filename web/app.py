@@ -132,9 +132,9 @@ def run_build(task, tmpdir, outdir, logpath):
         log.flush()
         # setup PATH to point at our compiler
         env = os.environ.copy()
-        bindir1 = os.path.abspath(os.path.join(appdir, "..", "bin"))
-        bindir2 = os.path.abspath(os.path.join(appdir, "..", "gcc", "bin"))
-        cachedir = os.path.abspath(os.path.join(appdir, "..", "cache"))
+        bindir1 = os.path.abspath(os.path.join(appdir, "..", "..", "bin"))
+        bindir2 = os.path.abspath(os.path.join(appdir, "..", "..", "gcc", "bin"))
+        cachedir = os.path.abspath(os.path.join(appdir, "..", "..", "cache"))
 
         env["PATH"] = bindir1 + ":" + bindir2 + ":" + env["PATH"]
         env['CCACHE_DIR'] = cachedir
