@@ -3,6 +3,7 @@ import subprocess
 from threading import RLock
 from . import utils
 from . import exceptions as ex
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -648,3 +649,53 @@ class GitRepo:
         source_repo.__branch_delete(branch_name=temp_branch_name, force=True)
 
         return cloned_repo
+
+    @staticmethod
+    def clone_if_needed(source: str,
+                        dest: str,
+                        branch: str = None,
+                        single_branch: bool = False,
+                        recurse_submodules: bool = False,
+                        shallow_submodules: bool = False) -> "GitRepo":
+        """
+        Clone from the given source if a git repository does not exist.
+
+        Parameters:
+            source (str): Source path of the repository to clone
+                          Can be local or a url.
+            dest (str): Destination path for the clone
+            branch (str): Specific branch to clone (optional)
+            single_branch (bool): Only clone a single branch (default is False)
+            recurse_submodules (bool): Recurse into submodules (default is
+                                       False)
+            shallow_submodules (bool): Any cloned submodules will be shallow
+
+        Returns:
+            GitRepo: the GitRepo object for the local git repository.
+
+        Raises:
+            NonGitDirectoryError: If a directory exists at `dest` but is not
+                                  a git repository.
+        """
+        repo: GitRepo
+        try:
+            repo = GitRepo(
+                local_path=dest,
+            )
+        except FileNotFoundError:
+            logger.info(f"No git repo found at {dest}. Creating.")
+            # create parent directory if not present
+            p = Path(dest)
+            Path.mkdir(p.parent, parents=True, exist_ok=True)
+
+            # clone
+            repo = GitRepo.clone(
+                source=source,
+                dest=dest,
+                branch=branch,
+                single_branch=single_branch,
+                recurse_submodules=recurse_submodules,
+                shallow_submodules=shallow_submodules,
+            )
+
+        return repo
