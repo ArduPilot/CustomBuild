@@ -69,14 +69,11 @@ REMOTES = None
 # LOCKS
 queue_lock = Lock()
 
-try:
-    repo = ap_git.GitRepo(sourcedir)
-except FileNotFoundError:
-    repo = ap_git.GitRepo.clone(
-        source="https://github.com/ardupilot/ardupilot.git",
-        dest=sourcedir,
-        recurse_submodules=True,
-    )
+repo = ap_git.GitRepo.clone_if_needed(
+    source="https://github.com/ardupilot/ardupilot.git",
+    dest=sourcedir,
+    recurse_submodules=True,
+)
 
 ap_src_metadata_fetcher = metadata_manager.APSourceMetadataFetcher(
     ap_repo=repo
