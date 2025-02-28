@@ -43,7 +43,7 @@ class APSourceMetadataFetcher:
         APSourceMetadataFetcher.__singleton = self
 
     def get_boards_at_commit(self, remote: str,
-                             commit_ref: str) -> tuple:
+                             commit_ref: str) -> list:
         """
         Retrieves a list of boards available for building at a
         specified commit and returns the list and the default board.
@@ -53,11 +53,7 @@ class APSourceMetadataFetcher:
             commit_ref (str): The commit reference to check out.
 
         Returns:
-            tuple: A tuple containing:
-                - boards (list): A list of boards available at the
-                                 specified commit.
-                - default_board (str): The first board in the sorted list,
-                                       designated as the default.
+            list: A list of boards available at the specified commit.
         """
         tstart = time.time()
         import importlib.util
@@ -93,8 +89,7 @@ class APSourceMetadataFetcher:
             f"Took {(time.time() - tstart)} seconds to get boards"
         )
         boards.sort()
-        default_board = boards[0]
-        return (boards, default_board)
+        return boards
 
     def get_build_options_at_commit(self, remote: str,
                                     commit_ref: str) -> list:
@@ -365,7 +360,7 @@ class VersionsFetcher:
 
         # update git repo with latest remotes list
         self.__sync_remotes_with_ap_repo()
-    
+
     def __ensure_remotes_json(self) -> None:
         """
         Ensures remotes.json exists and is a valid JSON file.
