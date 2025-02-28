@@ -439,7 +439,7 @@ def generate():
             raise Exception("Commit reference invalid or not listed to be built for given vehicle for remote")
 
         chosen_board = request.form['board']
-        boards_at_commit, _ = ap_src_metadata_fetcher.get_boards_at_commit(
+        boards_at_commit = ap_src_metadata_fetcher.get_boards_at_commit(
             remote=chosen_remote,
             commit_ref=chosen_commit_reference
         )
@@ -596,7 +596,7 @@ def boards_and_features(vehicle_name, remote_name, commit_reference):
     app.logger.info('Board list and build options requested for %s %s %s' % (vehicle_name, remote_name, commit_reference))
     # getting board list for the branch
     with repo.get_checkout_lock():
-        (boards, default_board) = ap_src_metadata_fetcher.get_boards_at_commit(
+        boards = ap_src_metadata_fetcher.get_boards_at_commit(
             remote=remote_name,
             commit_ref=commit_reference
         )
@@ -627,7 +627,7 @@ def boards_and_features(vehicle_name, remote_name, commit_reference):
     # creating result dictionary
     result = {
         'boards' : boards,
-        'default_board' : default_board,
+        'default_board' : boards[0],
         'features' : features,
     }
     # return jsonified result dict
