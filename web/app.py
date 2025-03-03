@@ -65,7 +65,10 @@ repo = ap_git.GitRepo.clone_if_needed(
 )
 
 ap_src_metadata_fetcher = metadata_manager.APSourceMetadataFetcher(
-    ap_repo=repo
+    ap_repo=repo,
+    caching_enabled=True,
+    redis_host=os.getenv('CBS_REDIS_HOST', default='localhost'),
+    redis_port=os.getenv('CBS_REDIS_PORT', default='6379'),
 )
 versions_fetcher = metadata_manager.VersionsFetcher(
     remotes_json_path=os.path.join(basedir, 'configs', 'remotes.json'),
