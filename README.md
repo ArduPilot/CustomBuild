@@ -54,7 +54,7 @@ The default directory structure is as follows:
 ### Install Dependencies
 
 ```bash
-cd ~/CustomBuild
+cd ~/CustomBuild/web
 python3 -m pip install --user --upgrade --requirement requirements.txt
 ```
 
@@ -63,7 +63,7 @@ python3 -m pip install --user --upgrade --requirement requirements.txt
 To run, in the CustomBuild directory execute the following command:
 
 ```bash
-cd ~/CustomBuild
+cd ~/CustomBuild/web
 ./app.py
 ```
 
