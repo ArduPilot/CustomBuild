@@ -51,11 +51,11 @@ function updateBuildsTable(status_json) {
     Object.keys(status_json).forEach((build_id) => {
         let build_info = status_json[build_id];
         let status_color = 'primary';
-        if (build_info['status'] == 'Finished') {
+        if (build_info['status'] == 'SUCCESS') {
             status_color = 'success';
-        } else if (build_info['status'] == 'Pending') {
+        } else if (build_info['status'] == 'PENDING') {
             status_color = 'warning';
-        } else if (build_info['status'] == 'Failed' || build_info['status'] == 'Error') {
+        } else if (build_info['status'] == 'FAILURE' || build_info['status'] == 'ERROR') {
             status_color = 'danger';
         }
 
@@ -79,8 +79,8 @@ function updateBuildsTable(status_json) {
                                     <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="View log" onclick="launchLogModal('${build_id}');">
                                         <i class="bi bi-file-text"></i>
                                     </button>
-                                    <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="Open build directory" onclick="window.location.href = '/builds/${build_id}';">
-                                        <i class="bi bi-folder2-open"></i>
+                                    <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="Download build artifacts" onclick="window.location.href = '/builds/${build_id}/${build_id}.tar.gz';">
+                                        <i class="bi bi-download"></i>
                                     </button>
                                 </td>
                             </tr>`;
