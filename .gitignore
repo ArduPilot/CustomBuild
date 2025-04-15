@@ -135,4 +135,4 @@ redis_data/*
 dump.rdb
 
 # base directory
-base/
+base
