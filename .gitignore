@@ -131,7 +131,8 @@ dmypy.json
 .vagrant
 
 # redis dump
+redis_data/*
 dump.rdb
 
 # base directory
-base/
+base

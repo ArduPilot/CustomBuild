@@ -79,8 +79,8 @@ function updateBuildsTable(status_json) {
                                     <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="View log" onclick="launchLogModal('${build_id}');">
                                         <i class="bi bi-file-text"></i>
                                     </button>
-                                    <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="Open build directory" onclick="window.location.href = '/builds/${build_id}';">
-                                        <i class="bi bi-folder2-open"></i>
+                                    <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="Download build artifacts" onclick="window.location.href = '/builds/${build_id}/${build_id}.tar.gz';">
+                                        <i class="bi bi-download"></i>
                                     </button>
                                 </td>
                             </tr>`;

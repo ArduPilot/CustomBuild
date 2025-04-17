@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:7.4.2-alpine
+    restart: always
+    volumes:
+      - ./redis_data:/data:rw
+    command: redis-server
+
+  app:
+    build:
+      context: .
+      dockerfile: ./web/Dockerfile
+    command: gunicorn wsgi:application
+    environment:
+      CBS_REDIS_HOST: redis
+      CBS_REDIS_PORT: 6379
+      CBS_BASEDIR: /base
+      CBS_LOG_LEVEL: ${CBS_LOG_LEVEL:-INFO}
+      CBS_ENABLE_INBUILT_BUILDER: 0
+      PYTHONPATH: /app
+      GUNICORN_CMD_ARGS: --bind=0.0.0.0:80 --timeout=300
+    volumes:
+      - ./base:/base:rw
+    depends_on:
+      - redis
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8080}:80"
+
+  builder:
+    build:
+      context: .
+      dockerfile: ./builder/Dockerfile
+    restart: always
+    environment:
+      CBS_REDIS_HOST: redis
+      CBS_REDIS_PORT: 6379
+      CBS_BASEDIR: /base
+      CBS_LOG_LEVEL: ${CBS_LOG_LEVEL:-INFO}
+      PYTHONPATH: /app
+    volumes:
+      - ./base:/base:rw
+    depends_on:
+      - redis

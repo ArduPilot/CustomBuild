@@ -3,3 +3,4 @@ requests
 jsonschema
 dill==0.3.8
 redis==5.2.1
+gunicorn==21.1
