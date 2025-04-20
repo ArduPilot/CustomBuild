@@ -89,14 +89,14 @@ class APSourceMetadataFetcher:
         return self.__build_options_key_prefix + f"{commit_id}"
 
     def __cache_boards_at_commit(self,
-                                 boards: list,
+                                 boards: tuple,
                                  commit_id: str,
                                  ttl_sec: int = 86400) -> None:
         """
-        Cache the given list of boards for a particular commit.
+        Cache the given tuple of boards for a particular commit.
 
         Parameters:
-            boards (list): The list of boards.
+            boards (tuple): The tuple of boards (both non-periph and periph).
             commit_id (str): The git sha for the commit.
             ttl_sec (int): Time-to-live (TTL) in seconds after which the
             cached list expires.
@@ -179,16 +179,19 @@ class APSourceMetadataFetcher:
         self.logger.debug(f"Got value {value} at key {key}")
         return dill.loads(value) if value else None
 
-    def __get_boards_at_commit_from_cache(self, commit_id: str) -> list:
+    def __get_boards_at_commit_from_cache(self,
+                                          commit_id: str) -> tuple[list, list]:
         """
-        Returns the list of boards for a given commit from cache if exists,
-        None otherwise.
+        Returns the tuple of boards (for non-periph and periph targets,
+        in order) for a given commit from cache if exists, None otherwise.
 
         Parameters:
             commit_id (str): The commit id to get boards list for.
 
         Returns:
-            list: A list of boards available at the specified commit.
+            tuple: A tuple of two lists in order:
+                - A list contains boards for NON-'ap_periph' targets.
+                - A list contains boards for the 'ap_periph' target.
 
         Raises:
             RuntimeError: If the method is called when caching is disabled.
@@ -203,19 +206,51 @@ class APSourceMetadataFetcher:
         )
         value = self.__redis_client.get(key)
         self.logger.debug(f"Got value {value} at key {key}")
-        return dill.loads(value) if value else None
+        boards = dill.loads(value) if value else None
+
+        if not boards:
+            return None
+
+        # Ensure the data retrieved from the cache is correct
+        # We should get a tuple containing two lists
+        try:
+            non_periph_boards, periph_boards = boards
+        except ValueError as e:
+            self.logger.debug(f"Boards from cache: '{boards}'")
+            self.logger.exception(e)
+            return None
+
+        return (
+            non_periph_boards,
+            periph_boards
+        )
+
+    def __exclude_boards_matching_patterns(self, boards: list, patterns: list):
+        ret = []
+        for b in boards:
+            excluded = False
+            for p in patterns:
+                if fnmatch.fnmatch(b.lower(), p.lower()):
+                    excluded = True
+                    break
+            if not excluded:
+                ret.append(b)
+        return ret
 
     def __get_boards_at_commit_from_repo(self, remote: str,
-                                         commit_ref: str) -> list:
+                                         commit_ref: str) -> tuple[list, list]:
         """
-        Returns the list of boards for a given commit from the git repo.
+        Returns the tuple of boards (for both non-periph and periph targets,
+        in order) for a given commit from the git repo.
 
         Parameters:
             remote (str): The name of the remote repository.
             commit_ref (str): The commit reference to check out.
 
         Returns:
-            list: A list of boards available at the specified commit.
+            tuple: A tuple of two lists in order:
+                - A list contains boards for NON-'ap_periph' targets.
+                - A list contains boards for the 'ap_periph' target.
         """
         with self.repo.get_checkout_lock():
             self.repo.checkout_remote_commit_ref(
@@ -235,22 +270,36 @@ class APSourceMetadataFetcher:
                 )
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
-            all_boards = mod.AUTOBUILD_BOARDS
-        exclude_patterns = ['fmuv*', 'SITL*']
-        boards = []
-        for b in all_boards:
-            excluded = False
-            for p in exclude_patterns:
-                if fnmatch.fnmatch(b.lower(), p.lower()):
-                    excluded = True
-                    break
-            if not excluded:
-                boards.append(b)
-        boards.sort()
-        return boards
+            non_periph_boards = mod.AUTOBUILD_BOARDS
+            periph_boards = mod.AP_PERIPH_BOARDS
+            self.logger.debug(f"non_periph_boards raw: {non_periph_boards}")
+            self.logger.debug(f"periph_boards raw: {periph_boards}")
 
-    def __get_build_options_at_commit_from_repo(self, remote: str,
-                                                commit_ref: str) -> tuple:
+        non_periph_boards = self.__exclude_boards_matching_patterns(
+            boards=non_periph_boards,
+            patterns=['fmuv*', 'SITL*'],
+        )
+        self.logger.debug(f"non_periph_boards filtered: {non_periph_boards}")
+
+        non_periph_boards_sorted = sorted(non_periph_boards)
+        periph_boards_sorted = sorted(periph_boards)
+
+        self.logger.debug(
+            f"non_periph_boards sorted: {non_periph_boards_sorted}"
+        )
+        self.logger.debug(f"periph_boards sorted: {periph_boards_sorted}")
+
+        return (
+            non_periph_boards_sorted,
+            periph_boards_sorted,
+        )
+
+    def __get_build_options_at_commit_from_repo(self,
+                                                remote: str,
+                                                commit_ref: str) -> tuple[
+                                                    list,
+                                                    list
+                                                ]:
         """
         Returns the list of build options for a given commit from the git repo.
 
@@ -284,11 +333,12 @@ class APSourceMetadataFetcher:
             build_options = mod.BUILD_OPTIONS
         return build_options
 
-    def get_boards_at_commit(self, remote: str,
-                             commit_ref: str) -> list:
+    def __get_boards_at_commit(self, remote: str,
+                               commit_ref: str) -> tuple[list, list]:
         """
-        Retrieves a list of boards available for building at a
-        specified commit and returns the list.
+        Retrieves lists of boards available for building at a
+        specified commit for both NON-'ap_periph' and ap_periph targets
+        and returns a tuple containing both lists.
         If caching is enabled, this would first look in the cache for
         the list. In case of a cache miss, it would retrive the list
         by checkout out the git repo and running `board_list.py` and
@@ -299,7 +349,9 @@ class APSourceMetadataFetcher:
             commit_ref (str): The commit reference to check out.
 
         Returns:
-            list: A list of boards available at the specified commit.
+            tuple: A tuple of two lists in order:
+                - A list contains boards for NON-'ap_periph' targets.
+                - A list contains boards for the 'ap_periph' target.
         """
         tstart = time.time()
         if not self.caching_enabled:
@@ -342,6 +394,30 @@ class APSourceMetadataFetcher:
             f"Took {(time.time() - tstart)} seconds to get boards"
         )
         return boards
+
+    def get_boards(self, remote: str, commit_ref: str,
+                   vehicle: str) -> list:
+        """
+        Returns a list of boards available for building at a
+        specified commit for given vehicle.
+
+        Parameters:
+            remote (str): The name of the remote repository.
+            commit_ref (str): The commit reference to check out.
+            vehicle (str): The vehicle to get the boards list for.
+
+        Returns:
+            list: A list of boards.
+        """
+        non_periph_boards, periph_boards = self.__get_boards_at_commit(
+            remote=remote,
+            commit_ref=commit_ref,
+        )
+
+        if vehicle == 'AP_Periph':
+            return periph_boards
+
+        return non_periph_boards
 
     def get_build_options_at_commit(self, remote: str,
                                     commit_ref: str) -> list:
