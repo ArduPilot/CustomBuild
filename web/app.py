@@ -151,9 +151,10 @@ def generate():
             raise Exception("Commit reference invalid or not listed to be built for given vehicle for remote")
 
         board = request.form['board']
-        boards_at_commit = ap_src_metadata_fetcher.get_boards_at_commit(
+        boards_at_commit = ap_src_metadata_fetcher.get_boards(
             remote=remote_name,
-            commit_ref=commit_ref
+            commit_ref=commit_ref,
+            vehicle=vehicle,
         )
         if board not in boards_at_commit:
             raise Exception("bad board")
@@ -235,9 +236,10 @@ def boards_and_features(vehicle_name, remote_name, commit_reference):
     app.logger.info('Board list and build options requested for %s %s %s' % (vehicle_name, remote_name, commit_reference))
     # getting board list for the branch
     with repo.get_checkout_lock():
-        boards = ap_src_metadata_fetcher.get_boards_at_commit(
+        boards = ap_src_metadata_fetcher.get_boards(
             remote=remote_name,
-            commit_ref=commit_reference
+            commit_ref=commit_reference,
+            vehicle=vehicle_name,
         )
 
         options = ap_src_metadata_fetcher.get_build_options_at_commit(
