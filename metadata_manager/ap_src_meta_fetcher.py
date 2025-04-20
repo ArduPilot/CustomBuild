@@ -1,18 +1,10 @@
-import logging
-import time
-import os
-import fnmatch
-import ap_git
-import json
-import jsonschema
 import redis
 import dill
-from pathlib import Path
-from . import exceptions as ex
-from threading import Lock
-from utils import TaskRunner
-
-logger = logging.getLogger(__name__)
+import fnmatch
+import time
+import logging
+import ap_git
+import os
 
 
 class APSourceMetadataFetcher:
@@ -42,13 +34,17 @@ class APSourceMetadataFetcher:
             metadata
 
         Raises:
-            TooManyInstancesError: If an instance of this class already exists,
-                                   enforcing a singleton pattern.
+            RuntimeError: If an instance of this class already exists,
+                          enforcing a singleton pattern.
         """
         # Enforce singleton pattern by raising an error if
         # an instance already exists.
         if APSourceMetadataFetcher.__singleton:
-            raise ex.TooManyInstancesError()
+            raise RuntimeError(
+                "APSourceMetadataFetcher must be a singleton."
+            )
+
+        self.logger = logging.getLogger(__name__)
 
         self.repo = ap_repo
         self.caching_enabled = caching_enabled
@@ -59,7 +55,7 @@ class APSourceMetadataFetcher:
                 port=redis_port,
                 decode_responses=False,
             )
-            logger.info(
+            self.logger.info(
                 f"Redis connection established with {redis_host}:{redis_port}"
             )
             self.__boards_key_prefix = "boards-"
@@ -112,7 +108,7 @@ class APSourceMetadataFetcher:
             raise RuntimeError("Should not be called with caching disabled.")
 
         key = self.__boards_key(commit_id=commit_id)
-        logger.debug(
+        self.logger.debug(
             "Caching boards list "
             f"Redis key: {key}, "
             f"Boards: {boards}, "
@@ -144,7 +140,7 @@ class APSourceMetadataFetcher:
             raise RuntimeError("Should not be called with caching disabled.")
 
         key = self.__build_options_key(commit_id=commit_id)
-        logger.debug(
+        self.logger.debug(
             "Caching build options "
             f"Redis key: {key}, "
             f"Build Options: {build_options}, "
@@ -175,12 +171,12 @@ class APSourceMetadataFetcher:
             raise RuntimeError("Should not be called with caching disabled.")
 
         key = self.__build_options_key(commit_id=commit_id)
-        logger.debug(
+        self.logger.debug(
             f"Getting cached build options for commit id {commit_id}, "
             f"Redis Key: {key}"
         )
         value = self.__redis_client.get(key)
-        logger.debug(f"Got value {value} at key {key}")
+        self.logger.debug(f"Got value {value} at key {key}")
         return dill.loads(value) if value else None
 
     def __get_boards_at_commit_from_cache(self, commit_id: str) -> list:
@@ -201,12 +197,12 @@ class APSourceMetadataFetcher:
             raise RuntimeError("Should not be called with caching disabled.")
 
         key = self.__boards_key(commit_id=commit_id)
-        logger.debug(
+        self.logger.debug(
             f"Getting cached boards list for commit id {commit_id}, "
             f"Redis Key: {key}"
         )
         value = self.__redis_client.get(key)
-        logger.debug(f"Got value {value} at key {key}")
+        self.logger.debug(f"Got value {value} at key {key}")
         return dill.loads(value) if value else None
 
     def __get_boards_at_commit_from_repo(self, remote: str,
@@ -311,7 +307,7 @@ class APSourceMetadataFetcher:
                 remote=remote,
                 commit_ref=commit_ref,
             )
-            logger.debug(
+            self.logger.debug(
                 f"Took {(time.time() - tstart)} seconds to get boards"
             )
             return boards
@@ -321,7 +317,7 @@ class APSourceMetadataFetcher:
             commit_ref=commit_ref,
         )
 
-        logger.debug(f"Fetching boards for commit {commid_id}.")
+        self.logger.debug(f"Fetching boards for commit {commid_id}.")
         cached_boards = self.__get_boards_at_commit_from_cache(
             commit_id=commid_id
         )
@@ -329,7 +325,7 @@ class APSourceMetadataFetcher:
         if cached_boards:
             boards = cached_boards
         else:
-            logger.debug(
+            self.logger.debug(
                 "Cache miss. Fetching boards from repo for "
                 f"commit {commid_id}."
             )
@@ -342,7 +338,7 @@ class APSourceMetadataFetcher:
                 commit_id=commid_id,
             )
 
-        logger.debug(
+        self.logger.debug(
             f"Took {(time.time() - tstart)} seconds to get boards"
         )
         return boards
@@ -370,7 +366,7 @@ class APSourceMetadataFetcher:
                 remote=remote,
                 commit_ref=commit_ref,
             )
-            logger.debug(
+            self.logger.debug(
                 f"Took {(time.time() - tstart)} seconds to get build options"
             )
             return build_options
@@ -380,7 +376,7 @@ class APSourceMetadataFetcher:
             commit_ref=commit_ref,
         )
 
-        logger.debug(f"Fetching build options for commit {commid_id}.")
+        self.logger.debug(f"Fetching build options for commit {commid_id}.")
         cached_build_options = self.__get_build_options_at_commit_from_cache(
             commit_id=commid_id
         )
@@ -388,7 +384,7 @@ class APSourceMetadataFetcher:
         if cached_build_options:
             build_options = cached_build_options
         else:
-            logger.debug(
+            self.logger.debug(
                 "Cache miss. Fetching build options from repo for "
                 f"commit {commid_id}."
             )
@@ -401,7 +397,7 @@ class APSourceMetadataFetcher:
                 commit_id=commid_id,
             )
 
-        logger.debug(
+        self.logger.debug(
             f"Took {(time.time() - tstart)} seconds to get build options"
         )
         return build_options
@@ -409,330 +405,3 @@ class APSourceMetadataFetcher:
     @staticmethod
     def get_singleton():
         return APSourceMetadataFetcher.__singleton
-
-
-class VersionInfo:
-    """
-    Class to wrap version info properties inside a single object
-    """
-    def __init__(self,
-                 remote: str,
-                 commit_ref: str,
-                 release_type: str,
-                 version_number: str,
-                 ap_build_artifacts_url) -> None:
-        self.remote = remote
-        self.commit_ref = commit_ref
-        self.release_type = release_type
-        self.version_number = version_number
-        self.ap_build_artifacts_url = ap_build_artifacts_url
-
-
-class RemoteInfo:
-    """
-    Class to wrap remote info properties inside a single object
-    """
-    def __init__(self,
-                 name: str,
-                 url: str) -> None:
-        self.name = name
-        self.url = url
-
-
-class VersionsFetcher:
-    """
-    Class to fetch the version-to-build metadata from remotes.json
-    and provide methods to view the same
-    """
-
-    __singleton = None
-
-    def __init__(self, remotes_json_path: str,
-                 ap_repo: ap_git.GitRepo):
-        """
-        Initializes the VersionsFetcher instance
-        with a given remotes.json path.
-
-        Parameters:
-            remotes_json_path (str): Path to the remotes.json file.
-            ap_repo (GitRepo): ArduPilot local git repository. This local
-                               repository is shared between the VersionsFetcher
-                               and the APSourceMetadataFetcher.
-
-        Raises:
-            TooManyInstancesError: If an instance of this class already exists,
-                                   enforcing a singleton pattern.
-        """
-        # Enforce singleton pattern by raising an error if
-        # an instance already exists.
-        if VersionsFetcher.__singleton:
-            raise ex.TooManyInstancesError()
-
-        self.__remotes_json_path = remotes_json_path
-        self.__ensure_remotes_json()
-        self.__access_lock_versions_metadata = Lock()
-        self.__versions_metadata = []
-        tasks = (
-            (self.fetch_ap_releases, 1200),
-            (self.fetch_whitelisted_tags, 1200),
-        )
-        self.__task__runner = TaskRunner(tasks=tasks)
-        self.repo = ap_repo
-        VersionsFetcher.__singleton = self
-
-    def start(self) -> None:
-        """
-        Start auto-fetch jobs.
-        """
-        logger.info("Starting VersionsFetcher background auto-fetch jobs.")
-        self.__task__runner.start()
-
-    def get_all_remotes_info(self) -> list[RemoteInfo]:
-        """
-        Return the list of RemoteInfo objects constructed from the
-        information in the remotes.json file
-
-        Returns:
-            list: RemoteInfo objects for all remotes mentioned in remotes.json
-        """
-        return [
-            RemoteInfo(
-                name=remote.get('name', None),
-                url=remote.get('url', None)
-            )
-            for remote in self.__get_versions_metadata()
-        ]
-
-    def get_remote_info(self, remote_name: str) -> RemoteInfo:
-        """
-        Return the RemoteInfo for the given remote name, None otherwise.
-
-        Returns:
-            RemoteInfo: The remote information object.
-        """
-        return next(
-            (
-                remote for remote in self.get_all_remotes_info()
-                if remote.name == remote_name
-            ),
-            None
-        )
-
-    def get_versions_for_vehicle(self, vehicle_name: str) -> list[VersionInfo]:
-        """
-        Return the list of dictionaries containing the info about the
-        versions listed to be built for a particular vehicle.
-
-        Parameters:
-            vehicle_name (str): the vehicle to fetch versions list for
-
-        Returns:
-            list: VersionInfo objects for all versions allowed to be
-                  built for the said vehicle.
-
-        """
-        if vehicle_name is None:
-            raise ValueError("Vehicle is a required parameter.")
-
-        versions_list = []
-        for remote in self.__get_versions_metadata():
-            for vehicle in remote['vehicles']:
-                if vehicle['name'] != vehicle_name:
-                    continue
-
-                for release in vehicle['releases']:
-                    versions_list.append(VersionInfo(
-                        remote=remote.get('name', None),
-                        commit_ref=release.get('commit_reference', None),
-                        release_type=release.get('release_type', None),
-                        version_number=release.get('version_number', None),
-                        ap_build_artifacts_url=release.get(
-                            'ap_build_artifacts_url',
-                            None
-                        )
-                    ))
-        return versions_list
-
-    def get_all_vehicles_sorted_uniq(self) -> list[str]:
-        """
-        Return a sorted list of all vehicles listed in remotes.json structure
-
-        Returns:
-            list: Vehicles listed in remotes.json
-
-        """
-        vehicles_set = set()
-        for remote in self.__get_versions_metadata():
-            for vehicle in remote['vehicles']:
-                vehicles_set.add(vehicle['name'])
-        return sorted(list(vehicles_set))
-
-    def is_version_listed(self, vehicle: str, remote: str,
-                          commit_ref: str) -> bool:
-        """
-        Check if a version with given properties mentioned in remotes.json
-
-        Parameters:
-            vehicle (str): vehicle for which version is listed
-            remote (str): remote under which the version is listed
-            commit_ref(str): commit reference for the version
-
-        Returns:
-            bool: True if the said version is mentioned in remotes.json,
-                  False otherwise
-
-        """
-        if vehicle is None:
-            raise ValueError("Vehicle is a required parameter.")
-
-        if remote is None:
-            raise ValueError("Remote is a required parameter.")
-
-        if commit_ref is None:
-            raise ValueError("Commit reference is a required parameter.")
-
-        return (remote, commit_ref) in [
-            (version_info.remote, version_info.commit_ref)
-            for version_info in
-            self.get_versions_for_vehicle(vehicle_name=vehicle)
-        ]
-
-    def get_version_info(self, vehicle: str, remote: str,
-                         commit_ref: str) -> VersionInfo:
-        """
-        Find first version matching the given properties in remotes.json
-
-        Parameters:
-            vehicle (str): vehicle for which version is listed
-            remote (str): remote under which the version is listed
-            commit_ref(str): commit reference for the version
-
-        Returns:
-            VersionInfo: Object for the version matching the properties,
-                         None if not found
-
-        """
-        return next(
-            (
-                version
-                for version in self.get_versions_for_vehicle(
-                    vehicle_name=vehicle
-                )
-                if version.remote == remote and
-                version.commit_ref == commit_ref
-            ),
-            None
-        )
-
-    def reload_remotes_json(self) -> None:
-        """
-        Read remotes.json, validate its structure against the schema
-        and cache it in memory
-        """
-        # load file containing vehicles listed to be built for each
-        # remote along with the branches/tags/commits on which the
-        # firmware can be built
-        remotes_json_schema_path = os.path.join(
-            os.path.dirname(__file__),
-            'remotes.schema.json'
-        )
-        with open(self.__remotes_json_path, 'r') as f, \
-             open(remotes_json_schema_path, 'r') as s:
-            f_content = f.read()
-
-            # Early return if file is empty
-            if not f_content:
-                return
-            versions_metadata = json.loads(f_content)
-            schema = json.loads(s.read())
-            # validate schema
-            jsonschema.validate(instance=versions_metadata, schema=schema)
-            self.__set_versions_metadata(versions_metadata=versions_metadata)
-
-        # update git repo with latest remotes list
-        self.__sync_remotes_with_ap_repo()
-
-    def __ensure_remotes_json(self) -> None:
-        """
-        Ensures remotes.json exists and is a valid JSON file.
-        """
-        p = Path(self.__remotes_json_path)
-
-        if not p.exists():
-            # Ensure parent directory exists
-            Path.mkdir(p.parent, parents=True, exist_ok=True)
-
-            # write empty json list
-            with open(p, 'w') as f:
-                f.write('[]')
-
-    def __set_versions_metadata(self, versions_metadata: list) -> None:
-        """
-        Set versions metadata property with the one passed as parameter
-        This requires to acquire the access lock to avoid overwriting the
-        object while it is being read
-        """
-        if versions_metadata is None:
-            raise ValueError("versions_metadata is a required parameter. "
-                             "Cannot be None.")
-
-        with self.__access_lock_versions_metadata:
-            self.__versions_metadata = versions_metadata
-
-    def __get_versions_metadata(self) -> list:
-        """
-        Read versions metadata property
-        This requires to acquire the access lock to avoid reading the list
-        while it is being modified
-
-        Returns:
-            list: the versions metadata list
-        """
-        with self.__access_lock_versions_metadata:
-            return self.__versions_metadata
-
-    def __sync_remotes_with_ap_repo(self):
-        """
-        Update the remotes in ArduPilot local repository with the latest
-        remotes list.
-        """
-        remotes = tuple(
-            (remote.name, remote.url)
-            for remote in self.get_all_remotes_info()
-        )
-        self.repo.remote_add_bulk(remotes=remotes, force=True)
-
-    def fetch_ap_releases(self) -> None:
-        """
-        Execute the fetch_releases.py script to update remotes.json
-        with Ardupilot's official releases
-        """
-        from scripts import fetch_releases
-        fetch_releases.run(
-            base_dir=os.path.join(
-                os.path.dirname(self.__remotes_json_path),
-                '..',
-            ),
-            remote_name="ardupilot",
-        )
-        self.reload_remotes_json()
-        return
-
-    def fetch_whitelisted_tags(self) -> None:
-        """
-        Execute the fetch_whitelisted_tags.py script to update
-        remotes.json with tags from whitelisted repos
-        """
-        from scripts import fetch_whitelisted_tags
-        fetch_whitelisted_tags.run(
-            base_dir=os.path.join(
-                os.path.dirname(self.__remotes_json_path),
-                '..',
-            )
-        )
-        self.reload_remotes_json()
-        return
-
-    @staticmethod
-    def get_singleton():
-        return VersionsFetcher.__singleton
