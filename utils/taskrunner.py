@@ -46,7 +46,13 @@ class TaskRunner:
                         f"Now: {now}, Calling: {str(to_call)}, "
                         f"Runner id: {id(self)}"
                     )
-                    to_call()  # Call the method
+                    # Keep the thread alive even if an exception occurs
+                    # so that other tasks can keep running
+                    try:
+                        to_call()  # Call the method
+                    except Exception as e:
+                        logger.exception(e)
+
                     next_call_times[i] = now + period
 
             # Wait for the next call or stop event
