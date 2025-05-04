@@ -48,7 +48,8 @@ vehicles = [
     'Sub',
     'AntennaTracker',
     'Blimp',
-    'Heli'
+    'Heli',
+    'AP_Periph',
 ]
 
 
