@@ -82,6 +82,7 @@ manager = build_manager.BuildManager(
 )
 cleaner = build_manager.BuildArtifactsCleaner()
 progress_updater = build_manager.BuildProgressUpdater()
+vehicles_manager = metadata_manager.VehiclesManager.get_singleton()
 
 versions_fetcher.start()
 cleaner.start()
@@ -141,7 +142,7 @@ def generate():
 
         vehicle = request.form['vehicle']
         version_info = versions_fetcher.get_version_info(
-            vehicle=vehicle,
+            vehicle_name=vehicle,
             remote=remote_name,
             commit_ref=commit_ref
         )
@@ -228,7 +229,7 @@ def download_file(name):
 def boards_and_features(vehicle_name, remote_name, commit_reference):
     commit_reference = base64.urlsafe_b64decode(commit_reference).decode()
 
-    if not versions_fetcher.is_version_listed(vehicle=vehicle_name, remote=remote_name, commit_ref=commit_reference):
+    if not versions_fetcher.is_version_listed(vehicle_name=vehicle_name, remote=remote_name, commit_ref=commit_reference):
         return "Bad request. Commit reference not allowed to build for the vehicle.", 400
 
     app.logger.info('Board list and build options requested for %s %s %s' % (vehicle_name, remote_name, commit_reference))
@@ -289,7 +290,7 @@ def get_versions(vehicle_name):
 
 @app.route("/get_vehicles")
 def get_vehicles():
-    return jsonify(versions_fetcher.get_all_vehicles_sorted_uniq())
+    return jsonify(vehicles_manager.get_all_vehicle_names_sorted())
 
 @app.route("/get_defaults/<string:vehicle_name>/<string:remote_name>/<string:commit_reference>/<string:board_name>", methods = ['GET'])
 def get_deafults(vehicle_name, remote_name, commit_reference, board_name):
@@ -298,7 +299,7 @@ def get_deafults(vehicle_name, remote_name, commit_reference, board_name):
         vehicle_name = "Copter"
 
     commit_reference = base64.urlsafe_b64decode(commit_reference).decode()
-    version_info = versions_fetcher.get_version_info(vehicle=vehicle_name, remote=remote_name, commit_ref=commit_reference)
+    version_info = versions_fetcher.get_version_info(vehicle_name=vehicle_name, remote=remote_name, commit_ref=commit_reference)
 
     if version_info is None:
         return "Bad request. Commit reference %s is not allowed for builds for the %s for %s remote." % (commit_reference, vehicle_name, remote_name), 400
