@@ -198,7 +198,7 @@ def run(base_dir, remote_name):
     ))
 
     vehicles.append(construct_vehicle_versions_list(
-        "AntennaTracker",
+        "Tracker",
         "AntennaTracker",
         "AntennaTracker",
         [
