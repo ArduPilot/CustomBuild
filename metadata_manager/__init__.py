@@ -70,3 +70,10 @@ vehicles_manager.add_vehicle(
         waf_build_command="AntennaTracker"
     )
 )
+
+vehicles_manager.add_vehicle(
+    Vehicle(
+        name="AP_Periph",
+        waf_build_command="AP_Periph"
+    )
+)
