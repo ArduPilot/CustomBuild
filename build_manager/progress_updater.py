@@ -174,10 +174,8 @@ class BuildProgressUpdater:
             return BuildState.ERROR
 
         # Build has finished, check if it succeeded or failed
-        success_message_pos = build_log.find(
-            f"'{build_info.vehicle.lower()}' finished successfully"
-        )
-        if success_message_pos == -1:
+        flash_summary_pos = build_log.find("Total Flash Used")
+        if flash_summary_pos == -1:
             return BuildState.FAILURE
         else:
             return BuildState.SUCCESS
