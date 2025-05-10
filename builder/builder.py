@@ -10,6 +10,7 @@ import tarfile
 from metadata_manager import (
     APSourceMetadataFetcher as apfetch,
     RemoteInfo,
+    VehiclesManager as vehm
 )
 from pathlib import Path
 
@@ -40,6 +41,10 @@ class Builder:
         if apfetch.get_singleton() is None:
             raise RuntimeError(
                 "APSourceMetadataFetcher should be initialised first."
+            )
+        if vehm.get_singleton() is None:
+            raise RuntimeError(
+                "VehiclesManager should be initialised first."
             )
 
         self.__workdir_parent = workdir
@@ -398,8 +403,12 @@ class Builder:
             self.logger.info("Running build")
             build_log.write("Running build\n")
             build_log.flush()
+            vehicle = vehm.get_singleton().get_vehicle_from_name(
+                vehicle_name=build_info.vehicle
+            )
+            build_command = vehicle.waf_build_command
             subprocess.run(
-                ["python3", "./waf", build_info.vehicle.lower()],
+                ["python3", "./waf", build_command],
                 cwd=self.__get_path_to_build_src(build_id),
                 stdout=build_log,
                 stderr=build_log,
