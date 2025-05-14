@@ -235,7 +235,7 @@ class Builder:
         )
 
         # Ensure bin_path exists
-        Path.mkdir(bin_path, exist_ok=True)
+        Path.mkdir(Path(bin_path), exist_ok=True)
 
         bin_list = os.listdir(bin_path)
         self.logger.debug(f"bin_path: {bin_path}")
