@@ -12,7 +12,6 @@ services:
     build:
       context: .
       dockerfile: ./web/Dockerfile
-    command: gunicorn wsgi:application
     environment:
       CBS_REDIS_HOST: redis
       CBS_REDIS_PORT: 6379
