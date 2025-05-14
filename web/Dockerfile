@@ -13,4 +13,4 @@ WORKDIR /app/web
 RUN pip install --no-cache-dir -r requirements.txt
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["/bin/sh", "./start.sh"]
+CMD ["gunicorn", "wsgi:application"]
