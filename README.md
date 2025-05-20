@@ -1,106 +1,145 @@
-# ArduPilot Custom Firmware Builder - GSoC 2021 Project
+# ArduPilot Custom Firmware Builder
 
-## Summary
+## Table of Contents
+1. [Overview](#overview)
+2. [Live Versions](#live-versions)
+3. [Running Locally Using Docker](#running-locally-using-docker)
+4. [Running Locally Without Docker on Ubuntu](#running-locally-without-docker-on-ubuntu)
+5. [Directory Structure](#directory-structure)
+6. [Acknowledgements](#acknowledgements)
 
-This is a website that generates a downloadable custom ArduPilot firmware, based on user selection.
-Website: https://custom.ardupilot.org
-Blog post: https://discuss.ardupilot.org/t/gsoc-2021-custom-firmware-builder/74946
+## Overview
+The ArduPilot Custom Firmware Builder is a web-based application designed to generate downloadable customized ArduPilot firmware, tailored to user specifications. This tool facilitates the customization and building of firmware by allowing users to select the options that best fit their needs, thus providing a streamlined interface for creating ArduPilot firmware.
 
-## How to build the server locally for testing
+## Live Versions
+- **Stable Version:** The stable version of the ArduPilot Custom Firmware Builder can be accessed at [custom.ardupilot.org](https://custom.ardupilot.org).
+- **Beta Version:** We maintain a beta version available at [custom-beta.ardupilot.org](https://custom-beta.ardupilot.org) where newly developed features are tested before they are rolled out in the stable version.
 
-It is expected that you have an environment where ArduPilot can be built. Otherwise, see [https://ardupilot.org/dev/docs/building-setup-linux.html](https://ardupilot.org/dev/docs/building-setup-linux.html).
+## Running Locally Using Docker
+To minimize setup overhead and enhance ease of use, running this application in Docker containers is highly recommended. Follow the instructions below to run the application locally using Docker:
 
-1. Fork and Clone the ArduPilot/CustomBuild repository
+1. **Install Docker and Docker Compose:** Make sure Docker and Docker Compose are installed on your machine. For installation instructions, visit the [Docker website](https://docs.docker.com/engine/install).
+   
+2. **Clone the Repository:**
+   ```bash
+   git clone https://github.com/ardupilot/CustomBuild.git
+   cd CustomBuild
+   ```
 
-2. In the directory containing the CustomBuild repo just cloned, create a /base subdirectory and change to that directory.
+3. **Configure Environment Variables:**
+   Copy the `.env` file to the root of the cloned repository from `./examples/.env.sample` and configure the necessary parameters within it.
 
-3. Clone a fork of the ArduPilot/ardupilot repository.
+   ```bash
+   cp ./examples/.env.sample .env
+   ```
 
-### Detailed Instructions for Ubuntu
+4. **Build and Start the Docker Containers:**
+   - To build and start the application, run:
+     ```bash
+     sudo docker compose up --build
+     ```
+   - If you want to run the application with the last built image, simply execute:
+     ```bash
+     sudo docker compose up
+     ```
 
-For example, here are the commands for Ubuntu.
+   Use the `-d` flag to run the application in daemon mode:
+   ```bash
+   sudo docker compose up -d
+   ```
 
-If not already set up, [configure your Git username](https://git-scm.com/docs/git-config#Documentation/git-config.txt-credentialusername):
-Substitute `your-github-account` with your Github username.
-```
-git config --global credential.username your-github-account
-```
+   **Note:** When starting the application for the first time, it takes some time to initialize the ArduPilot Git repositories at the backend. This process also involves populating the list of available versions and releases using the GitHub API, so please be patient.
 
-Next, clone the repositories:
-```bash
-git config credential.username your-github-account
-cd ~
-git clone git@github.com:$(git config credential.username)/CustomBuild.git
-git clone --depth 1 git@github.com:$(git config credential.username)/ardupilot.git base/ardupilot
-```
+5. **Access the Web Interface:** 
+   The application binds to port 11080 on your host machine by default. Open your web browser and go to `http://localhost:11080` to interact with the web interface. To change the port, set the `WEB_PORT` environment variable in the .env file mentioned in the _Configure Environment Variables_ section.
 
-Finally, add the upstream ArduPilot to your remotes.
-```bash
-git -C base/ardupilot remote add upstream git@github.com:ardupilot/ardupilot.git
-git -C base/ardupilot fetch --depth 1 upstream
-```
+6. **Stopping the Application:**
+   To stop the application, you can use the following command:
+   ```bash
+   sudo docker compose down
+   ```
+   This will stop and remove the containers, but it will not delete any built images or volumes, preserving your data for future use.
 
-### Directory structure
+## Running Locally Without Docker on Ubuntu
+To run the ArduPilot Custom Firmware Builder locally without Docker, ensure you have an environment capable of building ArduPilot. Refer to the [ArduPilot Environment Setup Guide](https://ardupilot.org/dev/docs/building-setup-linux.html) if necessary.
 
-The default directory structure is as follows:
+1. **Clone the Custom-Build Repository:**
+   ```bash
+   git clone https://github.com/ardupilot/CustomBuild.git
+   cd CustomBuild
+   ```
+2. **Create and use a virtual environment:**
+   ```bash
+   python3 -m venv path/to/virtual/env
+   source path/to/virtual/env/bin/activate
+   ```
+
+   If the python venv module is not installed, run:
+   ```bash
+   sudo apt install python3-venv
+   ```
+
+   To deactive the virtual environment, run:
+   ```bash
+   deactivate
+   ```
+
+3. **Install Dependencies:**
+   ```bash
+   pip install -r web/requirements.txt -r builder/requirements.txt
+   ```
+
+   If pip is not installed, run:
+   ```bash
+   sudo apt install python3-pip
+   ```
+
+4. **Install and Run Redis:**
+   Use your package manager to install Redis:
+   ```bash
+   sudo apt install redis-server
+   ```
+   Ensure the Redis server is running:
+   ```bash
+   sudo systemctl status redis-server
+   ```
+
+5. **Execute the Application:**
+   - For a development environment, run:
+     ```bash
+     ./web/app.py
+     ```
+   - For a production environment, use:
+     ```bash
+     gunicorn web.wsgi:application
+     ```
+
+    During the coding and testing phases, use the development environment to easily debug and make changes. When deploying the app for end users, use the production environment to ensure better performance, scalability, and security.
+
+    The application will automatically set up the required base directory at `./base` upon first execution. You may customize this path by using the `--basedir` option with the above commands or by setting the `CBS_BASEDIR` environment variable.
+
+6. **Access the Web Interface:**
+
+   Once the application is running, you can access the interface in your web browser at http://localhost:5000 if running directly using app.py (development environment), or at http://localhost:8000 if using Gunicorn (production environment).
+   
+   To change the default port when running with app.py, modify the `app.run()` call in web/app.py file by passing `port=<expected-port>` as an argument. For Gunicorn, refer to the [commonly used arguments](https://docs.gunicorn.org/en/latest/run.html#commonly-used-arguments) section of the Gunicorn documentation to specify a different port.
+
+## Directory Structure
+The default directory structure is established as follows:
 ```
 /home/<username>
--CustomBuild
--base
---ardupilot
+└── CustomBuild
+    └── base
+        ├── ardupilot            (used by the web component)
+        ├── builds
+        ├── configs
+        |   └── remotes.json     (auto-generated, see examples/remotes.json.sample)
+        ├── secrets
+        |   └── reload_token     (optional)
+        ├── tmp
+            └── ardupilot        (used by the builder component)
 ```
+The build artifacts are organized under the `base/builds` subdirectory.
 
-
-### Install Dependencies
-
-```bash
-cd ~/CustomBuild
-python3 -m pip install --user --upgrade --requirement requirements.txt
-```
-
-### Running
-
-To run, in the CustomBuild directory execute the following command:
-
-```bash
-cd ~/CustomBuild
-./app.py
-```
-
-Use `--basedir` to adjust the base directory. The default one is `base`.
-
-Once running, you will be given a link to a local host port in which the interface is displayed for the build server. It can be run at this point. Output will NOT be accessible via the interface buttons for build directory. Builds are stored in the base/builds subdirectory
-
-### For Apache web server on Ubuntu with WSGI
-To create a full server with network access:
-
-* Install mod_wsgi for python 3:
-```bash
-sudo apt-get install apache2 libapache2-mod-wsgi-py3 python3 python3-pip
-```
-
-* update /etc/apache2/envvars
-1. set correct username and group (default is www-data)
-2. add ```export PATH=/opt/gcc-arm-none-eabi-10-2020-q4-major/bin:$PATH``` to end of file (this is default location if you have followed the dev env setup instructions above)
-
-* Copy the config file to `/etc/apache2/sites-available/` and specify the correct directory.
-
-* Edit the file as necessary for your use case
-
-* Enable the file:
-```bash
-sudo a2ensite CustomBuild.conf
-```
-* To restart Apache:
-```bash
-sudo apache2ctl graceful
-```
-* To stop Apache:
-```bash
-sudo apache2ctl stop
-```
-* To start Apache:
-```bash
-sudo apache2ctl start
-```
-Webpage: 127.0.0.1
+## Acknowledgements
+This project includes many valuable contributions made during the Google Summer of Code 2021. For more information, please see the [GSOC 2021 Blog Post](https://discuss.ardupilot.org/t/gsoc-2021-custom-firmware-builder/74946).
