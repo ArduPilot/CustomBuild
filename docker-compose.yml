@@ -18,6 +18,7 @@ services:
       CBS_BASEDIR: /base
       CBS_LOG_LEVEL: ${CBS_LOG_LEVEL:-INFO}
       CBS_ENABLE_INBUILT_BUILDER: 0
+      CBS_GITHUB_ACCESS_TOKEN: ${CBS_GITHUB_ACCESS_TOKEN}
       PYTHONPATH: /app
       GUNICORN_CMD_ARGS: --bind=0.0.0.0:80 --timeout=300
     volumes:
