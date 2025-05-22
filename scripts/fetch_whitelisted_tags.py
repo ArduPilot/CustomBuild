@@ -63,6 +63,11 @@ def fetch_tags_from_github(remote):
         'X-GitHub-Api-Version': '2022-11-28',
         'Accept': 'application/vnd.github+json'
     }
+
+    token = os.getenv("CBS_GITHUB_ACCESS_TOKEN")
+    if token:
+        headers['Authorization'] = f"Bearer {token}"
+
     response = requests.get(url=url, headers=headers)
     if response.status_code != 200:
         print(response.text)
