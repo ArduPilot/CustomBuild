@@ -4,9 +4,6 @@ import os
 import re
 import requests
 
-IGNORE_VERSIONS_BEFORE = '4.3'
-
-
 def version_number_and_type(git_hash, ap_source_subdir):
     url = (
         "https://raw.githubusercontent.com/ArduPilot/ardupilot/"
@@ -75,7 +72,8 @@ def remove_duplicate_entries(releases):
 
 def construct_vehicle_versions_list(vehicle, ap_source_subdir,
                                     fw_server_vehicle_sdir,
-                                    tag_filter_exps, tags):
+                                    tag_filter_exps, tags,
+                                    ignore_versions_before=''):
     ret = []
     for tag_info in tags:
         tag = tag_info['ref'].replace('refs/tags/', '')
@@ -107,7 +105,7 @@ def construct_vehicle_versions_list(vehicle, ap_source_subdir,
                 print(e)
                 continue
 
-            if v_num < IGNORE_VERSIONS_BEFORE:
+            if v_num < ignore_versions_before:
                 print(f"{v_num} Version too old. Ignoring.")
                 continue
 
@@ -166,7 +164,8 @@ def run(base_dir, remote_name):
             "(ArduCopter-(beta-4.3|beta|stable))",
             "(Copter-(\d+\.\d+\.\d+))"  # noqa
         ],
-        tags
+        tags,
+        '4.3',
     ))
 
     vehicles.append(construct_vehicle_versions_list(
@@ -177,7 +176,8 @@ def run(base_dir, remote_name):
             "(ArduPlane-(beta-4.3|beta|stable))",
             "(Plane-(\d+\.\d+\.\d+))"  # noqa
         ],
-        tags
+        tags,
+        '4.3',
     ))
 
     vehicles.append(construct_vehicle_versions_list(
@@ -188,7 +188,8 @@ def run(base_dir, remote_name):
             "(APMrover2-(beta-4.3|beta|stable))",
             "(Rover-(\d+\.\d+\.\d+))"  # noqa
         ],
-        tags
+        tags,
+        '4.3',
     ))
 
     vehicles.append(construct_vehicle_versions_list(
@@ -199,7 +200,8 @@ def run(base_dir, remote_name):
             "(ArduSub-(beta-4.3|beta|stable))",
             "(Sub-(\d+\.\d+\.\d+))"  # noqa
         ],
-        tags
+        tags,
+        '4.3',
     ))
 
     vehicles.append(construct_vehicle_versions_list(
@@ -210,7 +212,8 @@ def run(base_dir, remote_name):
             "(AntennaTracker-(beta-4.3|beta|stable))",
             "(Tracker-(\d+\.\d+\.\d+))"  # noqa
         ],
-        tags
+        tags,
+        '4.3',
     ))
 
     vehicles.append(construct_vehicle_versions_list(
@@ -220,7 +223,8 @@ def run(base_dir, remote_name):
         [
             "(Blimp-(beta-4.3|beta|stable|\d+\.\d+\.\d+))"  # noqa
         ],
-        tags
+        tags,
+        '4.3',
     ))
 
     vehicles.append(construct_vehicle_versions_list(
@@ -230,7 +234,19 @@ def run(base_dir, remote_name):
         [
             "(ArduCopter-(beta-4.3|beta|stable)-heli)"
         ],
-        tags
+        tags,
+        '4.3',
+    ))
+
+    vehicles.append(construct_vehicle_versions_list(
+        "AP_Periph",
+        "Tools/AP_Periph",
+        "AP_Periph",
+        [
+            "(AP_Periph-(beta|stable))"
+        ],
+        tags,
+        '1.7.0',
     ))
 
     remotes_json = {
