@@ -34,6 +34,12 @@ class BuildProgress:
         self.state = state
         self.percent = percent
 
+    def to_dict(self) -> dict:
+        return {
+            'state': self.state.name,
+            'percent': self.percent,
+        }
+
 
 class BuildInfo:
     def __init__(self,
@@ -65,6 +71,17 @@ class BuildInfo:
             percent=0
         )
         self.time_created = time.time()
+
+    def to_dict(self) -> dict:
+        return {
+            'vehicle': self.vehicle,
+            'remote_info': self.remote_info.to_dict(),
+            'git_hash': self.git_hash,
+            'board': self.board,
+            'selected_features': list(self.selected_features),
+            'progress': self.progress.to_dict(),
+            'time_created': self.time_created,
+        }
 
 
 class BuildManager:
