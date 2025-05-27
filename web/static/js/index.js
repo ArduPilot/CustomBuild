@@ -8,7 +8,7 @@ function init() {
 
 function refresh_builds() {
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', "/builds/status.json");
+    xhr.open('GET', "/builds");
 
     // disable cache, thanks to: https://stackoverflow.com/questions/22356025/force-cache-control-no-cache-in-chrome-via-xmlhttprequest-on-f5-reload
     xhr.setRequestHeader("Cache-Control", "no-cache, no-store, max-age=0");
@@ -31,9 +31,22 @@ function showFeatures(row_num) {
     return;
 }
 
-function updateBuildsTable(status_json) {
+function timeAgo(timestampStr) {
+    const timestamp = parseFloat(timestampStr);
+    const now = Date.now() / 1000;
+    const diff = now - timestamp;
+
+    if (diff < 0) return "In the future";
+
+    const hours = Math.floor(diff / 3600);
+    const minutes = Math.floor((diff % 3600) / 60);
+
+    return `${hours}h ${minutes}m`;
+}
+
+function updateBuildsTable(builds) {
     let output_container = document.getElementById('build_table_container');
-    if (Object.keys(status_json).length == 0) {
+    if (builds.length == 0) {
         output_container.innerHTML = `<div class="alert alert-success" role="alert" id="welcome_alert">
                                         <h4 class="alert-heading">Welcome!</h4>
                                         <p>No builds were queued to run on the server recently. To queue one, please click <a href="./add_build" class="alert-link">add a build</a>.</p>
@@ -48,38 +61,40 @@ function updateBuildsTable(status_json) {
 
     let table_body_html = '';
     let row_num = 0;
-    Object.keys(status_json).forEach((build_id) => {
-        let build_info = status_json[build_id];
+    builds.forEach((build_info) => {
         let status_color = 'primary';
-        if (build_info['status'] == 'SUCCESS') {
+        if (build_info['progress']['state'] == 'SUCCESS') {
             status_color = 'success';
-        } else if (build_info['status'] == 'PENDING') {
+        } else if (build_info['progress']['state'] == 'PENDING') {
             status_color = 'warning';
-        } else if (build_info['status'] == 'FAILURE' || build_info['status'] == 'ERROR') {
+        } else if (build_info['progress']['state'] == 'FAILURE' || build_info['progress']['state'] == 'ERROR') {
             status_color = 'danger';
         }
 
+        const features_string = build_info['selected_features'].join(', ')
+        const build_age = timeAgo(build_info['time_created'])
+
         table_body_html +=  `<tr>
-                                <td class="align-middle"><span class="badge text-bg-${status_color}">${build_info['status']}</span></td>
-                                <td class="align-middle">${build_info['age']}</td>
-                                <td class="align-middle"><a href="https://github.com/ArduPilot/ardupilot/commit/${build_info['git_hash_short']}">${build_info['git_hash_short']}</a></td>
+                                <td class="align-middle"><span class="badge text-bg-${status_color}">${build_info['progress']['state']}</span></td>
+                                <td class="align-middle">${build_age}</td>
+                                <td class="align-middle"><a href="https://github.com/ArduPilot/ardupilot/commit/${build_info['git_hash']}">${build_info['git_hash'].substring(0,8)}</a></td>
                                 <td class="align-middle">${build_info['board']}</td>
                                 <td class="align-middle">${build_info['vehicle']}</td>
                                 <td class="align-middle" id="${row_num}_features">
-                                        ${build_info['features'].substring(0, 100)}... 
-                                        <span id="${row_num}_features_all" style="display:none;">${build_info['features']}</span>
+                                        ${features_string.substring(0, 100)}... 
+                                        <span id="${row_num}_features_all" style="display:none;">${features_string}</span>
                                     <a href="javascript: showFeatures(${row_num});">show more</a>
                                 </td>
                                 <td class="align-middle">
                                     <div class="progress border" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                                        <div class="progress-bar bg-${status_color}" style="width: ${build_info['progress']}%">${build_info['progress']}%</div>
+                                        <div class="progress-bar bg-${status_color}" style="width: ${build_info['progress']['percent']}%">${build_info['progress']['percent']}%</div>
                                     </div>
                                 </td>
                                 <td class="align-middle">
-                                    <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="View log" onclick="launchLogModal('${build_id}');">
+                                    <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="View log" onclick="launchLogModal('${build_info['build_id']}');">
                                         <i class="bi bi-file-text"></i>
                                     </button>
-                                    <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="Download build artifacts" onclick="window.location.href = '/builds/${build_id}/${build_id}.tar.gz';">
+                                    <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="Download build artifacts" onclick="window.location.href = '/builds/${build_info['build_id']}/artifacts/${build_info['build_id']}.tar.gz';">
                                         <i class="bi bi-download"></i>
                                     </button>
                                 </td>
@@ -90,7 +105,7 @@ function updateBuildsTable(status_json) {
     let table_html =    `<table class="table table-hover table-light shadow">
                             <thead class="table-dark">
                                 <th scope="col" style="width: 5%">Status</th>
-                                <th scope="col" style="width: 5%">Age (hr:min)</th>
+                                <th scope="col" style="width: 5%">Age</th>
                                 <th scope="col" style="width: 5%">Git Hash</th>
                                 <th scope="col" style="width: 5%">Board</th>
                                 <th scope="col" style="width: 5%">Vehicle</th>
@@ -132,7 +147,7 @@ const LogFetch = (() => {
         }
 
         var xhr = new XMLHttpRequest();
-        xhr.open('GET', `/builds/${build_id}/build.log`);
+        xhr.open('GET', `/builds/${build_id}/artifacts/build.log`);
 
         // disable cache, thanks to: https://stackoverflow.com/questions/22356025/force-cache-control-no-cache-in-chrome-via-xmlhttprequest-on-f5-reload
         xhr.setRequestHeader("Cache-Control", "no-cache, no-store, max-age=0");

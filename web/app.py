@@ -50,7 +50,7 @@ cmd_opts, cmd_args = parser.parse_args()
 # define directories
 basedir = os.path.abspath(cmd_opts.basedir)
 sourcedir = os.path.join(basedir, 'ardupilot')
-outdir_parent = os.path.join(basedir, 'builds')
+outdir_parent = os.path.join(basedir, 'artifacts')
 workdir_parent = os.path.join(basedir, 'workdir')
 
 appdir = os.path.dirname(__file__)
@@ -221,10 +221,15 @@ def home(token):
     app.logger.info('Rendering index.html')
     return render_template('index.html', token=token)
 
-@app.route("/builds/<path:name>")
-def download_file(name):
-    app.logger.info('Downloading %s' % name)
-    return send_from_directory(os.path.join(basedir,'builds'), name, as_attachment=False)
+@app.route("/builds/<string:build_id>/artifacts/<path:name>")
+def download_file(build_id, name):
+    path = os.path.join(
+        basedir,
+        'artifacts',
+        build_id,
+    )
+    app.logger.info('Downloading %s/%s' % (path, name))
+    return send_from_directory(path, name, as_attachment=False)
 
 @app.route("/boards_and_features/<string:vehicle_name>/<string:remote_name>/<string:commit_reference>", methods=['GET'])
 def boards_and_features(vehicle_name, remote_name, commit_reference):
@@ -320,6 +325,43 @@ def get_deafults(vehicle_name, remote_name, commit_reference, board_name):
     result = response.text.split('\n')
     # omit the last two elements as they are always blank
     return jsonify(result[:-2])
+
+@app.route('/builds', methods=['GET'])
+def get_all_builds():
+    all_build_ids = manager.get_all_build_ids()
+    all_build_info = [
+        {
+            **manager.get_build_info(build_id).to_dict(),
+            'build_id': build_id
+        }
+        for build_id in all_build_ids
+    ]
+
+    all_build_info_sorted = sorted(
+        all_build_info,
+        key=lambda x: x['time_created'],
+        reverse=True,
+    )
+
+    return (
+        jsonify(all_build_info_sorted),
+        200
+    )
+
+@app.route('/builds/<string:build_id>', methods=['GET'])
+def get_build_by_id(build_id):
+    if not manager.build_exists(build_id):
+        response = {
+            'error': f'build with id {build_id} does not exist.',
+        }
+        return jsonify(response), 200
+
+    response = {
+        **manager.get_build_info(build_id).to_dict(),
+        'build_id': build_id
+    }
+
+    return jsonify(response), 200
 
 if __name__ == '__main__':
     app.run()

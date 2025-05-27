@@ -8,7 +8,7 @@ cbs_basedir = os.environ.get('CBS_BASEDIR')
 
 if cbs_basedir:
     # Ensure base subdirectories exist
-    os.makedirs(os.path.join(cbs_basedir, 'builds'), exist_ok=True)
+    os.makedirs(os.path.join(cbs_basedir, 'artifacts'), exist_ok=True)
     os.makedirs(os.path.join(cbs_basedir, 'configs'), exist_ok=True)
 
     # Ensure remotes.json exists
