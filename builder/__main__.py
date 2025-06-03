@@ -45,7 +45,7 @@ if __name__ == "__main__":
     )
 
     manager = BuildManager(
-        outdir=os.path.join(basedir, 'builds'),
+        outdir=os.path.join(basedir, 'artifacts'),
         redis_host=os.getenv('CBS_REDIS_HOST', default='localhost'),
         redis_port=os.getenv('CBS_REDIS_PORT', default='6379')
     )
