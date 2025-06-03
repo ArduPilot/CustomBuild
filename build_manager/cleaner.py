@@ -71,11 +71,6 @@ class BuildArtifactsCleaner:
 
         stale_artifacts = []
         for f in dir_to_scan.iterdir():
-            # Exclude status.json
-            # To-do: move status.json out of this directory
-            if f.name == "status.json":
-                continue
-
             # Check if the current file/dir falls under any directories to keep
             keep_file = any(
                 f.is_relative_to(dir)
