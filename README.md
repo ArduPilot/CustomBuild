@@ -131,7 +131,7 @@ The default directory structure is established as follows:
 └── CustomBuild
     └── base
         ├── ardupilot            (used by the web component)
-        ├── builds
+        ├── artifacts
         ├── configs
         |   └── remotes.json     (auto-generated, see examples/remotes.json.sample)
         ├── secrets
@@ -139,7 +139,7 @@ The default directory structure is established as follows:
         ├── tmp
             └── ardupilot        (used by the builder component)
 ```
-The build artifacts are organized under the `base/builds` subdirectory.
+The build artifacts are organized under the `base/artifacts` subdirectory.
 
 ## Acknowledgements
 This project includes many valuable contributions made during the Google Summer of Code 2021. For more information, please see the [GSOC 2021 Blog Post](https://discuss.ardupilot.org/t/gsoc-2021-custom-firmware-builder/74946).
