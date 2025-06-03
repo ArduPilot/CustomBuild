@@ -2,13 +2,10 @@ import re
 import os
 import logging
 from utils import TaskRunner
-from pathlib import Path
 from .manager import (
     BuildManager as bm,
     BuildState
 )
-import json
-import time
 
 
 class BuildProgressUpdater:
@@ -40,7 +37,6 @@ class BuildProgressUpdater:
         if BuildProgressUpdater.__singleton:
             raise RuntimeError("BuildProgressUpdater must be a singleton.")
 
-        self.__ensure_status_json()
         # Set up a periodic task to update build progress every 3 seconds
         # TaskRunner will handle scheduling and running the task.
         tasks = (
@@ -280,65 +276,6 @@ class BuildProgressUpdater:
         for build_id in bm.get_singleton().get_all_build_ids():
             self.__update_build_state(build_id)
             self.__update_build_percent(build_id)
-
-        # Generate status.json after updating build progress.
-        self.__generate_status_json()
-
-    def get_status_json_path(self) -> str:
-        """
-        Path to status.json file.
-        """
-        return os.path.join(
-            bm.get_singleton().get_outdir(),
-            'status.json'
-        )
-
-    def __ensure_status_json(self) -> None:
-        """
-        Ensures status.json exists and is a valid JSON file.
-        """
-        p = Path(self.get_status_json_path())
-
-        if not p.exists():
-            # Ensure parent directory exists
-            Path.mkdir(p.parent, parents=True, exist_ok=True)
-
-            # write empty json dict
-            with open(p, 'w') as f:
-                f.write('{}')
-
-    def __generate_status_json(self) -> None:
-        """
-        Rewrite status.json file.
-        """
-        all_build_ids_sorted = sorted(
-            bm.get_singleton().get_all_build_ids(),
-            key=lambda x: bm.get_singleton().get_build_info(x).time_created,
-            reverse=True
-        )
-
-        self.logger.debug(f"All build ids sorted: {all_build_ids_sorted}")
-        # To-do: fix status.json structure,
-        # write a list instead of a dict to the file
-        builds_dict = {}
-        for build_id in all_build_ids_sorted:
-            build_info = bm.get_singleton().get_build_info(build_id)
-            build_age_min = int(time.time() - build_info.time_created) // 60
-            bi_json = {
-                'vehicle': build_info.vehicle.capitalize(),
-                'board': build_info.board,
-                'git_hash_short': build_info.git_hash[:8],
-                'features': ', '.join(build_info.selected_features),
-                'status': build_info.progress.state.name,
-                'progress': build_info.progress.percent,
-                'age': "%u:%02u" % ((build_age_min // 60), build_age_min % 60)
-            }
-            self.logger.debug(f"Build info json: {bi_json}")
-            builds_dict[build_id] = bi_json
-        self.logger.debug(f"Builds dict: {builds_dict}")
-
-        with open(self.get_status_json_path(), 'w') as f:
-            f.write(json.dumps(builds_dict))
 
     @staticmethod
     def get_singleton() -> "BuildProgressUpdater":
