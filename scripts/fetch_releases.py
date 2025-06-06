@@ -3,6 +3,7 @@ import optparse
 import os
 import re
 import requests
+from packaging.version import Version
 
 IGNORE_VERSIONS_BEFORE = '4.3'
 
@@ -107,7 +108,7 @@ def construct_vehicle_versions_list(vehicle, ap_source_subdir,
                 print(e)
                 continue
 
-            if v_num < IGNORE_VERSIONS_BEFORE:
+            if Version(v_num) < Version(IGNORE_VERSIONS_BEFORE):
                 print(f"{v_num} Version too old. Ignoring.")
                 continue
 
