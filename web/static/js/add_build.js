@@ -346,8 +346,9 @@ function onVehicleChange(new_vehicle) {
     pending_update_calls += 1;
     sendAjaxRequestForJsonResponse(request_url)
         .then((json_response) => {
-            let new_version = json_response[0].id;
             let all_versions = json_response;
+            all_versions = sortVersions(all_versions);
+            const new_version = all_versions[0].id;
             updateVersions(all_versions, new_version);
         })
         .catch((message) => {
@@ -603,15 +604,21 @@ function fillVehicles(vehicles, vehicle_to_select) {
     });
 }
 
-function fillVersions(versions, version_to_select) {
-    var output = document.getElementById('version_list');
-    output.innerHTML =  '<label for="version" class="form-label"><strong>Select Version</strong></label>' +
-                        '<select name="version" id="version" class="form-select" aria-label="Select Version" onchange="onVersionChange(this.value);"></select>';
-    versionList = document.getElementById("version");
+function compareVersionNums(a, b) {
+  const versionRegex = /(\d+)\.(\d+)\.(\d+)/;
 
+  const [, aMajor, aMinor, aPatch] = a.match(versionRegex).map(Number);
+  const [, bMajor, bMinor, bPatch] = b.match(versionRegex).map(Number);
+
+  if (aMajor !== bMajor) return bMajor - aMajor;
+  if (aMinor !== bMinor) return bMinor - aMinor;
+  return bPatch - aPatch;
+}
+
+function sortVersions(versions) {
     const order = {
-        "latest": 0,
-        "beta"  : 1,
+        "beta"  : 0,
+        "latest": 1,
         "stable": 2,
         "tag"   : 3,
     }
@@ -627,11 +634,30 @@ function fillVersions(versions, version_to_select) {
 
         // for numbered versions, do reverse sorting to make sure recent versions come first
         if (version_a_type == "stable" || version_b_type == "beta") {
-            return b.title.localeCompare(a.title);
+            const version_a_num = a.title.split(" ")[1];
+            const version_b_num = b.title.split(" ")[1];
+
+            return compareVersionNums(version_a_num, version_b_num);
         }
 
         return a.title.localeCompare(b.title);
     });
+
+    // Push the first stable version in the list to the top
+    const firstStableIndex = versions.findIndex(v => v.title.split(" ")[0].toLowerCase() === "stable");
+    if (firstStableIndex !== -1) {
+        const stableVersion = versions.splice(firstStableIndex, 1)[0];
+        versions.unshift(stableVersion);
+    }
+
+    return versions;
+}
+
+function fillVersions(versions, version_to_select) {
+    var output = document.getElementById('version_list');
+    output.innerHTML =  '<label for="version" class="form-label"><strong>Select Version</strong></label>' +
+                        '<select name="version" id="version" class="form-select" aria-label="Select Version" onchange="onVersionChange(this.value);"></select>';
+    versionList = document.getElementById("version");
 
     versions.forEach(version => {
         opt = document.createElement('option');
