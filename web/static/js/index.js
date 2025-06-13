@@ -94,7 +94,7 @@ function updateBuildsTable(builds) {
                                     <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="View log" onclick="launchLogModal('${build_info['build_id']}');">
                                         <i class="bi bi-file-text"></i>
                                     </button>
-                                    <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="Download build artifacts" onclick="window.location.href = '/builds/${build_info['build_id']}/artifacts/${build_info['build_id']}.tar.gz';">
+                                    <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="Download build artifacts" id="${build_info['build_id']}-download-btn" onclick="window.location.href='/builds/${build_info['build_id']}/artifacts/${build_info['build_id']}.tar.gz';">
                                         <i class="bi bi-download"></i>
                                     </button>
                                 </td>
@@ -189,3 +189,36 @@ function launchLogModal(build_id) {
     let logModal = bootstrap.Modal.getOrCreateInstance(logModalElement);
     logModal.show();
 }
+
+// Trigger auto-download if state changes from "RUNNING" to "SUCCESS"
+let previousState = null;
+let autoDownloadIntervalId = null;
+
+async function tryAutoDownload(buildId) {
+    if (!autoDownloadIntervalId) {
+        return;
+    }
+
+    try {
+        const apiUrl = `/builds/${buildId}`
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+
+        const currentState = data.progress?.state;
+
+        if (previousState === "RUNNING" && currentState === "SUCCESS") {
+            console.log("Build completed successfully. Starting download...");
+            document.getElementById(`${buildId}-download-btn`).click();
+        }
+
+        // Stop running if the build is in a terminal state
+        if (["FAILURE", "SUCCESS", "ERROR"].includes(currentState)) {
+            clearInterval(autoDownloadIntervalId);
+            return;
+        }
+
+        previousState = currentState;
+    } catch (err) {
+        console.error("Failed to fetch build status:", err);
+    }
+};
