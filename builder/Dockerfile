@@ -1,4 +1,4 @@
-FROM ardupilot/ardupilot-dev-chibios:v0.1.4
+FROM ardupilot/ardupilot-dev-chibios:v0.1.5
 
 RUN groupadd -g 999 ardupilot && \
     useradd -u 999 -g 999 -m ardupilot --shell /bin/false && \
