@@ -304,6 +304,7 @@ def get_deafults(vehicle_name, remote_name, commit_reference, board_name):
     # Heli is built on copter
     if vehicle_name == "Heli":
         vehicle_name = "Copter"
+        board_name += "-heli"
 
     commit_reference = base64.urlsafe_b64decode(commit_reference).decode()
     version_info = versions_fetcher.get_version_info(vehicle_name=vehicle_name, remote=remote_name, commit_ref=commit_reference)
