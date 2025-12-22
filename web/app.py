@@ -64,6 +64,7 @@ repo = ap_git.GitRepo.clone_if_needed(
     recurse_submodules=True,
 )
 
+vehicles_manager = metadata_manager.VehiclesManager()
 ap_src_metadata_fetcher = metadata_manager.APSourceMetadataFetcher(
     ap_repo=repo,
     caching_enabled=True,
@@ -82,7 +83,6 @@ manager = build_manager.BuildManager(
 )
 cleaner = build_manager.BuildArtifactsCleaner()
 progress_updater = build_manager.BuildProgressUpdater()
-vehicles_manager = metadata_manager.VehiclesManager.get_singleton()
 
 versions_fetcher.start()
 cleaner.start()
