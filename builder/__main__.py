@@ -5,6 +5,7 @@ from build_manager import BuildManager
 from builder import Builder
 from metadata_manager import (
     APSourceMetadataFetcher,
+    VehiclesManager,
 )
 from logging.config import dictConfig
 
@@ -43,6 +44,8 @@ if __name__ == "__main__":
     ap_metafetch = APSourceMetadataFetcher(
         ap_repo=repo
     )
+
+    vehicles_manager = VehiclesManager()
 
     manager = BuildManager(
         outdir=os.path.join(basedir, 'artifacts'),
