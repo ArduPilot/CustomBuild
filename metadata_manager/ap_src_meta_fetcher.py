@@ -396,7 +396,7 @@ class APSourceMetadataFetcher:
         return boards
 
     def get_boards(self, remote: str, commit_ref: str,
-                   vehicle: str) -> list:
+                   vehicle_id: str) -> list:
         """
         Returns a list of boards available for building at a
         specified commit for given vehicle.
@@ -404,7 +404,7 @@ class APSourceMetadataFetcher:
         Parameters:
             remote (str): The name of the remote repository.
             commit_ref (str): The commit reference to check out.
-            vehicle (str): The vehicle to get the boards list for.
+            vehicle_id (str): The vehicle ID to get the boards list for.
 
         Returns:
             list: A list of boards.
@@ -414,7 +414,7 @@ class APSourceMetadataFetcher:
             commit_ref=commit_ref,
         )
 
-        if vehicle == 'AP_Periph':
+        if vehicle_id == 'ap-periph':
             return periph_boards
 
         return non_periph_boards
