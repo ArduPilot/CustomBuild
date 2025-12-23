@@ -83,7 +83,7 @@ function updateBuildsTable(builds) {
                                 <td class="align-middle">${build_age}</td>
                                 <td class="align-middle"><a href="https://github.com/ArduPilot/ardupilot/commit/${build_info['git_hash']}">${build_info['git_hash'].substring(0,8)}</a></td>
                                 <td class="align-middle">${build_info['board']}</td>
-                                <td class="align-middle">${build_info['vehicle']}</td>
+                                <td class="align-middle">${build_info['vehicle_id']}</td>
                                 <td class="align-middle" id="${row_num}_features">
                                         ${features_string.substring(0, 100)}... 
                                         <span id="${row_num}_features_all" style="display:none;">${features_string}</span>

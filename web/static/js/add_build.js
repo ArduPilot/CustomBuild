@@ -315,7 +315,7 @@ function fetchVehicles() {
     sendAjaxRequestForJsonResponse(request_url)
         .then((json_response) => {
             let all_vehicles = json_response;
-            let new_vehicle = all_vehicles.find(vehicle => vehicle === "Copter") ? "Copter": all_vehicles[0];
+            let new_vehicle = all_vehicles.find(vehicle => vehicle.name === "Copter") ? "copter": all_vehicles[0].id;
             updateVehicles(all_vehicles, new_vehicle);
         })
         .catch((message) => {
@@ -328,20 +328,20 @@ function fetchVehicles() {
         });
 }
 
-function updateVehicles(all_vehicles, new_vehicle) {
+function updateVehicles(all_vehicles, new_vehicle_id) {
     let vehicle_element = document.getElementById('vehicle');
-    let old_vehicle = vehicle_element ? vehicle_element.value : '';
-    fillVehicles(all_vehicles, new_vehicle);
-    if (old_vehicle != new_vehicle) {
-        onVehicleChange(new_vehicle);
+    let old_vehicle_id = vehicle_element ? vehicle_element.value : '';
+    fillVehicles(all_vehicles, new_vehicle_id);
+    if (old_vehicle_id != new_vehicle_id) {
+        onVehicleChange(new_vehicle_id);
     }
 }
 
-function onVehicleChange(new_vehicle) {
+function onVehicleChange(new_vehicle_id) {
     // following elemets will be blocked (disabled) when we make the request
     let elements_to_block = ['vehicle', 'version', 'board', 'submit', 'reset_def', 'exp_col_button'];
     enableDisableElementsById(elements_to_block, false);
-    let request_url = '/get_versions/'+new_vehicle;
+    let request_url = '/get_versions/'+new_vehicle_id;
     setSpinnerToDiv('version_list', 'Fetching versions...');
     pending_update_calls += 1;
     sendAjaxRequestForJsonResponse(request_url)
@@ -374,12 +374,12 @@ function onVersionChange(new_version) {
     // following elemets will be blocked (disabled) when we make the request
     let elements_to_block = ['vehicle', 'version', 'board', 'submit', 'reset_def', 'exp_col_button'];
     enableDisableElementsById(elements_to_block, false);
-    let vehicle = document.getElementById("vehicle").value;
+    let vehicle_id = document.getElementById("vehicle").value;
     let arr = new_version.split("/");
     let remote = arr.shift();
     let commit_ref = arr.join("/");
     commit_ref = btoa(commit_ref).replace(/\//g, "_").replace(/\+/g, "-"); // url-safe base64 encoding
-    let request_url = `/boards_and_features/${vehicle}/${remote}/${commit_ref}`;
+    let request_url = `/boards_and_features/${vehicle_id}/${remote}/${commit_ref}`;
 
     // create a temporary container to set spinner inside it
     let temp_container = document.createElement('div');
@@ -590,16 +590,16 @@ function sendAjaxRequestForJsonResponse(url) {
     });
 }
 
-function fillVehicles(vehicles, vehicle_to_select) {
+function fillVehicles(vehicles, vehicle_id_to_select) {
     var output = document.getElementById('vehicle_list');
     output.innerHTML =  '<label for="vehicle" class="form-label"><strong>Select Vehicle</strong></label>' +
                         '<select name="vehicle" id="vehicle" class="form-select" aria-label="Select Vehicle" onchange="onVehicleChange(this.value);"></select>';
     vehicleList = document.getElementById("vehicle");
-    vehicles.forEach(vehicle_name => {
+    vehicles.forEach(vehicle => {
         opt = document.createElement('option');
-        opt.value = vehicle_name;
-        opt.innerHTML = vehicle_name;
-        opt.selected = (vehicle_name === vehicle_to_select);
+        opt.value = vehicle.id;
+        opt.innerHTML = vehicle.name;
+        opt.selected = (vehicle.id === vehicle_id_to_select);
         vehicleList.appendChild(opt);
     });
 }
