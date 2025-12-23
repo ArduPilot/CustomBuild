@@ -43,7 +43,7 @@ class BuildProgress:
 
 class BuildInfo:
     def __init__(self,
-                 vehicle: str,
+                 vehicle_id: str,
                  remote_info: RemoteInfo,
                  git_hash: str,
                  board: str,
@@ -54,14 +54,14 @@ class BuildInfo:
         The progress percentage is initially 0 and the state is PENDING.
 
         Parameters:
-            vehicle (str): The vehicle name or type associated with the build.
+            vehicle_id (str): The vehicle ID associated with the build.
             remote_info (RemoteInfo): The remote repository containing the
             source commit to build on.
             git_hash (str): The git commit hash to build on.
             board (str): Board to build for.
             selected_features (set): Set of features selected for the build.
         """
-        self.vehicle = vehicle
+        self.vehicle_id = vehicle_id
         self.remote_info = remote_info
         self.git_hash = git_hash
         self.board = board
@@ -74,7 +74,7 @@ class BuildInfo:
 
     def to_dict(self) -> dict:
         return {
-            'vehicle': self.vehicle,
+            'vehicle_id': self.vehicle_id,
             'remote_info': self.remote_info.to_dict(),
             'git_hash': self.git_hash,
             'board': self.board,
@@ -207,7 +207,7 @@ class BuildManager:
         h = hashlib.md5(
             f"{build_info}-{time.time_ns()}".encode()
         ).hexdigest()
-        bid = f"{build_info.vehicle}-{build_info.board}-{h}"
+        bid = f"{build_info.vehicle_id}-{build_info.board}-{h}"
         return bid
 
     def submit_build(self,
