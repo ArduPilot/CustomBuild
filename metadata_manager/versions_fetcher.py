@@ -129,25 +129,27 @@ class VersionsFetcher:
             None
         )
 
-    def get_versions_for_vehicle(self, vehicle_name: str) -> list[VersionInfo]:
+    def get_versions_for_vehicle(self, vehicle_id: str) -> list[VersionInfo]:
         """
         Return the list of dictionaries containing the info about the
         versions listed to be built for a particular vehicle.
 
         Parameters:
-            vehicle_name (str): the vehicle to fetch versions list for
+            vehicle_id (str): the vehicle ID to fetch versions list for
 
         Returns:
             list: VersionInfo objects for all versions allowed to be
                   built for the said vehicle.
 
         """
-        if vehicle_name is None:
-            raise ValueError("Vehicle is a required parameter.")
+        if vehicle_id is None:
+            raise ValueError("Vehicle ID is a required parameter.")
 
-        all_vehicles = vehm.get_singleton().get_all_vehicle_names_sorted()
-        if vehicle_name not in all_vehicles:
-            raise ValueError(f"Invalid vehicle name '{vehicle_name}'.")
+        vehicle = vehm.get_singleton().get_vehicle_by_id(vehicle_id)
+        if vehicle is None:
+            raise ValueError(f"Invalid vehicle ID '{vehicle_id}'.")
+
+        vehicle_name = vehicle.name
 
         versions_list = []
         for remote in self.__get_versions_metadata():
@@ -168,13 +170,13 @@ class VersionsFetcher:
                     ))
         return versions_list
 
-    def is_version_listed(self, vehicle_name: str, remote: str,
+    def is_version_listed(self, vehicle_id: str, remote: str,
                           commit_ref: str) -> bool:
         """
         Check if a version with given properties mentioned in remotes.json
 
         Parameters:
-            vehicle_name (str): Name of the vehicle for which version is listed
+            vehicle_id (str): ID of the vehicle for which version is listed
             remote (str): remote under which the version is listed
             commit_ref(str): commit reference for the version
 
@@ -183,8 +185,8 @@ class VersionsFetcher:
                   False otherwise
 
         """
-        if vehicle_name is None:
-            raise ValueError("vehicle_name is a required parameter.")
+        if vehicle_id is None:
+            raise ValueError("vehicle_id is a required parameter.")
 
         if remote is None:
             raise ValueError("Remote is a required parameter.")
@@ -195,16 +197,16 @@ class VersionsFetcher:
         return (remote, commit_ref) in [
             (version_info.remote, version_info.commit_ref)
             for version_info in
-            self.get_versions_for_vehicle(vehicle_name=vehicle_name)
+            self.get_versions_for_vehicle(vehicle_id=vehicle_id)
         ]
 
-    def get_version_info(self, vehicle_name: str, remote: str,
+    def get_version_info(self, vehicle_id: str, remote: str,
                          commit_ref: str) -> VersionInfo:
         """
         Find first version matching the given properties in remotes.json
 
         Parameters:
-            vehicle_name (str): Name of the vehicle for which version is listed
+            vehicle_id (str): ID of the vehicle for which version is listed
             remote (str): remote under which the version is listed
             commit_ref(str): commit reference for the version
 
@@ -217,7 +219,7 @@ class VersionsFetcher:
             (
                 version
                 for version in self.get_versions_for_vehicle(
-                    vehicle_name=vehicle_name
+                    vehicle_id=vehicle_id
                 )
                 if version.remote == remote and
                 version.commit_ref == commit_ref
