@@ -61,7 +61,7 @@ class Builder:
         build_info = bm.get_singleton().get_build_info(build_id)
         logpath = bm.get_singleton().get_build_log_path(build_id)
         with open(logpath, "a") as build_log:
-            build_log.write(f"Vehicle: {build_info.vehicle}\n"
+            build_log.write(f"Vehicle ID: {build_info.vehicle_id}\n"
                             f"Board: {build_info.board}\n"
                             f"Remote URL: {build_info.remote_info.url}\n"
                             f"git-sha: {build_info.git_hash}\n"
@@ -364,10 +364,13 @@ class Builder:
 
         logpath = bm.get_singleton().get_build_log_path(build_id)
         with open(logpath, "a") as build_log:
+            # Get vehicle object
+            vehicle = vehm.get_singleton().get_vehicle_by_id(build_info.vehicle_id)
+
             # Log initial configuration
             build_log.write(
                 "Setting vehicle to: "
-                f"{build_info.vehicle.capitalize()}\n"
+                f"{vehicle.name.capitalize()}\n"
             )
             build_log.flush()
 
@@ -407,9 +410,6 @@ class Builder:
             self.logger.info("Running build")
             build_log.write("Running build\n")
             build_log.flush()
-            vehicle = vehm.get_singleton().get_vehicle_from_name(
-                vehicle_name=build_info.vehicle
-            )
             build_command = vehicle.waf_build_command
             subprocess.run(
                 ["python3", "./waf", build_command],
