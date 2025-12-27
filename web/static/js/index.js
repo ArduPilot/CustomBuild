@@ -74,6 +74,10 @@ function updateBuildsTable(builds) {
         const features_string = build_info['selected_features'].join(', ')
         const build_age = timeAgo(build_info['time_created'])
 
+        const isSuccess = build_info['progress']['state'] === 'SUCCESS';
+        const downloadDisabled = !isSuccess ? 'disabled' : '';
+        const download_button_color = isSuccess ? 'primary' : 'secondary';
+
         table_body_html +=  `<tr>
                                 <td class="align-middle"><span class="badge text-bg-${status_color}">${build_info['progress']['state']}</span></td>
                                 <td class="align-middle">${build_age}</td>
@@ -94,7 +98,7 @@ function updateBuildsTable(builds) {
                                     <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="View log" onclick="launchLogModal('${build_info['build_id']}');">
                                         <i class="bi bi-file-text"></i>
                                     </button>
-                                    <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="Download build artifacts" id="${build_info['build_id']}-download-btn" onclick="window.location.href='/builds/${build_info['build_id']}/artifacts/${build_info['build_id']}.tar.gz';">
+                                    <button class="btn btn-md btn-outline-${download_button_color} m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="Download build artifacts" id="${build_info['build_id']}-download-btn" onclick="window.location.href='/builds/${build_info['build_id']}/artifacts/${build_info['build_id']}.tar.gz';" ${downloadDisabled}>
                                         <i class="bi bi-download"></i>
                                     </button>
                                 </td>
