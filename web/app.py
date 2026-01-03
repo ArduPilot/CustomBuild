@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-import base64
 from flask import Flask, render_template, request, send_from_directory, jsonify, redirect
 from threading import Thread
 import sys
@@ -134,21 +133,18 @@ def refresh_remotes():
 def generate():
     try:
         version = request.form['version']
-        remote_name, commit_ref = version.split('/', 1)
-        remote_info = versions_fetcher.get_remote_info(remote_name)
-
-        if remote_info is None:
-            raise Exception(f"Remote {remote_name} is not whitelisted.")
-
         vehicle = request.form['vehicle']
+
         version_info = versions_fetcher.get_version_info(
             vehicle_id=vehicle,
-            remote=remote_name,
-            commit_ref=commit_ref
+            version_id=version
         )
 
         if version_info is None:
-            raise Exception("Commit reference invalid or not listed to be built for given vehicle for remote")
+            raise Exception("Version invalid or not listed to be built for given vehicle")
+
+        remote_name = version_info.remote_info.name
+        commit_ref = version_info.commit_ref
 
         board = request.form['board']
         boards_at_commit = ap_src_metadata_fetcher.get_boards(
@@ -177,7 +173,7 @@ def generate():
 
         build_info = build_manager.BuildInfo(
             vehicle_id=vehicle,
-            remote_info=remote_info,
+            remote_info=version_info.remote_info,
             git_hash=git_hash,
             board=board,
             selected_features=chosen_defines
@@ -231,14 +227,20 @@ def download_file(build_id, name):
     app.logger.info('Downloading %s/%s' % (path, name))
     return send_from_directory(path, name, as_attachment=False)
 
-@app.route("/boards_and_features/<string:vehicle_id>/<string:remote_name>/<string:commit_reference>", methods=['GET'])
-def boards_and_features(vehicle_id, remote_name, commit_reference):
-    commit_reference = base64.urlsafe_b64decode(commit_reference).decode()
+@app.route("/boards_and_features/<string:vehicle_id>/<string:version_id>", methods=['GET'])
+def boards_and_features(vehicle_id, version_id):
+    version_info = versions_fetcher.get_version_info(
+        vehicle_id=vehicle_id,
+        version_id=version_id
+    )
 
-    if not versions_fetcher.is_version_listed(vehicle_id=vehicle_id, remote=remote_name, commit_ref=commit_reference):
-        return "Bad request. Commit reference not allowed to build for the vehicle.", 400
+    if version_info is None:
+        return "Bad request. Version not allowed to build for the vehicle.", 400
 
-    app.logger.info('Board list and build options requested for %s %s %s' % (vehicle_id, remote_name, commit_reference))
+    remote_name = version_info.remote_info.name
+    commit_reference = version_info.commit_ref
+
+    app.logger.info('Board list and build options requested for %s %s' % (vehicle_id, version_id))
     # getting board list for the branch
     with repo.get_checkout_lock():
         boards = ap_src_metadata_fetcher.get_boards(
@@ -284,13 +286,12 @@ def get_versions(vehicle_id):
     versions = list()
     for version_info in versions_fetcher.get_versions_for_vehicle(vehicle_id=vehicle_id):
         if version_info.release_type == "latest":
-            title = f"Latest ({version_info.remote})"
+            title = f"Latest ({version_info.remote_info.name})"
         else:
-            title = f"{version_info.release_type} {version_info.version_number} ({version_info.remote})"
-        id = f"{version_info.remote}/{version_info.commit_ref}"
+            title = f"{version_info.release_type} {version_info.version_number} ({version_info.remote_info.name})"
         versions.append({
-            "title" :   title,
-            "id"    :   id,
+            "title": title,
+            "id": version_info.version_id,
         })
 
     return jsonify(sorted(versions, key=lambda x: x['title']))
@@ -303,21 +304,22 @@ def get_vehicles():
     ]
     return jsonify(sorted(vehicles, key=lambda x: x['id']))
 
-@app.route("/get_defaults/<string:vehicle_id>/<string:remote_name>/<string:commit_reference>/<string:board_name>", methods = ['GET'])
-def get_deafults(vehicle_id, remote_name, commit_reference, board_name):
+@app.route("/get_defaults/<string:vehicle_id>/<string:version_id>/<string:board_name>", methods = ['GET'])
+def get_deafults(vehicle_id, version_id, board_name):
     vehicle = vehicles_manager.get_vehicle_by_id(vehicle_id)
     if vehicle is None:
         return "Invalid vehicle ID", 400
-    
     # Heli is built on copter boards with -heli suffix
     if vehicle_id == "heli":
         board_name += "-heli"
 
-    commit_reference = base64.urlsafe_b64decode(commit_reference).decode()
-    version_info = versions_fetcher.get_version_info(vehicle_id=vehicle_id, remote=remote_name, commit_ref=commit_reference)
+    version_info = versions_fetcher.get_version_info(
+        vehicle_id=vehicle_id,
+        version_id=version_id
+    )
 
     if version_info is None:
-        return "Bad request. Commit reference %s is not allowed for builds for the %s for %s remote." % (commit_reference, vehicle.name, remote_name), 400
+        return "Bad request. Version is not allowed for builds for the %s." % vehicle.name, 400
 
     artifacts_dir = version_info.ap_build_artifacts_url
 

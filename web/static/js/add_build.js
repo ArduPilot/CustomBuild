@@ -375,11 +375,8 @@ function onVersionChange(new_version) {
     let elements_to_block = ['vehicle', 'version', 'board', 'submit', 'reset_def', 'exp_col_button'];
     enableDisableElementsById(elements_to_block, false);
     let vehicle_id = document.getElementById("vehicle").value;
-    let arr = new_version.split("/");
-    let remote = arr.shift();
-    let commit_ref = arr.join("/");
-    commit_ref = btoa(commit_ref).replace(/\//g, "_").replace(/\+/g, "-"); // url-safe base64 encoding
-    let request_url = `/boards_and_features/${vehicle_id}/${remote}/${commit_ref}`;
+    let version_id = new_version;
+    let request_url = `/boards_and_features/${vehicle_id}/${version_id}`;
 
     // create a temporary container to set spinner inside it
     let temp_container = document.createElement('div');
@@ -431,15 +428,11 @@ function fetchAndUpdateDefaults() {
     elements_to_block = ['reset_def'];
     document.getElementById('reset_def').innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Fetching defaults';
     enableDisableElementsById(elements_to_block, false);
-    let version = document.getElementById('version').value;
+    let version_id = document.getElementById('version').value;
     let vehicle = document.getElementById('vehicle').value;
     let board = document.getElementById('board').value;
 
-    let arr = version.split("/");
-    let remote = arr.shift();
-    let commit_ref = arr.join("/");
-    commit_ref = btoa(commit_ref).replace(/\//g, "_").replace(/\+/g, "-"); // url-safe base64 encoding
-    let request_url = '/get_defaults/'+vehicle+'/'+remote+'/'+commit_ref+'/'+board;
+    let request_url = '/get_defaults/'+vehicle+'/'+version_id+'/'+board;
     sendAjaxRequestForJsonResponse(request_url)
         .then((json_response) => {
             Features.updateDefaults(json_response);
