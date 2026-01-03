@@ -3,6 +3,7 @@ import os
 import ap_git
 import json
 import jsonschema
+import hashlib
 from pathlib import Path
 from threading import Lock
 from utils import TaskRunner
@@ -14,16 +15,26 @@ class VersionInfo:
     Class to wrap version info properties.
     """
     def __init__(self,
-                 remote: str,
+                 remote_info: 'RemoteInfo',
                  commit_ref: str,
                  release_type: str,
                  version_number: str,
                  ap_build_artifacts_url) -> None:
-        self.remote = remote
+        self.remote_info = remote_info
         self.commit_ref = commit_ref
         self.release_type = release_type
         self.version_number = version_number
         self.ap_build_artifacts_url = ap_build_artifacts_url
+
+        # Generate version_id as remote-sanitized_commit_ref-hash
+        # Commit ref is sanitized for URL safety by replacing '/' with '-'
+        # Hash is used to ensure unique ID after sanitization of commit_ref,
+        # as different commit refs may become identical after replacing '/'
+        commit_ref_sanitized = commit_ref.replace('/', '-')
+        commit_ref_hash = hashlib.md5(commit_ref.encode()).hexdigest()[:8]
+        self.version_id = (
+            f"{remote_info.name}-{commit_ref_sanitized}-{commit_ref_hash}"
+        )
 
 
 class RemoteInfo:
@@ -153,13 +164,17 @@ class VersionsFetcher:
 
         versions_list = []
         for remote in self.__get_versions_metadata():
+            remote_info = RemoteInfo(
+                name=remote.get('name', None),
+                url=remote.get('url', None)
+            )
             for vehicle in remote['vehicles']:
                 if vehicle['name'] != vehicle_name:
                     continue
 
                 for release in vehicle['releases']:
                     versions_list.append(VersionInfo(
-                        remote=remote.get('name', None),
+                        remote_info=remote_info,
                         commit_ref=release.get('commit_reference', None),
                         release_type=release.get('release_type', None),
                         version_number=release.get('version_number', None),
@@ -170,15 +185,13 @@ class VersionsFetcher:
                     ))
         return versions_list
 
-    def is_version_listed(self, vehicle_id: str, remote: str,
-                          commit_ref: str) -> bool:
+    def is_version_listed(self, vehicle_id: str, version_id: str) -> bool:
         """
         Check if a version with given properties mentioned in remotes.json
 
         Parameters:
             vehicle_id (str): ID of the vehicle for which version is listed
-            remote (str): remote under which the version is listed
-            commit_ref(str): commit reference for the version
+            version_id (str): version ID
 
         Returns:
             bool: True if the said version is mentioned in remotes.json,
@@ -188,27 +201,23 @@ class VersionsFetcher:
         if vehicle_id is None:
             raise ValueError("vehicle_id is a required parameter.")
 
-        if remote is None:
-            raise ValueError("Remote is a required parameter.")
+        if version_id is None:
+            raise ValueError("version_id is a required parameter.")
 
-        if commit_ref is None:
-            raise ValueError("Commit reference is a required parameter.")
-
-        return (remote, commit_ref) in [
-            (version_info.remote, version_info.commit_ref)
+        return version_id in [
+            version_info.version_id
             for version_info in
             self.get_versions_for_vehicle(vehicle_id=vehicle_id)
         ]
 
-    def get_version_info(self, vehicle_id: str, remote: str,
-                         commit_ref: str) -> VersionInfo:
+    def get_version_info(self, vehicle_id: str,
+                         version_id: str) -> VersionInfo:
         """
         Find first version matching the given properties in remotes.json
 
         Parameters:
             vehicle_id (str): ID of the vehicle for which version is listed
-            remote (str): remote under which the version is listed
-            commit_ref(str): commit reference for the version
+            version_id (str): version ID
 
         Returns:
             VersionInfo: Object for the version matching the properties,
@@ -221,8 +230,7 @@ class VersionsFetcher:
                 for version in self.get_versions_for_vehicle(
                     vehicle_id=vehicle_id
                 )
-                if version.remote == remote and
-                version.commit_ref == commit_ref
+                if version.version_id == version_id
             ),
             None
         )
