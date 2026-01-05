@@ -339,13 +339,20 @@ def get_deafults(vehicle_id, version_id, board_name):
 @app.route('/builds', methods=['GET'])
 def get_all_builds():
     all_build_ids = manager.get_all_build_ids()
-    all_build_info = [
-        {
-            **manager.get_build_info(build_id).to_dict(),
-            'build_id': build_id
-        }
-        for build_id in all_build_ids
-    ]
+    all_build_info = []
+
+    for build_id in all_build_ids:
+        try:
+            build_info = manager.get_build_info(build_id)
+            if build_info is not None:
+                all_build_info.append({
+                    **build_info.to_dict(),
+                    'build_id': build_id
+                })
+        except Exception as e:
+            app.logger.error(f"Error getting build info for {build_id}: {type(e).__name__}: {e}")
+            # Skip this build if there's an error
+            continue 
 
     all_build_info_sorted = sorted(
         all_build_info,
@@ -360,6 +367,10 @@ def get_all_builds():
 
 @app.route('/builds/<string:build_id>', methods=['GET'])
 def get_build_by_id(build_id):
+    """
+    Get complete build information for a specific build.
+    Returns all build details including features, remote info, etc.
+    """
     if not manager.build_exists(build_id):
         response = {
             'error': f'build with id {build_id} does not exist.',
@@ -372,6 +383,40 @@ def get_build_by_id(build_id):
     }
 
     return jsonify(response), 200
+
+@app.route('/api/builds/<string:build_id>/status', methods=['GET'])
+def get_build_status(build_id):
+    """
+    Lightweight API endpoint for frontend progress polling.
+    Returns only essential status fields to reduce payload size.
+    This is called periodically by the JavaScript progress updater.
+    """
+    try:
+        if not manager.build_exists(build_id):
+            return jsonify({'error': f'Build {build_id} not found'}), 404
+        
+        build_info = manager.get_build_info(build_id)
+        if build_info is None:
+            app.logger.warning(f"Build {build_id} exists but info is None")
+            return jsonify({'error': f'Build {build_id} not found'}), 404
+        
+        # Return build information including current state
+        response = {
+            'build_id': build_id,
+            'state': build_info.progress.state.name,
+            'percent': build_info.progress.percent,
+            'time_created': build_info.time_created,
+            'time_started_running': getattr(build_info, 'time_started_running', None),
+            'vehicle_id': build_info.vehicle_id,
+            'board': build_info.board,
+            'error_message': getattr(build_info, 'error_message', None),
+        }
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching build status for {build_id}: {type(e).__name__}: {e}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run()

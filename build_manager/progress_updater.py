@@ -6,7 +6,9 @@ from .manager import (
     BuildManager as bm,
     BuildState
 )
-
+import time
+# Timeout constant - 15 minutes 
+from common.config import BUILD_TIMEOUT_SECONDS
 
 class BuildProgressUpdater:
     """
@@ -206,6 +208,9 @@ class BuildProgressUpdater:
         elif current_state == BuildState.ERROR:
             # Keep existing percentage
             pass
+        elif current_state == BuildState.TIMED_OUT:
+            # Keep existing percentage for timed out builds
+            pass
         else:
             raise Exception("Unhandled BuildState.")
 
@@ -219,6 +224,73 @@ class BuildProgressUpdater:
                 percent=new_percent
             )
 
+    def __check_build_timeout(self, build_id: str) -> bool:
+        """
+        Check if a running build has exceeded the timeout threshold.
+    
+        This provides a backup timeout mechanism in addition to the per-subprocess
+        timeouts in builder.py. It measures total build duration from when the 
+        build entered RUNNING state, not from submission/addition time.
+
+        Parameters:
+            build_id (str): The unique ID of the build to check.
+            
+        Returns:
+            bool: True if the build has timed out, False otherwise.
+        """
+        build_info = bm.get_singleton().get_build_info(build_id=build_id)
+        if build_info is None:
+            self.logger.error(f"No build found with ID {build_id}")
+            return False
+        
+        # Only check timeout for RUNNING builds
+        if build_info.progress.state != BuildState.RUNNING:
+            return False
+        
+        # Check if we have a start time for RUNNING state
+        time_started_running: float | None = getattr(build_info, 'time_started_running', None)
+        if time_started_running is None:
+            # Build is RUNNING but we don't have a start time yet
+            # This can happen briefly during state transition
+            self.logger.debug(
+                f"Build {build_id} is RUNNING but time_started_running is None"
+            )
+            return False
+        
+        # Calculate elapsed time since build started running
+        current_time = time.time()
+        elapsed_time = current_time - time_started_running
+        
+        self.logger.debug(
+            f"Build {build_id}: elapsed time = {elapsed_time:.0f}s, "
+            f"timeout threshold = {BUILD_TIMEOUT_SECONDS}s"
+        )
+        
+        # Check if build has exceeded timeout
+        if elapsed_time > BUILD_TIMEOUT_SECONDS:
+            self.logger.warning(
+                f"Build {build_id} has timed out after {elapsed_time:.0f} seconds "
+                f"(threshold: {BUILD_TIMEOUT_SECONDS}s)"
+            )
+            
+            # Mark the build as timed out
+            # Note: The builder worker may still be running a subprocess.
+            # The worker will detect the TIMED_OUT state when it checks
+            # between build steps and will terminate gracefully.
+            error_message = (
+                f"Build exceeded {BUILD_TIMEOUT_SECONDS // 60} minute timeout. "
+                f"Build ran for: {elapsed_time / 60:.1f} minutes."
+            )
+            
+            bm.get_singleton().mark_build_timed_out(
+                build_id=build_id,
+                error_message=error_message
+            )
+            
+            return True
+        
+        return False
+
     def __update_build_state(self, build_id: str) -> None:
         """
         Update the state of a given build.
@@ -228,6 +300,12 @@ class BuildProgressUpdater:
         if build_info is None:
             raise ValueError(f"No build found with ID {build_id}")
 
+        # Check for timeout first (for RUNNING builds)
+        if self.__check_build_timeout(build_id):
+            # Build has timed out, no need to check other state transitions
+            self.logger.info(f"Build {build_id} marked as TIMED_OUT")
+            return
+        
         current_state = build_info.progress.state
         new_state = current_state
         self.logger.debug(
@@ -251,6 +329,9 @@ class BuildProgressUpdater:
             pass
         elif current_state == BuildState.ERROR:
             # ERROR is a conclusive state
+            pass
+        elif current_state == BuildState.TIMED_OUT:
+            # TIMED_OUT is a conclusive state
             pass
         else:
             raise Exception("Unhandled BuildState.")

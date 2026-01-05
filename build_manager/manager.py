@@ -15,6 +15,7 @@ class BuildState(Enum):
     SUCCESS = 2
     FAILURE = 3
     ERROR = 4
+    TIMED_OUT = 5
 
 
 class BuildProgress:
@@ -71,6 +72,8 @@ class BuildInfo:
             percent=0
         )
         self.time_created = time.time()
+        self.time_started_running = None # when build state becomes RUNNING
+        self.error_message = None 
 
     def to_dict(self) -> dict:
         return {
@@ -81,6 +84,8 @@ class BuildInfo:
             'selected_features': list(self.selected_features),
             'progress': self.progress.to_dict(),
             'time_created': self.time_created,
+            'time_started_running': getattr(self, 'time_started_running', None),
+            'error_message': getattr(self, 'error_message', None),
         }
 
 
@@ -369,7 +374,7 @@ class BuildManager:
                                     build_id: str,
                                     new_state: BuildState) -> None:
         """
-        Update the build's state (e.g., PENDING, RUNNING, SUCCESS, FAILURE).
+        Update the build's state (e.g., PENDING, RUNNING, SUCCESS, FAILURE, TIMED_OUT).
 
         Parameters:
             build_id (str): The ID of the build to update.
@@ -379,6 +384,15 @@ class BuildManager:
 
         if build_info is None:
             raise ValueError(f"Build with id {build_id} not found.")
+
+        old_state = build_info.progress.state
+
+        if old_state != BuildState.RUNNING and new_state == BuildState.RUNNING:
+            build_info.time_started_running = time.time()
+            self.logger.info(
+                f"Build {build_id} transitioned to RUNNING state at "
+                f"{build_info.time_started_running}"
+            )
 
         build_info.progress.state = new_state
         self.__update_build_info(
@@ -450,6 +464,46 @@ class BuildManager:
             self.get_build_artifacts_dir_path(build_id),
             f"{build_id}.tar.gz"
         )
+    
+    def mark_build_timed_out(self, build_id: str, error_message: str = None) -> None:
+        """
+        Mark a build as timed out and update its state.
+        
+        Parameters:
+            build_id (str): The ID of the build that timed out.
+            error_message (str): Optional error message to include.
+        """
+        self.logger.warning(f"Marking build {build_id} as TIMED_OUT")
+        
+        try:
+            build_info = self.get_build_info(build_id=build_id)
+            if build_info is None:
+                self.logger.error(f"Cannot mark build {build_id} as timed out - build not found")
+                return
+            
+            # Don't override terminal states (SUCCESS/FAILURE already set)
+            if build_info.progress.state in [BuildState.SUCCESS, BuildState.FAILURE]:
+                self.logger.warning(
+                    f"Build {build_id} already in terminal state "
+                    f"{build_info.progress.state.name}, not marking as TIMED_OUT"
+                )
+                return
+            # Update the build state to TIMED_OUT
+            # Keeping last known progress instead of resetting to 0
+            build_info.progress.state = BuildState.TIMED_OUT
+            
+            # Store error message if provided
+            if error_message:
+                build_info.error_message = error_message
+                self.logger.warning(f"Build {build_id} timeout error: {error_message}")
+            
+            # Update the build info in Redis
+            self.__update_build_info(build_id=build_id, build_info=build_info)
+            
+            self.logger.info(f"Successfully marked build {build_id} as TIMED_OUT")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to mark build {build_id} as timed out: {e}")
 
     @staticmethod
     def get_singleton() -> "BuildManager":

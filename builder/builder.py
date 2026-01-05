@@ -1,6 +1,7 @@
 import ap_git
 from build_manager import (
     BuildManager as bm,
+    BuildState,
 )
 import subprocess
 import os
@@ -14,6 +15,8 @@ from metadata_manager import (
 )
 from pathlib import Path
 
+# Build timeout constant - 15 minutes 
+from common.config import BUILD_TIMEOUT_SECONDS
 
 class Builder:
     """
@@ -59,6 +62,12 @@ class Builder:
             build_id (str): Unique identifier for the build.
         """
         build_info = bm.get_singleton().get_build_info(build_id)
+
+        # Check if build info exists
+        if build_info is None:
+            self.logger.error(f"Build info not found for build_id: {build_id}")
+            raise RuntimeError(f"Build info not found for build_id: {build_id}")
+
         logpath = bm.get_singleton().get_build_log_path(build_id)
         with open(logpath, "a") as build_log:
             build_log.write(f"Vehicle ID: {build_info.vehicle_id}\n"
@@ -267,6 +276,12 @@ class Builder:
         self.logger.info(f"Generated {archive_path}.")
 
     def __clean_up_build_workdir(self, build_id: str) -> None:
+        """
+        Removes the temporary build working directory.
+        
+        Parameters:
+            build_id (str): Unique identifier for the build.
+        """
         shutil.rmtree(self.__get_path_to_build_dir(build_id))
 
     def __process_build(self, build_id: str) -> None:
@@ -277,14 +292,32 @@ class Builder:
         Parameters:
             build_id (str): Unique identifier for the build.
         """
-        self.__create_build_workdir(build_id)
-        self.__create_build_artifacts_dir(build_id)
-        self.__log_build_info(build_id)
-        self.__provision_build_source(build_id)
-        self.__generate_extrahwdef(build_id)
-        self.__build(build_id)
-        self.__generate_archive(build_id)
-        self.__clean_up_build_workdir(build_id)
+        try: 
+            self.__create_build_workdir(build_id)
+            self.__create_build_artifacts_dir(build_id)
+            self.__log_build_info(build_id)
+            self.__provision_build_source(build_id)
+            self.__generate_extrahwdef(build_id)
+            self.__build(build_id)
+
+            # Only generate archive if NOT timed out
+            build_info = bm.get_singleton().get_build_info(build_id)
+            if build_info and build_info.progress.state != BuildState.TIMED_OUT:
+                self.__generate_archive(build_id)
+            else:
+                self.logger.info(f"Skipping archive for timed out build {build_id}")
+            
+            self.__clean_up_build_workdir(build_id)
+
+        except RuntimeError as e:
+            # Handle timeout or other build errors
+            self.logger.error(f"Build {build_id} failed: {e}")
+            # Clean up even if build failed
+            try:
+                self.__clean_up_build_workdir(build_id)
+            except Exception as cleanup_error:
+                self.logger.error(f"Failed to cleanup build {build_id}: {cleanup_error}")
+            # Don't re-raise, let the worker continue with next build
 
     def __get_path_to_build_dir(self, build_id: str) -> str:
         """
@@ -328,7 +361,34 @@ class Builder:
             self.__get_path_to_build_dir(build_id),
             "build_src"
         )
+    def __check_if_timed_out(self, build_id: str) -> bool:
+        """
+        Check if this build has been marked as TIMED_OUT by the progress updater.
 
+        This is checked between build steps to allow early termination if the
+        progress updater has marked the build as timed out.
+        
+        Parameters:
+            build_id (str): The build ID to check
+            
+        Returns:
+            bool: True if build is marked as TIMED_OUT
+        """
+        build_info = bm.get_singleton().get_build_info(build_id)
+        if build_info is None:
+            self.logger.error(f"Build info not found for {build_id}")
+            return False
+        
+        # Check if state is TIMED_OUT
+        if build_info.progress.state == BuildState.TIMED_OUT:
+            self.logger.warning(
+                f"Build {build_id} has been marked as TIMED_OUT. "
+                "Stopping build process."
+            )
+            return True
+        
+        return False
+    
     def __build(self, build_id: str) -> None:
         """
         Executes the actual build process for a build.
@@ -375,51 +435,112 @@ class Builder:
             build_log.flush()
 
             # Run the build steps
-            self.logger.info("Running waf configure")
-            build_log.write("Running waf configure\n")
-            build_log.flush()
-            subprocess.run(
-                [
-                    "python3",
-                    "./waf",
-                    "configure",
-                    "--board",
-                    build_info.board,
-                    "--out",
-                    self.__get_path_to_build_dir(build_id),
-                    "--extra-hwdef",
-                    self.__get_path_to_extra_hwdef(build_id),
-                ],
-                cwd=self.__get_path_to_build_src(build_id),
-                stdout=build_log,
-                stderr=build_log,
-                shell=False,
-            )
+            try:
+                # Check timeout before configure
+                if self.__check_if_timed_out(build_id):
+                    raise RuntimeError("Build marked as TIMED_OUT before configure")
+                
+                self.logger.info("Running waf configure")
+                build_log.write("Running waf configure\n")
+                build_log.flush()
+                subprocess.run(
+                    [
+                        "python3",
+                        "./waf",
+                        "configure",
+                        "--board",
+                        build_info.board,
+                        "--out",
+                        self.__get_path_to_build_dir(build_id),
+                        "--extra-hwdef",
+                        self.__get_path_to_extra_hwdef(build_id),
+                    ],
+                    cwd=self.__get_path_to_build_src(build_id),
+                    stdout=build_log,
+                    stderr=build_log,
+                    shell=False,
+                    timeout=BUILD_TIMEOUT_SECONDS, 
+                    check=True,
+                )
 
-            self.logger.info("Running clean")
-            build_log.write("Running clean\n")
-            build_log.flush()
-            subprocess.run(
-                ["python3", "./waf", "clean"],
-                cwd=self.__get_path_to_build_src(build_id),
-                stdout=build_log,
-                stderr=build_log,
-                shell=False,
-            )
+                # Check timeout after configure
+                if self.__check_if_timed_out(build_id):
+                    raise RuntimeError("Build marked as TIMED_OUT after configure")
+                
+                self.logger.info("Running clean")
+                build_log.write("Running clean\n")
+                build_log.flush()
+                subprocess.run(
+                    ["python3", "./waf", "clean"],
+                    cwd=self.__get_path_to_build_src(build_id),
+                    stdout=build_log,
+                    stderr=build_log,
+                    shell=False,
+                    timeout=BUILD_TIMEOUT_SECONDS,
+                    check=True,
+                )
 
-            self.logger.info("Running build")
-            build_log.write("Running build\n")
-            build_log.flush()
-            build_command = vehicle.waf_build_command
-            subprocess.run(
-                ["python3", "./waf", build_command],
-                cwd=self.__get_path_to_build_src(build_id),
-                stdout=build_log,
-                stderr=build_log,
-                shell=False,
-            )
-            build_log.write("done build\n")
-            build_log.flush()
+                # Check timeout after clean
+                if self.__check_if_timed_out(build_id):
+                    raise RuntimeError("Build marked as TIMED_OUT after clean")
+
+                self.logger.info("Running build")
+                build_log.write("Running build\n")
+                build_log.flush()
+                build_command = vehicle.waf_build_command
+                subprocess.run(
+                    ["python3", "./waf", build_command],
+                    cwd=self.__get_path_to_build_src(build_id),
+                    stdout=build_log,
+                    stderr=build_log,
+                    shell=False,
+                    timeout=BUILD_TIMEOUT_SECONDS,
+                    check=True,
+                )
+                # Check timeout after build (before marking success)
+                if self.__check_if_timed_out(build_id):
+                    raise RuntimeError("Build marked as TIMED_OUT after build completed")
+                
+                build_log.write("done build\n")
+                build_log.flush()
+            
+            except subprocess.TimeoutExpired as e:
+                # Build timed out - handle gracefully
+                error_msg = f"Build timed out after {BUILD_TIMEOUT_SECONDS // 60} minutes"
+                self.logger.error(f"Build {build_id}: {error_msg}")
+                
+                build_log.write(f"\n{'='*50}\n")
+                build_log.write(f"ERROR: {error_msg}\n")
+                build_log.write(f"Timeout occurred during subprocess execution.\n")
+                build_log.write(f"{'='*50}\n")
+                build_log.flush()
+                
+                # Kill the process if it's still running
+                if hasattr(e, 'process') and e.process:
+                    try:
+                        e.process.kill()
+                        self.logger.info(f"Killed timed-out process for build {build_id}")
+                    except Exception as kill_error:
+                        self.logger.error(f"Failed to kill process: {kill_error}")
+                
+                # Mark as timed out if not already
+                current_info = bm.get_singleton().get_build_info(build_id)
+                if current_info and current_info.progress.state != BuildState.TIMED_OUT:
+                    bm.get_singleton().mark_build_timed_out(build_id, error_msg)
+                
+                raise RuntimeError(error_msg) from e
+            
+            except RuntimeError as e:
+                # Build was marked as timed out by progress updater
+                if "TIMED_OUT" in str(e):
+                    self.logger.warning(f"Build {build_id} stopped due to timeout")
+                    build_log.write(f"\n{'='*50}\n")
+                    build_log.write(f"Build stopped: {str(e)}\n")
+                    build_log.write(f"{'='*50}\n")
+                    build_log.flush()
+                    raise
+                else:
+                    raise
 
     def run(self) -> None:
         """
