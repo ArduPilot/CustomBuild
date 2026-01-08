@@ -72,7 +72,7 @@ class BuildInfo:
             percent=0
         )
         self.time_created = time.time()
-        self.time_started_running = None # when build state becomes RUNNING
+        self.time_started = None
         self.error_message = None 
 
     def to_dict(self) -> dict:
