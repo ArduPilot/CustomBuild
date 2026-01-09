@@ -244,15 +244,24 @@ class BuildManager:
             build_id.encode()
         )
 
-    def get_next_build_id(self) -> str:
+    def get_next_build_id(self, timeout: int = 0) -> str:
         """
         Block until the next build ID is available in the task queue,
-        then return it.
+        then return it. If timeout is specified and no build is available
+        within that time, returns None.
+
+        Parameters:
+            timeout (int): Maximum time to wait in seconds. 0 means wait
+                          indefinitely.
 
         Returns:
-            str: The ID of the next build to be processed.
+            str: The ID of the next build to be processed, or None if timeout.
         """
-        _, build_id_encoded = self.__redis_client.blpop(self.__task_queue)
+        result = self.__redis_client.blpop(self.__task_queue, timeout=timeout)
+        if result is None:
+            # Timeout occurred
+            return None
+        _, build_id_encoded = result
         build_id = build_id_encoded.decode()
         self.logger.debug(f"Next build id: {build_id}")
         return build_id
