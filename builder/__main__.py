@@ -1,5 +1,7 @@
 import os
 import sys
+import signal
+import logging
 from ap_git import GitRepo
 from build_manager import BuildManager
 from builder import Builder
@@ -33,6 +35,8 @@ dictConfig({
 })
 
 if __name__ == "__main__":
+    logger = logging.getLogger(__name__)
+
     basedir = os.path.abspath(os.getenv("CBS_BASEDIR"))
     workdir = os.path.abspath('/workdir')
 
@@ -57,4 +61,16 @@ if __name__ == "__main__":
         workdir=workdir,
         source_repo=repo,
     )
+
+    # Set up signal handlers for graceful shutdown
+    def signal_handler(signum, frame):
+        signame = signal.Signals(signum).name
+        logger.info(f"Received {signame}, initiating graceful shutdown...")
+        builder.shutdown()
+
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+
+    logger.info("Builder starting...")
     builder.run()
+    logger.info("Builder exited gracefully")

@@ -50,6 +50,7 @@ class Builder:
         self.__workdir_parent = workdir
         self.__master_repo = source_repo
         self.logger = logging.getLogger(__name__)
+        self.__shutdown_requested = False
 
     def __log_build_info(self, build_id: str) -> None:
         """
@@ -421,10 +422,32 @@ class Builder:
             build_log.write("done build\n")
             build_log.flush()
 
+    def shutdown(self) -> None:
+        """
+        Request graceful shutdown of the builder.
+        """
+        self.logger.info("Shutdown requested")
+        self.__shutdown_requested = True
+
     def run(self) -> None:
         """
-        Continuously processes builds in the queue until termination.
+        Continuously processes builds in the queue until shutdown is requested.
+        Completes any build that has been popped from the queue before
+        checking shutdown status.
         """
-        while True:
-            build_to_process = bm.get_singleton().get_next_build_id()
+        self.logger.info("Builder started and waiting for builds...")
+        while not self.__shutdown_requested:
+            build_to_process = bm.get_singleton().get_next_build_id(
+                timeout=5
+            )
+            if build_to_process is None:
+                # Timeout occurred, no build available
+                # Loop will check shutdown flag and continue or exit
+                continue
+
+            # We got a build from queue, process it regardless of shutdown
+            # This ensures we complete any work we've taken responsibility for
+            self.logger.info(f"Processing build {build_to_process}")
             self.__process_build(build_id=build_to_process)
+
+        self.logger.info("Builder shutting down gracefully")
