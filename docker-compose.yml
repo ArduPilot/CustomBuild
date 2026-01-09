@@ -33,6 +33,7 @@ services:
       context: .
       dockerfile: ./builder/Dockerfile
     restart: always
+    stop_grace_period: 5m
     environment:
       CBS_REDIS_HOST: redis
       CBS_REDIS_PORT: 6379
