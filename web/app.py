@@ -5,6 +5,7 @@ from flask import Flask, render_template, request, send_from_directory, jsonify,
 from threading import Thread
 import sys
 import requests
+import signal
 
 from logging.config import dictConfig
 
@@ -87,6 +88,9 @@ versions_fetcher.start()
 cleaner.start()
 progress_updater.start()
 
+# Initialize builder if enabled
+builder = None
+builder_thread = None
 if os.getenv('CBS_ENABLE_INBUILT_BUILDER', default='1') == '1':
     builder = Builder(
         workdir=workdir_parent,
@@ -99,6 +103,29 @@ if os.getenv('CBS_ENABLE_INBUILT_BUILDER', default='1') == '1':
     builder_thread.start()
 
 app = Flask(__name__, template_folder='templates')
+
+# Setup graceful shutdown handler
+def shutdown_handler(signum=None, frame=None):
+    """
+    Gracefully shutdown all background services.
+    """
+    app.logger.info("Shutting down application gracefully...")
+
+    # Stop all TaskRunner instances
+    versions_fetcher.stop()
+    cleaner.stop()
+    progress_updater.stop()
+
+    # Request builder shutdown if it's running
+    if builder is not None:
+        builder.shutdown()
+
+    app.logger.info("All background services stopped successfully.")
+    sys.exit(0)
+
+# Register signal handlers for graceful shutdown
+signal.signal(signal.SIGINT, shutdown_handler)
+signal.signal(signal.SIGTERM, shutdown_handler)
 
 versions_fetcher.reload_remotes_json()
 app.logger.info('Python version is: %s' % sys.version)
