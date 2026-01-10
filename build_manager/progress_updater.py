@@ -53,6 +53,13 @@ class BuildProgressUpdater:
         self.logger.info("Starting BuildProgressUpdater.")
         self.__runner.start()
 
+    def stop(self) -> None:
+        """
+        Stop BuildProgressUpdater.
+        """
+        self.logger.info("Stopping BuildProgressUpdater.")
+        self.__runner.stop()
+
     def __calc_running_build_progress_percent(self, build_id: str) -> int:
         """
         Calculate the progress percentage of a running build.
