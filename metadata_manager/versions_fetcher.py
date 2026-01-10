@@ -109,6 +109,15 @@ class VersionsFetcher:
         )
         self.__task__runner.start()
 
+    def stop(self) -> None:
+        """
+        Stop auto-fetch jobs.
+        """
+        self.logger.info(
+            "Stopping VersionsFetcher background auto-fetch jobs."
+        )
+        self.__task__runner.stop()
+
     def get_all_remotes_info(self) -> list[RemoteInfo]:
         """
         Return the list of RemoteInfo objects constructed from the
