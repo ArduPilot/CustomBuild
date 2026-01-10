@@ -48,6 +48,13 @@ class BuildArtifactsCleaner:
         self.logger.info("Starting BuildArtifactsCleaner")
         self.__runner.start()
 
+    def stop(self) -> None:
+        """
+        Stop BuildArtifactsCleaner.
+        """
+        self.logger.info("Stopping BuildArtifactsCleaner")
+        self.__runner.stop()
+
     def __stale_artifacts_path_list(self) -> list:
         """
         Returns a list of paths to stale build artifacts.
