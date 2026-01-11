@@ -31,6 +31,7 @@ import ap_git
 import metadata_manager
 import build_manager
 from builder import Builder
+from utils.ratelimiter import RateLimitExceededException
 
 # run at lower priority
 os.nice(20)
@@ -220,6 +221,9 @@ def generate():
         app.logger.info('Redirecting to /viewlog')
         return redirect('/viewlog/'+build_id)
 
+    except RateLimitExceededException as ex:
+        app.logger.warning(f"Rate limit exceeded for client: {request.remote_addr}")
+        return render_template('error.html', ex=ex), 429
     except Exception as ex:
         app.logger.error(ex)
         return render_template('error.html', ex=ex)
