@@ -7,22 +7,6 @@ import ap_git
 import os
 import re
 
-class BoardMetadata:
-        def __init__(self, id: str, name: str, attributes: dict):
-            self.id = id
-            self.name = name
-            self.attributes = attributes
-
-        def to_dict(self) -> dict:
-            # keep top-level has_can for backward compatibility
-            out = {
-                "id": self.id,
-                "name": self.name,
-                "attributes": self.attributes,
-            }
-            if "has_can" in self.attributes:
-                out["has_can"] = self.attributes["has_can"]
-            return out
 
 class APSourceMetadataFetcher:
     """
@@ -75,7 +59,9 @@ class APSourceMetadataFetcher:
             self.logger.info(
                 f"Redis connection established with {redis_host}:{redis_port}"
             )
-            self.__boards_key_prefix = "boards-"
+            # bump version to invalidate stale board metadata in cache
+            # (schema now includes has_can and defaults are stricter)
+            self.__boards_key_prefix = "boards-v4-"
             self.__build_options_key_prefix = "bopts-"
 
         APSourceMetadataFetcher.__singleton = self
@@ -383,8 +369,8 @@ class APSourceMetadataFetcher:
             return board_data
 
         return (
-            build_board_metadata(non_periph_boards_sorted),
-            build_board_metadata(periph_boards_sorted),
+            self.__build_board_metadata(non_periph_boards_sorted, hwdef_dir),
+            self.__build_board_metadata(periph_boards_sorted, hwdef_dir),
         )
 
     def __get_build_options_at_commit_from_repo(self,
