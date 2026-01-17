@@ -179,7 +179,8 @@ def generate():
             commit_ref=commit_ref,
             vehicle_id=vehicle,
         )
-        if board not in boards_at_commit:
+        board_names_at_commit = [b["name"] for b in boards_at_commit]
+        if board not in board_names_at_commit:
             raise Exception("bad board")
 
         all_features = ap_src_metadata_fetcher.get_build_options_at_commit(
@@ -300,9 +301,11 @@ def boards_and_features(vehicle_id, version_id):
             'options' : category_options,
         })
     # creating result dictionary
+    default_board = boards[0]["name"] if boards else None
+
     result = {
         'boards' : boards,
-        'default_board' : boards[0],
+        'default_board' : default_board,
         'features' : features,
     }
     # return jsonified result dict
