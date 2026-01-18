@@ -573,6 +573,79 @@ class APSourceMetadataFetcher:
         )
         return build_options
 
+    def get_board_defaults_from_fw_server(
+        self,
+        artifacts_url: str,
+        board_id: str,
+        vehicle_id: str = None,
+    ) -> dict:
+        """
+        Fetch board defaults from firmware.ardupilot.org features.txt.
+
+        The features.txt file contains lines like:
+        - FEATURE_NAME (enabled features)
+        - !FEATURE_NAME (disabled features)
+
+        Parameters:
+            artifacts_url (str): Base URL for build artifacts for a version.
+            board_id (str): Board identifier
+            vehicle_id (str): Vehicle identifier
+                              (for special handling like Heli)
+
+        Returns:
+            dict: Dictionary mapping feature define to state
+                  (1 for enabled, 0 for disabled), or None if fetch fails
+        """
+        import requests
+
+        # Heli builds are stored under a separate folder
+        artifacts_subdir = board_id
+        if vehicle_id == "Heli":
+            artifacts_subdir += "-heli"
+
+        features_txt_url = f"{artifacts_url}/{artifacts_subdir}/features.txt"
+
+        try:
+            response = requests.get(features_txt_url, timeout=30)
+            response.raise_for_status()
+
+            feature_states = {}
+            enabled_count = 0
+            disabled_count = 0
+
+            for line in response.text.splitlines():
+                line = line.strip()
+
+                # Skip empty lines and comments
+                if not line or line.startswith('#'):
+                    continue
+
+                # Check if feature is disabled (prefixed with !)
+                if line.startswith('!'):
+                    feature_name = line[1:].strip()
+                    if feature_name:
+                        feature_states[feature_name] = 0
+                        disabled_count += 1
+                else:
+                    # Enabled feature
+                    if line:
+                        feature_states[line] = 1
+                        enabled_count += 1
+
+            self.logger.info(
+                f"Fetched board defaults from firmware server: "
+                f"{enabled_count} enabled, "
+                f"{disabled_count} disabled"
+            )
+
+            return feature_states
+
+        except requests.RequestException as e:
+            self.logger.warning(
+                f"Failed to fetch board defaults from {features_txt_url}: {e}"
+            )
+            return None
+
     @staticmethod
     def get_singleton():
         return APSourceMetadataFetcher.__singleton
