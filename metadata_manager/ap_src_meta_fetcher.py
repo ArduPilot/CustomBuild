@@ -7,6 +7,22 @@ import ap_git
 import os
 import re
 
+class BoardMetadata:
+        def __init__(self, id: str, name: str, attributes: dict):
+            self.id = id
+            self.name = name
+            self.attributes = attributes
+
+        def to_dict(self) -> dict:
+            # keep top-level has_can for backward compatibility
+            out = {
+                "id": self.id,
+                "name": self.name,
+                "attributes": self.attributes,
+            }
+            if "has_can" in self.attributes:
+                out["has_can"] = self.attributes["has_can"]
+            return out
 
 class APSourceMetadataFetcher:
     """
@@ -59,9 +75,7 @@ class APSourceMetadataFetcher:
             self.logger.info(
                 f"Redis connection established with {redis_host}:{redis_port}"
             )
-            # bump version to invalidate stale board metadata in cache
-            # (schema now includes has_can and defaults are stricter)
-            self.__boards_key_prefix = "boards-v4-"
+            self.__boards_key_prefix = "boards-"
             self.__build_options_key_prefix = "bopts-"
 
         APSourceMetadataFetcher.__singleton = self
@@ -301,8 +315,9 @@ class APSourceMetadataFetcher:
 
         Returns:
             tuple: A tuple of two lists in order:
-                - A list contains boards for NON-'ap_periph' targets.
-                - A list contains boards for the 'ap_periph' target.
+                - A list of board metadata dictionaries for NON-'ap_periph' targets.
+                - A list of board metadata dictionaries for the 'ap_periph' target.
+            Each board dict exposes: id, name, attributes (has_can), and has_can (legacy).
         """
         with self.repo.get_checkout_lock():
             self.repo.checkout_remote_commit_ref(
@@ -344,7 +359,7 @@ class APSourceMetadataFetcher:
         self.logger.debug(f"periph_boards sorted: {periph_boards_sorted}")
 
         def build_board_metadata(board_names: list[str]) -> list[dict]:
-            board_data = []
+            board_data: list[dict] = []
             for board_name in board_names:
                 hwdef_path = None
                 if hwdef_dir:
@@ -358,10 +373,13 @@ class APSourceMetadataFetcher:
                             candidate_path,
                         )
 
-                board_data.append({
-                    "name": board_name,
-                    "has_can": self.__board_has_can(hwdef_path) if hwdef_path else False,
-                })
+                has_can = self.__board_has_can(hwdef_path) if hwdef_path else False
+                board = BoardMetadata(
+                    id=board_name,
+                    name=board_name,
+                    attributes={"has_can": has_can},
+                )
+                board_data.append(board.to_dict())
             return board_data
 
         return (
@@ -451,33 +469,6 @@ class APSourceMetadataFetcher:
 
         if cached_boards:
             boards = cached_boards
-            try:
-                non_periph_boards, periph_boards = boards
-                needs_upgrade = False
-                if non_periph_boards and isinstance(non_periph_boards[0], str):
-                    needs_upgrade = True
-                if periph_boards and isinstance(periph_boards[0], str):
-                    needs_upgrade = True
-
-                if needs_upgrade:
-                    self.logger.debug(
-                        "Cached boards missing metadata. Refreshing from repo for commit %s.",
-                        commid_id,
-                    )
-                    boards = self.__get_boards_at_commit_from_repo(
-                        remote=remote,
-                        commit_ref=commid_id,
-                    )
-                    self.__cache_boards_at_commit(
-                        boards=boards,
-                        commit_id=commid_id,
-                    )
-            except (ValueError, TypeError):
-                self.logger.debug(
-                    "Cached boards malformed for commit %s. Refetching.",
-                    commid_id,
-                )
-                boards = None
 
         if not cached_boards or boards is None:
             self.logger.debug(
