@@ -20,7 +20,7 @@
     <meta property="og:url" content="https://custom.ardupilot.org/">
     <meta property="og:image" content="https://ardupilot.org/application/files/6315/7552/1962/ArduPilot-Motto.png">
 
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/main.css') }}">
+    <link rel="stylesheet" type="text/css" href="/static/styles/main.css">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
@@ -34,7 +34,7 @@
                 <div class="container-fluid">
                     <div>
                         <a class="navbar-brand" href="/">
-                            <img src="{{ url_for('static', filename='images/ardupilot_logo.png')}}" alt="ArduPilot" height="24"
+                            <img src="/static/images/ardupilot_logo.png" alt="ArduPilot" height="24"
                                 class="d-inline-block align-text-top">
                             <span class="ms-2 text-white" style="font-size: 25px;">Custom Firmware Builder</span>
                         </a>
@@ -125,7 +125,7 @@
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js" integrity="sha256-lSjKY0/srUM9BE3dPm+c4fBo1dky2v27Gdjm2uoZaL0=" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js" integrity="sha384-oBqDVmMz9ATKxIep9tiCxS/Z9fNfEXiDAYTujMAeBAsjFuCZSmKbSSUnQlmh/jp3" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js" integrity="sha384-mQ93GR66B00ZXjt0YO5KlohRA5SY2XofN4zfuZxLkoj1gXtW8ANNCe9d5Y3eG5eD" crossorigin="anonymous"></script>
-    <script type="text/javascript" src="{{ url_for('static', filename='js/index.js')}}"></script>
+    <script type="text/javascript" src="/static/js/index.js"></script>
 
     {% if token != None %}
     <script>

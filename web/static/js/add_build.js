@@ -1,152 +1,156 @@
 const Features = (() => {
-    let features = {};
-    let defines_dictionary = {};
-    let labels_dictionary = {};
-    let category_dictionary = {};
+    let features = [];  // Flat array of feature objects from API
+    let features_by_id = {};  // Map feature IDs to feature objects
+    let categories_grouped = {};  // Features grouped by category name
     let selected_options = 0;
 
     function resetDictionaries() {
         // clear old dictionaries
-        defines_dictionary = {};
-        labels_dictionary = {};
-        category_dictionary = {};
+        features_by_id = {};
+        categories_grouped = {};
 
-        features.forEach((category) => {
-            category_dictionary[category.name] = category;
-            category['options'].forEach((option) => {
-                defines_dictionary[option.define] = labels_dictionary[option.label] = option;
-            });
-        });
-    }
-
-    function store_category_in_options() {
-        features.forEach((category) => {
-            category['options'].forEach((option) => {
-                option.category_name = category.name;
-            });
+        // Build lookup maps from flat feature array
+        features.forEach((feature) => {
+            features_by_id[feature.id] = feature;
+            
+            // Group by category
+            const cat_name = feature.category.name;
+            if (!categories_grouped[cat_name]) {
+                categories_grouped[cat_name] = {
+                    name: cat_name,
+                    description: feature.category.description,
+                    features: []
+                };
+            }
+            categories_grouped[cat_name].features.push(feature);
         });
     }
 
     function updateRequiredFor() {
-        features.forEach((category) => {
-            category['options'].forEach((option) => {
-                if (option.dependency != null) {
-                    option.dependency.split(',').forEach((dependency) => {
-                        let dep = getOptionByLabel(dependency);
-                        if (dep.requiredFor == undefined) {
-                            dep.requiredFor = [];
-                        }
-                        dep.requiredFor.push(option.label);
-                    });
-                }
-            });
+        features.forEach((feature) => {
+            if (feature.dependencies && feature.dependencies.length > 0) {
+                feature.dependencies.forEach((dependency_id) => {
+                    let dep = getOptionById(dependency_id);
+                    if (dep && dep.requiredFor == undefined) {
+                        dep.requiredFor = [];
+                    }
+                    if (dep) {
+                        dep.requiredFor.push(feature.id);
+                    }
+                });
+            }
         });
     }
 
     function reset(new_features) {
         features = new_features;
+        selected_options = 0;
         resetDictionaries();
         updateRequiredFor();
-        store_category_in_options();
     }
 
-    function getOptionByDefine(define) {
-        return defines_dictionary[define];
-    }
-
-    function getOptionByLabel(label) {
-        return labels_dictionary[label];
+    function getOptionById(id) {
+        return features_by_id[id];
     }
 
     function getCategoryByName(category_name) {
-        return category_dictionary[category_name];
+        return categories_grouped[category_name];
+    }
+
+    function getAllCategories() {
+        return Object.values(categories_grouped);
     }
 
     function getCategoryIdByName(category_name) {
         return 'category_'+category_name.split(" ").join("_");
     }
 
-    function featureIsDisabledByDefault(feature_label) {
-        return getOptionByLabel(feature_label).default == 0;
+    function featureIsDisabledByDefault(feature_id) {
+        let feature = getOptionById(feature_id);
+        return feature && !feature.default.enabled;
     }
 
-    function featureisEnabledByDefault(feature_label) {
-        return !featureIsDisabledByDefault(feature_label);
+    function featureisEnabledByDefault(feature_id) {
+        return !featureIsDisabledByDefault(feature_id);
     }
 
-    function updateDefaults(defines_array) {
-        // updates default on the basis of define array passed
-        // the define array consists define in format, EXAMPLE_DEFINE or !EXAMPLE_DEFINE
-        // we update the defaults in features object by processing those defines
-        for (let i=0; i<defines_array.length; i++) {
-            let select_opt = (defines_array[i][0] != '!');
-            let sanitised_define = (select_opt ? defines_array[i] : defines_array[i].substring(1)); // this removes the leading '!' from define if it contatins
-            if (getOptionByDefine(sanitised_define)) {
-                getOptionByDefine(sanitised_define).default = select_opt ? 1 : 0;
-            }
-        }
-    }
+    function enableDependenciesForFeature(feature_id) {
+        let feature = getOptionById(feature_id);
 
-    function enableDependenciesForFeature(feature_label) {
-        let feature = getOptionByLabel(feature_label);
-
-        if (feature.dependency == null) {
+        if (!feature || !feature.dependencies || feature.dependencies.length === 0) {
             return;
         }
 
-        let children = feature.dependency.split(',');
-        children.forEach((child) => {
+        feature.dependencies.forEach((dependency_id) => {
             const check = true;
-            checkUncheckOptionByLabel(child, check);
+            checkUncheckOptionById(dependency_id, check);
         });
     }
 
-    function handleOptionStateChange(feature_label, triggered_by_ui) {
-        if (document.getElementById(feature_label).checked) {
+    function handleOptionStateChange(feature_id, triggered_by_ui) {
+        // feature_id is the feature ID from the API
+        let element = document.getElementById(feature_id);
+        if (!element) return;
+        
+        let feature = getOptionById(feature_id);
+        if (!feature) return;
+        
+        if (element.checked) {
             selected_options += 1;
-            enableDependenciesForFeature(feature_label);
+            enableDependenciesForFeature(feature.id);
         } else {
             selected_options -= 1;
             if (triggered_by_ui) {
-                askToDisableDependentsForFeature(feature_label);
+                askToDisableDependentsForFeature(feature.id);
             } else {
-                disabledDependentsForFeature(feature_label);
+                disabledDependentsForFeature(feature.id);
             }
         }
 
-        updateCategoryCheckboxState(getOptionByLabel(feature_label).category_name);
+        updateCategoryCheckboxState(feature.category.name);
         updateGlobalCheckboxState();
     }
 
-    function askToDisableDependentsForFeature(feature_label) {
-        let enabled_dependent_features = getEnabledDependentFeaturesFor(feature_label);
+    function askToDisableDependentsForFeature(feature_id) {
+        let enabled_dependent_features = getEnabledDependentFeaturesFor(feature_id);
         
         if (enabled_dependent_features.length <= 0) {
             return;
         }
 
-        document.getElementById('modalBody').innerHTML = "The feature(s) <strong>"+enabled_dependent_features.join(", ")+"</strong> is/are dependant on <strong>"+feature_label+"</strong>" +
+        let feature = getOptionById(feature_id);
+        let feature_display_name = feature ? feature.name : feature_id;
+        
+        // Get display names for dependent features
+        let dependent_names = enabled_dependent_features.map(dep_id => {
+            let dep_feature = getOptionById(dep_id);
+            return dep_feature ? dep_feature.name : dep_id;
+        });
+
+        document.getElementById('modalBody').innerHTML = "The feature(s) <strong>"+dependent_names.join(", ")+"</strong> is/are dependant on <strong>"+feature_display_name+"</strong>" +
                                                          " and hence will be disabled too.<br><strong>Do you want to continue?</strong>";
-        document.getElementById('modalDisableButton').onclick = () => { disabledDependentsForFeature(feature_label); };
+        document.getElementById('modalDisableButton').onclick = () => { disabledDependentsForFeature(feature_id); };
         document.getElementById('modalCancelButton').onclick = document.getElementById('modalCloseButton').onclick = () => {
-            const check = true; 
-            checkUncheckOptionByLabel(feature_label, check);
+            const check = true;
+            if (feature) {
+                checkUncheckOptionById(feature.id, check);
+            }
         };
         var confirmationModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('dependencyCheckModal'));
         confirmationModal.show();
     }
 
-    function disabledDependentsForFeature(feature_label) {
-        let feature = getOptionByLabel(feature_label);
+    function disabledDependentsForFeature(feature_id) {
+        let feature = getOptionById(feature_id);
 
-        if (feature.requiredFor == undefined) {
+        if (!feature || feature.requiredFor == undefined) {
             return;
         }
 
         let dependents = feature.requiredFor;
-        dependents.forEach((dependent) => {
+        dependents.forEach((dependent_id) => {
             const check = false;
-            checkUncheckOptionByLabel(dependent, false);
+            checkUncheckOptionById(dependent_id, check);
         });
     }
 
@@ -155,12 +159,14 @@ const Features = (() => {
 
         if (category == undefined) {
             console.log("Could not find category by given name");
+            return;
         }
 
         let checked_options_count = 0;
 
-        category.options.forEach((option) => {
-            let element = document.getElementById(option.label);
+        category.features.forEach((feature) => {
+            // Use ID to find the element
+            let element = document.getElementById(feature.id);
 
             if (element && element.checked) {
                 checked_options_count += 1;
@@ -170,6 +176,7 @@ const Features = (() => {
         let category_checkbox_element = document.getElementById(getCategoryIdByName(category_name));
         if (category_checkbox_element == undefined) {
             console.log("Could not find element for given category");
+            return;
         }   
 
         let indeterminate_state = false;
@@ -177,7 +184,7 @@ const Features = (() => {
             case 0:
                 category_checkbox_element.checked = false;
                 break;
-            case category.options.length:
+            case category.features.length:
                 category_checkbox_element.checked = true;
                 break;
             default:
@@ -189,7 +196,7 @@ const Features = (() => {
     }
 
     function updateGlobalCheckboxState() {
-        const total_options = Object.keys(defines_dictionary).length;
+        const total_options = Object.keys(features_by_id).length;
         let global_checkbox = document.getElementById("check-uncheck-all");
 
         let indeterminate_state = false;
@@ -208,31 +215,40 @@ const Features = (() => {
         global_checkbox.indeterminate = indeterminate_state;
     }
 
-    function getEnabledDependentFeaturesHelper(feature_label,  visited, dependent_features) {
-        if (visited[feature_label] != undefined || document.getElementById(feature_label).checked == false) {
+    function getEnabledDependentFeaturesHelper(feature_id, visited, dependent_features) {
+        if (visited[feature_id] != undefined) {
+            return;
+        }
+        
+        let feature = getOptionById(feature_id);
+        if (!feature) return;
+        
+        // Use ID to check the checkbox
+        let element = document.getElementById(feature.id);
+        if (!element || element.checked == false) {
             return;
         }
 
-        visited[feature_label] = true;
-        dependent_features.push(feature_label);
+        visited[feature_id] = true;
+        dependent_features.push(feature_id);
 
-        let feature = getOptionByLabel(feature_label);
         if (feature.requiredFor == null) {
             return;
         }
 
-        feature.requiredFor.forEach((dependent_feature) => {
-            getEnabledDependentFeaturesHelper(dependent_feature, visited, dependent_features);
+        feature.requiredFor.forEach((dependent_feature_id) => {
+            getEnabledDependentFeaturesHelper(dependent_feature_id, visited, dependent_features);
         });
     }
 
-    function getEnabledDependentFeaturesFor(feature_label) {
+    function getEnabledDependentFeaturesFor(feature_id) {
         let dependent_features = [];
         let visited = {};
 
-        if (getOptionByLabel(feature_label).requiredFor) {
-            getOptionByLabel(feature_label).requiredFor.forEach((dependent_feature) => {
-                getEnabledDependentFeaturesHelper(dependent_feature, visited, dependent_features);
+        let feature = getOptionById(feature_id);
+        if (feature && feature.requiredFor) {
+            feature.requiredFor.forEach((dependent_feature_id) => {
+                getEnabledDependentFeaturesHelper(dependent_feature_id, visited, dependent_features);
             });
         }
 
@@ -240,42 +256,42 @@ const Features = (() => {
     }
 
     function applyDefaults() {
-        features.forEach(category => {
-            category['options'].forEach(option => {
-                const check = featureisEnabledByDefault(option.label);
-                checkUncheckOptionByLabel(option.label, check);
-            });
+        features.forEach(feature => {
+            const check = featureisEnabledByDefault(feature.id);
+            checkUncheckOptionById(feature.id, check);
         });
     }
 
-    function checkUncheckOptionByLabel(label, check) {
-        let element = document.getElementById(label);
+    function checkUncheckOptionById(id, check) {
+        let feature = getOptionById(id);
+        if (!feature) return;
+        
+        // Use ID to find the element
+        let element = document.getElementById(feature.id);
         if (element == undefined || element.checked == check) {
             return;
         }
         element.checked = check;
         const triggered_by_ui = false;
-        handleOptionStateChange(label, triggered_by_ui);
+        handleOptionStateChange(feature.id, triggered_by_ui);
     }
 
     function checkUncheckAll(check) {
-        features.forEach(category => { 
+        getAllCategories().forEach(category => { 
             checkUncheckCategory(category.name, check);
         });
     }
 
     function checkUncheckCategory(category_name, check) {
-        getCategoryByName(category_name).options.forEach(option => {
-            checkUncheckOptionByLabel(option.label, check);
+        getCategoryByName(category_name).features.forEach(feature => {
+            checkUncheckOptionById(feature.id, check);
         });
     }
 
-    return {reset, handleOptionStateChange, getCategoryIdByName, updateDefaults, applyDefaults, checkUncheckAll, checkUncheckCategory};
+    return {reset, handleOptionStateChange, getCategoryIdByName, applyDefaults, checkUncheckAll, checkUncheckCategory, getOptionById};
 })();
 
 var init_categories_expanded = false;
-
-var pending_update_calls = 0;   // to keep track of unresolved Promises
 
 function init() {
     fetchVehicles();
@@ -309,9 +325,8 @@ function fetchVehicles() {
     // following elemets will be blocked (disabled) when we make the request
     let elements_to_block = ['vehicle', 'version', 'board', 'submit', 'reset_def', 'exp_col_button'];
     enableDisableElementsById(elements_to_block, false);
-    let request_url = '/get_vehicles';
+    let request_url = '/api/v1/vehicles';
     setSpinnerToDiv('vehicle_list', 'Fetching vehicles...');
-    pending_update_calls += 1;
     sendAjaxRequestForJsonResponse(request_url)
         .then((json_response) => {
             let all_vehicles = json_response;
@@ -323,8 +338,6 @@ function fetchVehicles() {
         })
         .finally(() => {
             enableDisableElementsById(elements_to_block, true);
-            pending_update_calls -= 1;
-            fetchAndUpdateDefaults();
         });
 }
 
@@ -341,9 +354,8 @@ function onVehicleChange(new_vehicle_id) {
     // following elemets will be blocked (disabled) when we make the request
     let elements_to_block = ['vehicle', 'version', 'board', 'submit', 'reset_def', 'exp_col_button'];
     enableDisableElementsById(elements_to_block, false);
-    let request_url = '/get_versions/'+new_vehicle_id;
+    let request_url = '/api/v1/vehicles/'+new_vehicle_id+'/versions';
     setSpinnerToDiv('version_list', 'Fetching versions...');
-    pending_update_calls += 1;
     sendAjaxRequestForJsonResponse(request_url)
         .then((json_response) => {
             let all_versions = json_response;
@@ -356,8 +368,6 @@ function onVehicleChange(new_vehicle_id) {
         })
         .finally(() => {
             enableDisableElementsById(elements_to_block, true);
-            pending_update_calls -= 1;
-            fetchAndUpdateDefaults();
         });
 }
 
@@ -376,40 +386,39 @@ function onVersionChange(new_version) {
     enableDisableElementsById(elements_to_block, false);
     let vehicle_id = document.getElementById("vehicle").value;
     let version_id = new_version;
-    let request_url = `/boards_and_features/${vehicle_id}/${version_id}`;
-
-    // create a temporary container to set spinner inside it
+    
+    // Fetch boards first
+    let boards_url = `/api/v1/vehicles/${vehicle_id}/versions/${version_id}/boards`;
+    setSpinnerToDiv('board_list', 'Fetching boards...');
+    
+    // Clear build options and show loading state
     let temp_container = document.createElement('div');
     temp_container.id = "temp_container";
     temp_container.setAttribute('class', 'container-fluid w-25 mt-3');
-    let features_list_element = document.getElementById('build_options');   // append the temp container to the main features_list container
+    let features_list_element = document.getElementById('build_options');
     features_list_element.innerHTML = "";
     features_list_element.appendChild(temp_container);
     setSpinnerToDiv('temp_container', 'Fetching features...');
-    setSpinnerToDiv('board_list', 'Fetching boards...');
-    pending_update_calls += 1;
-    sendAjaxRequestForJsonResponse(request_url)
-        .then((json_response) => {
-            let boards = json_response.boards;
-            let new_board = json_response.default_board;
-            let new_features = json_response.features;
-            Features.reset(new_features);
+    
+    // Fetch boards
+    sendAjaxRequestForJsonResponse(boards_url)
+        .then((boards_response) => {
+            // Keep full board objects with id and name
+            let boards = boards_response;
+            let new_board = boards.length > 0 ? boards[0].id : null;
             updateBoards(boards, new_board);
-            fillBuildOptions(new_features);
         })
         .catch((message) => {
-            console.log("Boards and features update failed. "+message);
+            console.log("Boards update failed. "+message);
         })
         .finally(() => {
             enableDisableElementsById(elements_to_block, true);
-            pending_update_calls -= 1;
-            fetchAndUpdateDefaults();
         });
 }
 
 function updateBoards(all_boards, new_board) {
     let board_element = document.getElementById('board');
-    let old_board = board_element ? board.value : '';
+    let old_board = board_element ? board_element.value : '';
     fillBoards(all_boards, new_board);
     if (old_board != new_board) {
         onBoardChange(new_board);
@@ -417,48 +426,40 @@ function updateBoards(all_boards, new_board) {
 }
 
 function onBoardChange(new_board) {
-    fetchAndUpdateDefaults();
-}
-
-function fetchAndUpdateDefaults() {
-    // return early if there is an unresolved promise (i.e., there is an ongoing ajax call)
-    if (pending_update_calls > 0) {
-        return;
-    }
-    elements_to_block = ['reset_def'];
-    document.getElementById('reset_def').innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Fetching defaults';
-    enableDisableElementsById(elements_to_block, false);
+    // When board changes, fetch features for the new board
+    let vehicle_id = document.getElementById('vehicle').value;
     let version_id = document.getElementById('version').value;
-    let vehicle = document.getElementById('vehicle').value;
-    let board = document.getElementById('board').value;
-
-    let request_url = '/get_defaults/'+vehicle+'/'+version_id+'/'+board;
-    sendAjaxRequestForJsonResponse(request_url)
-        .then((json_response) => {
-            Features.updateDefaults(json_response);
+    
+    let temp_container = document.createElement('div');
+    temp_container.id = "temp_container";
+    temp_container.setAttribute('class', 'container-fluid w-25 mt-3');
+    let features_list_element = document.getElementById('build_options');
+    features_list_element.innerHTML = "";
+    features_list_element.appendChild(temp_container);
+    setSpinnerToDiv('temp_container', 'Fetching features...');
+    
+    let features_url = `/api/v1/vehicles/${vehicle_id}/versions/${version_id}/boards/${new_board}/features`;
+    sendAjaxRequestForJsonResponse(features_url)
+        .then((features_response) => {
+            Features.reset(features_response);
+            fillBuildOptions(features_response);
+            Features.applyDefaults();
         })
         .catch((message) => {
-            console.log("Default reset failed. "+message);
-        })
-        .finally(() => {
-            if (document.getElementById('auto_apply_def').checked) {
-                Features.applyDefaults();
-            }
-            enableDisableElementsById(elements_to_block, true);
-            document.getElementById('reset_def').innerHTML = '<i class="bi bi-arrow-counterclockwise me-2"></i>Reset feature defaults';
+            console.log("Features update failed. "+message);
         });
 }
 
-function fillBoards(boards, default_board) {
+function fillBoards(boards, default_board_id) {
     let output = document.getElementById('board_list');
     output.innerHTML =  '<label for="board" class="form-label"><strong>Select Board</strong></label>' +
                         '<select name="board" id="board" class="form-select" aria-label="Select Board" onchange="onBoardChange(this.value);"></select>';
     let boardList = document.getElementById("board")
     boards.forEach(board => {
         let opt = document.createElement('option');
-        opt.value = board;
-        opt.innerHTML = board;
-        opt.selected = (board === default_board);
+        opt.value = board.id;
+        opt.innerHTML = board.name;
+        opt.selected = (board.id === default_board_id);
         boardList.appendChild(opt);
     });
 }
@@ -487,13 +488,13 @@ var toggle_all_categories = (() => {
     return toggle_method;
 })();
 
-function createCategoryCard(category_name, options, expanded) {
+function createCategoryCard(category_name, features_in_category, expanded) {
     options_html = "";
-    options.forEach(option => {
+    features_in_category.forEach(feature => {
         options_html += '<div class="form-check">' +
-                            '<input class="form-check-input" type="checkbox" value="1" name="'+option['label']+'" id="'+option['label']+'" onclick="Features.handleOptionStateChange(this.id, true);">' +
-                            '<label class="form-check-label ms-2" for="'+option['label']+'">' +
-                                option['description'].replace(/enable/i, "") +
+                            '<input class="form-check-input feature-checkbox" type="checkbox" value="1" name="'+feature.id+'" id="'+feature.id+'" onclick="Features.handleOptionStateChange(this.id, true);">' +
+                            '<label class="form-check-label ms-2" for="'+feature.id+'">' +
+                                (feature.description || feature.name) +
                             '</label>' +
                         '</div>';
     });
@@ -534,7 +535,7 @@ function createCategoryCard(category_name, options, expanded) {
     return card_element;                  
 }
 
-function fillBuildOptions(buildOptions) {
+function fillBuildOptions(features) {
     let output = document.getElementById('build_options');
     output.innerHTML =  `<div class="d-flex mb-3 justify-content-between">
                             <div class="d-flex d-flex align-items-center">
@@ -543,7 +544,20 @@ function fillBuildOptions(buildOptions) {
                             <button type="button" class="btn btn-outline-primary" id="exp_col_button" onclick="toggle_all_categories();"><i class="bi bi-chevron-expand me-2"></i>Expand/Collapse all categories</button> 
                         </div>`;
 
-    buildOptions.forEach((category, cat_idx) => {
+    // Group features by category
+    let categories_map = {};
+    features.forEach(feature => {
+        const cat_name = feature.category.name;
+        if (!categories_map[cat_name]) {
+            categories_map[cat_name] = [];
+        }
+        categories_map[cat_name].push(feature);
+    });
+
+    // Convert to array and display
+    let categories = Object.entries(categories_map).map(([name, feats]) => ({name, features: feats}));
+    
+    categories.forEach((category, cat_idx) => {
         if (cat_idx % 4 == 0) {
             let new_row = document.createElement('div');
             new_row.setAttribute('class', 'row');
@@ -552,7 +566,7 @@ function fillBuildOptions(buildOptions) {
         }
         let col_element = document.createElement('div');
         col_element.setAttribute('class', 'col-md-3 col-sm-6 mb-2');
-        col_element.appendChild(createCategoryCard(category['name'], category['options'], init_categories_expanded));
+        col_element.appendChild(createCategoryCard(category.name, category.features, init_categories_expanded));
         document.getElementById('category_'+parseInt(cat_idx/4)+'_row').appendChild(col_element);
     });
 }
@@ -617,27 +631,21 @@ function sortVersions(versions) {
     }
 
     versions.sort((a, b) => {
-        const version_a_type = a.title.split(" ")[0].toLowerCase();
-        const version_b_type = b.title.split(" ")[0].toLowerCase();
-
         // sort the version types in order mentioned above
-        if (version_a_type != version_b_type) {
-            return order[version_a_type] - order[version_b_type];
+        if (a.type != b.type) {
+            return order[a.type] - order[b.type];
         }
 
         // for numbered versions, do reverse sorting to make sure recent versions come first
-        if (version_a_type == "stable" || version_b_type == "beta") {
-            const version_a_num = a.title.split(" ")[1];
-            const version_b_num = b.title.split(" ")[1];
-
-            return compareVersionNums(version_a_num, version_b_num);
+        if (a.type == "stable" || b.type == "beta") {
+            return compareVersionNums(a.name.split(" ")[1], b.name.split(" ")[1]);
         }
 
-        return a.title.localeCompare(b.title);
+        return a.name.localeCompare(b.name);
     });
 
     // Push the first stable version in the list to the top
-    const firstStableIndex = versions.findIndex(v => v.title.split(" ")[0].toLowerCase() === "stable");
+    const firstStableIndex = versions.findIndex(v => v.name.split(" ")[0].toLowerCase() === "stable");
     if (firstStableIndex !== -1) {
         const stableVersion = versions.splice(firstStableIndex, 1)[0];
         versions.unshift(stableVersion);
@@ -655,8 +663,78 @@ function fillVersions(versions, version_to_select) {
     versions.forEach(version => {
         opt = document.createElement('option');
         opt.value = version.id;
-        opt.innerHTML = version.title;
+        opt.innerHTML = version.name;
         opt.selected = (version.id === version_to_select);
         versionList.appendChild(opt);
     });
 }
+
+// Handle form submission
+async function handleFormSubmit(event) {
+    event.preventDefault();
+    
+    const submitButton = document.getElementById('submit');
+    const originalButtonText = submitButton.innerHTML;
+    
+    try {
+        // Disable submit button and show loading state
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Submitting...';
+        
+        // Collect form data
+        const vehicle_id = document.getElementById('vehicle').value;
+        const version_id = document.getElementById('version').value;
+        const board_id = document.getElementById('board').value;
+        
+        // Collect selected features - checkboxes now have feature IDs directly
+        const selected_features = [];
+        const checkboxes = document.querySelectorAll('.feature-checkbox:checked');
+        checkboxes.forEach(checkbox => {
+            // The checkbox ID is already the feature define (ID)
+            selected_features.push(checkbox.id);
+        });
+        
+        // Create build request payload
+        const buildRequest = {
+            vehicle_id: vehicle_id,
+            version_id: version_id,
+            board_id: board_id,
+            selected_features: selected_features
+        };
+        
+        // Send POST request to API
+        const response = await fetch('/api/v1/builds', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(buildRequest)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Failed to submit build');
+        }
+        
+        const result = await response.json();
+        
+        // Redirect to viewlog page
+        window.location.href = `/viewlog/${result.build_id}`;
+        
+    } catch (error) {
+        console.error('Error submitting build:', error);
+        alert('Failed to submit build: ' + error.message);
+        
+        // Re-enable submit button
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalButtonText;
+    }
+}
+
+// Initialize form submission handler
+document.addEventListener('DOMContentLoaded', () => {
+    const buildForm = document.getElementById('build-form');
+    if (buildForm) {
+        buildForm.addEventListener('submit', handleFormSubmit);
+    }
+});
