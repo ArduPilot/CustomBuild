@@ -105,24 +105,28 @@ To run the ArduPilot Custom Firmware Builder locally without Docker, ensure you 
    ```
 
 5. **Execute the Application:**
-   - For a development environment, run:
+   - For a development environment with auto-reload, run:
      ```bash
-     ./web/app.py
+     python3 web/main.py
+     ```
+     To change the port, use the `--port` argument:
+     ```bash
+     python3 web/main.py --port 9000
      ```
    - For a production environment, use:
      ```bash
-     gunicorn web.wsgi:application
+     uvicorn web.main:app --host 0.0.0.0 --port 8080
      ```
 
-    During the coding and testing phases, use the development environment to easily debug and make changes. When deploying the app for end users, use the production environment to ensure better performance, scalability, and security.
+    During the coding and testing phases, use the development environment to easily debug and make changes with auto-reload enabled. When deploying the app for end users, use the production environment to ensure better performance, scalability, and security.
 
-    The application will automatically set up the required base directory at `./base` upon first execution. You may customize this path by using the `--basedir` option with the above commands or by setting the `CBS_BASEDIR` environment variable.
+    The application will automatically set up the required base directory at `./base` upon first execution. You may customize this path by setting the `CBS_BASEDIR` environment variable.
 
 6. **Access the Web Interface:**
 
-   Once the application is running, you can access the interface in your web browser at http://localhost:5000 if running directly using app.py (development environment), or at http://localhost:8000 if using Gunicorn (production environment).
+   Once the application is running, you can access the interface in your web browser at http://localhost:8080.
    
-   To change the default port when running with app.py, modify the `app.run()` call in web/app.py file by passing `port=<expected-port>` as an argument. For Gunicorn, refer to the [commonly used arguments](https://docs.gunicorn.org/en/latest/run.html#commonly-used-arguments) section of the Gunicorn documentation to specify a different port.
+   The default port is 8080, or the value of the `WEB_PORT` environment variable if set. You can override this by passing the `--port` argument when running the application directly (e.g., `python3 web/main.py --port 9000`) or when using uvicorn (e.g., `uvicorn web.main:app --port 5000`). Refer to the [uvicorn documentation](https://www.uvicorn.org/) for additional configuration options.
 
 ## Directory Structure
 The default directory structure is established as follows:
