@@ -8,7 +8,7 @@ function init() {
 
 function refresh_builds() {
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', "/builds");
+    xhr.open('GET', "/api/v1/builds");
 
     // disable cache, thanks to: https://stackoverflow.com/questions/22356025/force-cache-control-no-cache-in-chrome-via-xmlhttprequest-on-f5-reload
     xhr.setRequestHeader("Cache-Control", "no-cache, no-store, max-age=0");
@@ -82,8 +82,8 @@ function updateBuildsTable(builds) {
                                 <td class="align-middle"><span class="badge text-bg-${status_color}">${build_info['progress']['state']}</span></td>
                                 <td class="align-middle">${build_age}</td>
                                 <td class="align-middle"><a href="https://github.com/ArduPilot/ardupilot/commit/${build_info['git_hash']}">${build_info['git_hash'].substring(0,8)}</a></td>
-                                <td class="align-middle">${build_info['board']}</td>
-                                <td class="align-middle">${build_info['vehicle_id']}</td>
+                                <td class="align-middle">${build_info['board']['name']}</td>
+                                <td class="align-middle">${build_info['vehicle']['name']}</td>
                                 <td class="align-middle" id="${row_num}_features">
                                         ${features_string.substring(0, 100)}... 
                                         <span id="${row_num}_features_all" style="display:none;">${features_string}</span>
@@ -98,7 +98,7 @@ function updateBuildsTable(builds) {
                                     <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="View log" onclick="launchLogModal('${build_info['build_id']}');">
                                         <i class="bi bi-file-text"></i>
                                     </button>
-                                    <button class="btn btn-md btn-outline-${download_button_color} m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="Download build artifacts" id="${build_info['build_id']}-download-btn" onclick="window.location.href='/builds/${build_info['build_id']}/artifacts/${build_info['build_id']}.tar.gz';" ${downloadDisabled}>
+                                    <button class="btn btn-md btn-outline-${download_button_color} m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="Download build artifacts" id="${build_info['build_id']}-download-btn" onclick="window.location.href='/api/v1/builds/${build_info['build_id']}/artifact';" ${downloadDisabled}>
                                         <i class="bi bi-download"></i>
                                     </button>
                                 </td>
@@ -151,7 +151,7 @@ const LogFetch = (() => {
         }
 
         var xhr = new XMLHttpRequest();
-        xhr.open('GET', `/builds/${build_id}/artifacts/build.log`);
+        xhr.open('GET', `/api/v1/builds/${build_id}/logs`);
 
         // disable cache, thanks to: https://stackoverflow.com/questions/22356025/force-cache-control-no-cache-in-chrome-via-xmlhttprequest-on-f5-reload
         xhr.setRequestHeader("Cache-Control", "no-cache, no-store, max-age=0");
@@ -204,7 +204,7 @@ async function tryAutoDownload(buildId) {
     }
 
     try {
-        const apiUrl = `/builds/${buildId}`
+        const apiUrl = `/api/v1/builds/${buildId}`
         const response = await fetch(apiUrl);
         const data = await response.json();
 
@@ -212,7 +212,7 @@ async function tryAutoDownload(buildId) {
 
         if (previousState === "RUNNING" && currentState === "SUCCESS") {
             console.log("Build completed successfully. Starting download...");
-            document.getElementById(`${buildId}-download-btn`).click();
+            window.location.href = `/api/v1/builds/${buildId}/artifact`;
         }
 
         // Stop running if the build is in a terminal state
