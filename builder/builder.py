@@ -366,7 +366,9 @@ class Builder:
         logpath = bm.get_singleton().get_build_log_path(build_id)
         with open(logpath, "a") as build_log:
             # Get vehicle object
-            vehicle = vehm.get_singleton().get_vehicle_by_id(build_info.vehicle_id)
+            vehicle = vehm.get_singleton().get_vehicle_by_id(
+                build_info.vehicle_id
+            )
 
             # Log initial configuration
             build_log.write(
