@@ -6,7 +6,9 @@ from .manager import (
     BuildManager as bm,
     BuildState
 )
+import time
 
+CBS_BUILD_TIMEOUT_SEC = int(os.getenv('CBS_BUILD_TIMEOUT_SEC', 900))  # 15 minutes default
 
 class BuildProgressUpdater:
     """
@@ -157,6 +159,28 @@ class BuildProgressUpdater:
             raise RuntimeError(
                 "This method should only be called for running builds."
             )
+        # Set time_started if not already set
+        if build_info.time_started is None:
+            start_time = time.time()
+            bm.get_singleton().update_build_time_started(
+                build_id=build_id,
+                time_started=start_time
+            )
+            self.logger.info(
+                f"Build {build_id} started running at {start_time}"
+            )
+            build_info.time_started = start_time
+
+        # Check for timeout
+        elapsed = time.time() - build_info.time_started
+        if elapsed > CBS_BUILD_TIMEOUT_SEC:
+            self.logger.warning(
+                f"Build {build_id} timed out after {elapsed:.0f} seconds"
+            )
+            build_info.error_message = (
+                f"Build exceeded {CBS_BUILD_TIMEOUT_SEC // 60} minute timeout"
+            )
+            return BuildState.TIMED_OUT
 
         # Builder ships the archive post completion
         # This is irrespective of SUCCESS or FAILURE
@@ -213,6 +237,9 @@ class BuildProgressUpdater:
         elif current_state == BuildState.ERROR:
             # Keep existing percentage
             pass
+        elif current_state == BuildState.TIMED_OUT:
+            # Keep existing percentage
+            pass
         else:
             raise Exception("Unhandled BuildState.")
 
@@ -258,6 +285,9 @@ class BuildProgressUpdater:
             pass
         elif current_state == BuildState.ERROR:
             # ERROR is a conclusive state
+            pass
+        elif current_state == BuildState.TIMED_OUT:
+            # TIMED_OUT is a conclusive state
             pass
         else:
             raise Exception("Unhandled BuildState.")
