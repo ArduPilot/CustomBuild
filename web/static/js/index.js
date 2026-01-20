@@ -74,9 +74,9 @@ function updateBuildsTable(builds) {
         const features_string = build_info['selected_features'].join(', ')
         const build_age = timeAgo(build_info['time_created'])
 
-        const isSuccess = build_info['progress']['state'] === 'SUCCESS';
-        const downloadDisabled = !isSuccess ? 'disabled' : '';
-        const download_button_color = isSuccess ? 'primary' : 'secondary';
+        const isNonTerminal = (build_info['progress']['state'] == 'PENDING' || build_info['progress']['state'] == 'RUNNING');
+        const downloadDisabled = isNonTerminal ? 'disabled' : '';
+        const download_button_color = isNonTerminal ? 'secondary' : 'primary';
 
         table_body_html +=  `<tr>
                                 <td class="align-middle"><span class="badge text-bg-${status_color}">${build_info['progress']['state']}</span></td>
