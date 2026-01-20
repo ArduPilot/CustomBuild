@@ -67,7 +67,7 @@ function updateBuildsTable(builds) {
             status_color = 'success';
         } else if (build_info['progress']['state'] == 'PENDING') {
             status_color = 'warning';
-        } else if (build_info['progress']['state'] == 'FAILURE' || build_info['progress']['state'] == 'ERROR') {
+        } else if (build_info['progress']['state'] == 'FAILURE' || build_info['progress']['state'] == 'ERROR' || build_info['progress']['state'] == 'TIMED_OUT') {
             status_color = 'danger';
         }
 
@@ -216,7 +216,7 @@ async function tryAutoDownload(buildId) {
         }
 
         // Stop running if the build is in a terminal state
-        if (["FAILURE", "SUCCESS", "ERROR"].includes(currentState)) {
+        if (["FAILURE", "SUCCESS", "ERROR", "TIMED_OUT"].includes(currentState)) {
             clearInterval(autoDownloadIntervalId);
             return;
         }
