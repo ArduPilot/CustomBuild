@@ -15,6 +15,7 @@ class BuildState(Enum):
     SUCCESS = 2
     FAILURE = 3
     ERROR = 4
+    TIMED_OUT = 5
 
 
 class BuildProgress:
@@ -71,6 +72,7 @@ class BuildInfo:
             percent=0
         )
         self.time_created = time.time()
+        self.time_started = None # when build state becomes RUNNING
 
     def to_dict(self) -> dict:
         return {
@@ -81,6 +83,7 @@ class BuildInfo:
             'selected_features': list(self.selected_features),
             'progress': self.progress.to_dict(),
             'time_created': self.time_created,
+            'time_started': getattr(self, 'time_started', None),
         }
 
 
@@ -351,6 +354,27 @@ class BuildManager:
             name=key,
             value=dill.dumps(build_info),
             keepttl=True
+        )
+
+    def update_build_time_started(self,
+                              build_id: str,
+                              time_started: float) -> None:
+        """
+        Update the build's time_started timestamp.
+
+        Parameters:
+            build_id (str): The ID of the build to update.
+            time_started (float): The timestamp when the build started running.
+        """
+        build_info = self.get_build_info(build_id=build_id)
+
+        if build_info is None:
+            raise ValueError(f"Build with id {build_id} not found.")
+
+        build_info.time_started = time_started
+        self.__update_build_info(
+            build_id=build_id,
+            build_info=build_info
         )
 
     def update_build_progress_percent(self,
