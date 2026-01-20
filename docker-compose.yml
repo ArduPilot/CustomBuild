@@ -21,6 +21,7 @@ services:
       CBS_GITHUB_ACCESS_TOKEN: ${CBS_GITHUB_ACCESS_TOKEN}
       PYTHONPATH: /app
       GUNICORN_CMD_ARGS: --bind=0.0.0.0:80 --timeout=300
+      CBS_BUILD_TIMEOUT_SEC: ${CBS_BUILD_TIMEOUT_SEC:-900}
     volumes:
       - ./base:/base:rw
     depends_on:
@@ -40,6 +41,7 @@ services:
       CBS_BASEDIR: /base
       CBS_LOG_LEVEL: ${CBS_LOG_LEVEL:-INFO}
       PYTHONPATH: /app
+      CBS_BUILD_TIMEOUT_SEC: ${CBS_BUILD_TIMEOUT_SEC:-900}
     volumes:
       - ./base:/base:rw
     depends_on:
