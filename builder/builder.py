@@ -14,6 +14,7 @@ from metadata_manager import (
 )
 from pathlib import Path
 
+CBS_BUILD_TIMEOUT_SEC = int(os.getenv('CBS_BUILD_TIMEOUT_SEC', 900))  # 15 minutes default
 
 class Builder:
     """
@@ -377,52 +378,65 @@ class Builder:
             )
             build_log.flush()
 
-            # Run the build steps
-            self.logger.info("Running waf configure")
-            build_log.write("Running waf configure\n")
-            build_log.flush()
-            subprocess.run(
-                [
-                    "python3",
-                    "./waf",
-                    "configure",
-                    "--board",
-                    build_info.board,
-                    "--out",
-                    self.__get_path_to_build_dir(build_id),
-                    "--extra-hwdef",
-                    self.__get_path_to_extra_hwdef(build_id),
-                ],
-                cwd=self.__get_path_to_build_src(build_id),
-                stdout=build_log,
-                stderr=build_log,
-                shell=False,
-            )
+            try:
+                # Run the build steps
+                self.logger.info("Running waf configure")
+                build_log.write("Running waf configure\n")
+                build_log.flush()
+                subprocess.run(
+                    [
+                        "python3",
+                        "./waf",
+                        "configure",
+                        "--board",
+                        build_info.board,
+                        "--out",
+                        self.__get_path_to_build_dir(build_id),
+                        "--extra-hwdef",
+                        self.__get_path_to_extra_hwdef(build_id),
+                    ],
+                    cwd=self.__get_path_to_build_src(build_id),
+                    stdout=build_log,
+                    stderr=build_log,
+                    shell=False,
+                    timeout=CBS_BUILD_TIMEOUT_SEC,
+                )
 
-            self.logger.info("Running clean")
-            build_log.write("Running clean\n")
-            build_log.flush()
-            subprocess.run(
-                ["python3", "./waf", "clean"],
-                cwd=self.__get_path_to_build_src(build_id),
-                stdout=build_log,
-                stderr=build_log,
-                shell=False,
-            )
+                self.logger.info("Running clean")
+                build_log.write("Running clean\n")
+                build_log.flush()
+                subprocess.run(
+                    ["python3", "./waf", "clean"],
+                    cwd=self.__get_path_to_build_src(build_id),
+                    stdout=build_log,
+                    stderr=build_log,
+                    shell=False,
+                    timeout=CBS_BUILD_TIMEOUT_SEC,
+                )
 
-            self.logger.info("Running build")
-            build_log.write("Running build\n")
-            build_log.flush()
-            build_command = vehicle.waf_build_command
-            subprocess.run(
-                ["python3", "./waf", build_command],
-                cwd=self.__get_path_to_build_src(build_id),
-                stdout=build_log,
-                stderr=build_log,
-                shell=False,
-            )
-            build_log.write("done build\n")
-            build_log.flush()
+                self.logger.info("Running build")
+                build_log.write("Running build\n")
+                build_log.flush()
+                build_command = vehicle.waf_build_command
+                subprocess.run(
+                    ["python3", "./waf", build_command],
+                    cwd=self.__get_path_to_build_src(build_id),
+                    stdout=build_log,
+                    stderr=build_log,
+                    shell=False,
+                    timeout=CBS_BUILD_TIMEOUT_SEC,
+                )
+                build_log.write("done build\n")
+                build_log.flush()
+            except subprocess.TimeoutExpired:
+                self.logger.error(
+                    f"Build {build_id} timed out after "
+                    f"{CBS_BUILD_TIMEOUT_SEC} seconds."
+                )
+                build_log.write(
+                    f"Build timed out after {CBS_BUILD_TIMEOUT_SEC} seconds.\n"
+                )
+                build_log.flush()
 
     def shutdown(self) -> None:
         """
