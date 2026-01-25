@@ -20,7 +20,7 @@
     <meta property="og:url" content="https://custom.ardupilot.org/">
     <meta property="og:image" content="https://ardupilot.org/application/files/6315/7552/1962/ArduPilot-Motto.png">
 
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/main.css') }}">
+    <link rel="stylesheet" type="text/css" href="/static/styles/main.css">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
@@ -33,7 +33,7 @@
         <div class="container-fluid">
             <div>
                 <a class="navbar-brand" href="/" >
-                    <img src="{{ url_for('static', filename='images/ardupilot_logo.png')}}" alt="ArduPilot" height="24" class="d-inline-block align-text-top">
+                    <img src="/static/images/ardupilot_logo.png" alt="ArduPilot" height="24" class="d-inline-block align-text-top">
                     <span class="ms-2 text-white" style="font-size: 25px;">Custom Firmware Builder</span>
                 </a>
             </div>
@@ -50,7 +50,7 @@
               <span class="d-flex align-items-center"><i class="bi bi-hammer me-2"></i><strong>ADD NEW BUILD</strong></span>   
             </div>
             <div class="card-body">
-              <form id="build-form" action="/generate" method="post">
+              <form id="build-form">
                 <div class="row">
                     <div class="col-md-4 col-sm-6 mb-2 d-flex align-items-end">
                         <div class="container-fluid" id="vehicle_list">
@@ -91,17 +91,13 @@
             <div class="card-footer">
                 <div class="d-flex justify-content-between p-0">
                     <div class="d-flex align-items-center">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" role="switch" id="auto_apply_def" checked>
-                            <label class="form-check-label" for="auto_apply_def">Auto-apply feature defaults</label>
-                        </div>
-                        <div class="form-check ms-3">
+                        <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="check-uncheck-all" onclick="Features.checkUncheckAll(this.checked);">
                             <label class="form-check-label" for="check-uncheck-all">Check/Uncheck All</label>
                         </div>
                     </div>
                     <div>
-                        <button class="btn btn-outline-primary me-2" id="reset_def" onclick="Features.applyDefaults();"><i class="bi bi-arrow-counterclockwise me-2"></i>Reset feature defaults</button>
+                        <button class="btn btn-outline-primary me-2" id="reset_def" onclick="Features.applyDefaults();"><i class="bi bi-arrow-counterclockwise me-2"></i>Reset to defaults</button>
                         <button type="submit" form="build-form" class="btn btn-primary" id="submit"><i class="bi bi-hammer me-2"></i>Generate build</button>
                     </div>
                 </div>
@@ -127,6 +123,6 @@
         </div>
     </div>
   
-    <script type="text/javascript" src="{{ url_for('static', filename='js/add_build.js')}}"></script>
+    <script type="text/javascript" src="/static/js/add_build.js"></script>
 </body>
 </html>

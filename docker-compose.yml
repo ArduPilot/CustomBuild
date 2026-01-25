@@ -19,15 +19,15 @@ services:
       CBS_LOG_LEVEL: ${CBS_LOG_LEVEL:-INFO}
       CBS_ENABLE_INBUILT_BUILDER: 0
       CBS_GITHUB_ACCESS_TOKEN: ${CBS_GITHUB_ACCESS_TOKEN}
+      CBS_REMOTES_RELOAD_TOKEN: ${CBS_REMOTES_RELOAD_TOKEN}
       PYTHONPATH: /app
-      GUNICORN_CMD_ARGS: --bind=0.0.0.0:80 --timeout=300
       CBS_BUILD_TIMEOUT_SEC: ${CBS_BUILD_TIMEOUT_SEC:-900}
     volumes:
       - ./base:/base:rw
     depends_on:
       - redis
     ports:
-      - "127.0.0.1:${WEB_PORT:-8080}:80"
+      - "127.0.0.1:${WEB_PORT:-8080}:8080"
 
   builder:
     build:
