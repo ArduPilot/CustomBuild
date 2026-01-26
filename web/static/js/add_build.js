@@ -276,6 +276,8 @@ const Features = (() => {
 var init_categories_expanded = false;
 
 var pending_update_calls = 0;   // to keep track of unresolved Promises
+var currentBoards = [];
+var currentFeatures = [];
 
 function init() {
     fetchVehicles();
@@ -408,8 +410,9 @@ function onVersionChange(new_version) {
 }
 
 function updateBoards(all_boards, new_board) {
+    currentBoards = all_boards || [];
     let board_element = document.getElementById('board');
-    let old_board = board_element ? board.value : '';
+    let old_board = board_element ? board_element.value : '';
     fillBoards(all_boards, new_board);
     if (old_board != new_board) {
         onBoardChange(new_board);
@@ -417,6 +420,10 @@ function updateBoards(all_boards, new_board) {
 }
 
 function onBoardChange(new_board) {
+    // Re-render build options to show/hide CAN based on the new board
+    if (currentFeatures && currentFeatures.length > 0) {
+        fillBuildOptions(currentFeatures);
+    }
     fetchAndUpdateDefaults();
 }
 
@@ -455,10 +462,16 @@ function fillBoards(boards, default_board) {
                         '<select name="board" id="board" class="form-select" aria-label="Select Board" onchange="onBoardChange(this.value);"></select>';
     let boardList = document.getElementById("board")
     boards.forEach(board => {
+        const boardName = (typeof board === 'object' && board !== null) ? board.name : board;
+        const hasCan = (typeof board === 'object' && board !== null) ? Boolean(board.has_can) : false;
+        if (!boardName) {
+            return;
+        }
         let opt = document.createElement('option');
-        opt.value = board;
-        opt.innerHTML = board;
-        opt.selected = (board === default_board);
+        opt.value = boardName;
+        opt.innerHTML = boardName;
+        opt.selected = (boardName === default_board);
+        opt.setAttribute('data-has-can', hasCan);
         boardList.appendChild(opt);
     });
 }
@@ -486,6 +499,38 @@ var toggle_all_categories = (() => {
 
     return toggle_method;
 })();
+
+function getSelectedBoardMetadata() {
+    const boardSelect = document.getElementById('board');
+    if (!boardSelect || boardSelect.selectedIndex < 0) {
+        return null;
+    }
+
+    const selectedName = boardSelect.value;
+    if (!selectedName) {
+        return null;
+    }
+
+    // Prefer the cached board objects which include has_can
+    const fromCache = (currentBoards || []).find((board) => {
+        if (board && typeof board === 'object') {
+            return board.name === selectedName;
+        }
+        return board === selectedName;
+    });
+
+    if (fromCache && typeof fromCache === 'object') {
+        return fromCache;
+    }
+
+    // Fallback: derive from the selected option's data attribute
+    const selectedOption = boardSelect.options[boardSelect.selectedIndex];
+    const hasCanAttr = selectedOption ? selectedOption.getAttribute('data-has-can') : null;
+    return {
+        name: selectedName,
+        has_can: hasCanAttr === null ? undefined : hasCanAttr === 'true',
+    };
+}
 
 function createCategoryCard(category_name, options, expanded) {
     options_html = "";
@@ -535,27 +580,50 @@ function createCategoryCard(category_name, options, expanded) {
 }
 
 function fillBuildOptions(buildOptions) {
+    // Store current features for re-rendering when board changes
+    currentFeatures = buildOptions;
+    
+    const selectedBoard = getSelectedBoardMetadata();
+    // Default to hiding (false) if metadata is missing to be safe
+    const boardHasCan = selectedBoard && selectedBoard.has_can !== undefined
+        ? Boolean(selectedBoard.has_can)
+        : false; 
+
     let output = document.getElementById('build_options');
     output.innerHTML =  `<div class="d-flex mb-3 justify-content-between">
-                            <div class="d-flex d-flex align-items-center">
-                                <p class="card-text"><strong>Available features for the current selection are:</strong></p>
-                            </div>
-                            <button type="button" class="btn btn-outline-primary" id="exp_col_button" onclick="toggle_all_categories();"><i class="bi bi-chevron-expand me-2"></i>Expand/Collapse all categories</button> 
-                        </div>`;
+                             <div class="d-flex d-flex align-items-center">
+                                 <p class="card-text"><strong>Available features for the current selection are:</strong></p>
+                             </div>
+                             <button type="button" class="btn btn-outline-primary" id="exp_col_button" onclick="toggle_all_categories();"><i class="bi bi-chevron-expand me-2"></i>Expand/Collapse all categories</button> 
+                          </div>`;
+    
+    let visibleCategoryIdx = 0;
 
-    buildOptions.forEach((category, cat_idx) => {
-        if (cat_idx % 4 == 0) {
-            let new_row = document.createElement('div');
-            new_row.setAttribute('class', 'row');
-            new_row.id = 'category_'+parseInt(cat_idx/4)+'_row';
-            output.appendChild(new_row);
+    buildOptions.forEach((category) => {
+        // HIDE CAN CATEGORY IF BOARD HAS NO CAN
+        if (category.name && category.name.includes("CAN") && boardHasCan === false) {
+            return;
         }
-        let col_element = document.createElement('div');
-        col_element.setAttribute('class', 'col-md-3 col-sm-6 mb-2');
-        col_element.appendChild(createCategoryCard(category['name'], category['options'], init_categories_expanded));
-        document.getElementById('category_'+parseInt(cat_idx/4)+'_row').appendChild(col_element);
-    });
-}
+
+        if (visibleCategoryIdx % 4 === 0) {
+             let new_row = document.createElement('div');
+             new_row.setAttribute('class', 'row');
+             new_row.id = 'category_'+parseInt(visibleCategoryIdx/4)+'_row';
+             output.appendChild(new_row);
+         }
+
+         let col_element = document.createElement('div');
+         col_element.setAttribute('class', 'col-md-3 col-sm-6 mb-2');
+         col_element.appendChild(createCategoryCard(category['name'], category['options'], init_categories_expanded));
+        
+         let row = document.getElementById('category_'+parseInt(visibleCategoryIdx/4)+'_row');        
+         if (row) {
+            row.appendChild(col_element);
+         }
+
+         visibleCategoryIdx += 1;
+     });
+ }
 
 // returns a Promise
 // the promise is resolved when we recieve status code 200 from the AJAX request
