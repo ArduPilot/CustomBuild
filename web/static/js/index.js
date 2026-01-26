@@ -67,16 +67,16 @@ function updateBuildsTable(builds) {
             status_color = 'success';
         } else if (build_info['progress']['state'] == 'PENDING') {
             status_color = 'warning';
-        } else if (build_info['progress']['state'] == 'FAILURE' || build_info['progress']['state'] == 'ERROR') {
+        } else if (build_info['progress']['state'] == 'FAILURE' || build_info['progress']['state'] == 'ERROR' || build_info['progress']['state'] == 'TIMED_OUT') {
             status_color = 'danger';
         }
 
         const features_string = build_info['selected_features'].join(', ')
         const build_age = timeAgo(build_info['time_created'])
 
-        const isSuccess = build_info['progress']['state'] === 'SUCCESS';
-        const downloadDisabled = !isSuccess ? 'disabled' : '';
-        const download_button_color = isSuccess ? 'primary' : 'secondary';
+        const isNonTerminal = (build_info['progress']['state'] == 'PENDING' || build_info['progress']['state'] == 'RUNNING');
+        const downloadDisabled = isNonTerminal ? 'disabled' : '';
+        const download_button_color = isNonTerminal ? 'secondary' : 'primary';
 
         table_body_html +=  `<tr>
                                 <td class="align-middle"><span class="badge text-bg-${status_color}">${build_info['progress']['state']}</span></td>
@@ -216,7 +216,7 @@ async function tryAutoDownload(buildId) {
         }
 
         // Stop running if the build is in a terminal state
-        if (["FAILURE", "SUCCESS", "ERROR"].includes(currentState)) {
+        if (["FAILURE", "SUCCESS", "ERROR", "TIMED_OUT"].includes(currentState)) {
             clearInterval(autoDownloadIntervalId);
             return;
         }
