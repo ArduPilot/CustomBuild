@@ -33,8 +33,12 @@ import build_manager
 from builder import Builder
 from utils.ratelimiter import RateLimitExceededException
 
-# run at lower priority
-os.nice(20)
+# run at lower priority (Unix only)
+try:
+    os.nice(20)
+except AttributeError:
+    # Windows doesn't support os.nice()
+    pass
 
 import optparse
 parser = optparse.OptionParser("app.py")
