@@ -8,7 +8,8 @@ from .manager import (
 )
 import time
 
-CBS_BUILD_TIMEOUT_SEC = int(os.getenv('CBS_BUILD_TIMEOUT_SEC', 900))  # 15 minutes default
+CBS_BUILD_TIMEOUT_SEC = int(os.getenv('CBS_BUILD_TIMEOUT_SEC', 900))
+
 
 class BuildProgressUpdater:
     """
