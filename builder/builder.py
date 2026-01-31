@@ -14,7 +14,8 @@ from metadata_manager import (
 )
 from pathlib import Path
 
-CBS_BUILD_TIMEOUT_SEC = int(os.getenv('CBS_BUILD_TIMEOUT_SEC', 900))  # 15 minutes default
+CBS_BUILD_TIMEOUT_SEC = int(os.getenv('CBS_BUILD_TIMEOUT_SEC', 900))
+
 
 class Builder:
     """
