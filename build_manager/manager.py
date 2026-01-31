@@ -72,7 +72,7 @@ class BuildInfo:
             percent=0
         )
         self.time_created = time.time()
-        self.time_started = None # when build state becomes RUNNING
+        self.time_started = None  # when build state becomes RUNNING
 
     def to_dict(self) -> dict:
         return {
@@ -357,8 +357,8 @@ class BuildManager:
         )
 
     def update_build_time_started(self,
-                              build_id: str,
-                              time_started: float) -> None:
+                                  build_id: str,
+                                  time_started: float) -> None:
         """
         Update the build's time_started timestamp.
 
