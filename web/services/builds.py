@@ -136,13 +136,29 @@ class BuildsService:
                         f"{commit_ref}"
                     )
 
+        # Parse custom defines string
+        custom_defines = []
+        if build_request.custom_defines:
+            custom_define_strings = build_request.custom_defines.split(',')
+            for custom_define in [s.strip() for s in custom_define_strings]:
+                if "=" in custom_define:
+                    split_string = custom_define.split('=')
+                    if len(split_string) != 2:
+                        raise ValueError("Failed to parse custom define")
+                    define, value = split_string
+                else:
+                    define = custom_define
+                    value = None
+                custom_defines.append((define, value))
+
         # Create build info
         build_info = build_manager.BuildInfo(
             vehicle_id=vehicle_id,
             remote_info=remote_info,
             git_hash=git_hash,
             board=board_name,
-            selected_features=selected_feature_defines
+            selected_features=selected_feature_defines,
+            custom_defines=custom_defines
         )
 
         # Submit build
