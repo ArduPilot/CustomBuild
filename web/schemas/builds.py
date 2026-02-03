@@ -11,7 +11,7 @@ class BuildProgress(BaseModel):
         ..., ge=0, le=100, description="Build completion percentage"
     )
     state: Literal[
-        "PENDING", "RUNNING", "SUCCESS", "FAILURE", "ERROR"
+        "PENDING", "RUNNING", "SUCCESS", "FAILURE", "ERROR", "TIMED_OUT"
     ] = Field(..., description="Current build state")
 
 
