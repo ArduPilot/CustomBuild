@@ -14,38 +14,21 @@ templates = Jinja2Templates(directory=str(WEB_ROOT / "templates"))
 
 
 @router.get("/", response_class=HTMLResponse)
-async def index(request: Request, token: str = None):
+async def index(request: Request, build_id: str = None):
     """
     Render the main index page showing all builds.
 
     Args:
         request: FastAPI Request object
-        token: Optional build token to automatically show log modal
+        build_id: Optional build ID to automatically show log modal and
+            trigger artifact download on build completion
 
     Returns:
         Rendered HTML template
     """
     return templates.TemplateResponse(
         "index.html",
-        {"request": request, "token": token}
-    )
-
-
-@router.get("/viewlog/{token}", response_class=HTMLResponse)
-async def viewlog(request: Request, token: str):
-    """
-    Render the index page with a specific build log open.
-
-    Args:
-        request: FastAPI Request object
-        token: Build ID to show log for
-
-    Returns:
-        Rendered HTML template with token
-    """
-    return templates.TemplateResponse(
-        "index.html",
-        {"request": request, "token": token}
+        {"request": request, "build_id": build_id}
     )
 
 

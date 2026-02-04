@@ -730,7 +730,7 @@ async function handleFormSubmit(event) {
         const result = await response.json();
         
         // Redirect to viewlog page
-        window.location.href = `/viewlog/${result.build_id}`;
+        window.location.href = `/?build_id=${result.build_id}`;
         
     } catch (error) {
         console.error('Error submitting build:', error);
