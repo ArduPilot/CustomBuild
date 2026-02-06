@@ -81,7 +81,7 @@ function updateBuildsTable(builds) {
         table_body_html +=  `<tr>
                                 <td class="align-middle"><span class="badge text-bg-${status_color}">${build_info['progress']['state']}</span></td>
                                 <td class="align-middle">${build_age}</td>
-                                <td class="align-middle"><a href="https://github.com/ArduPilot/ardupilot/commit/${build_info['git_hash']}">${build_info['git_hash'].substring(0,8)}</a></td>
+                                <td class="align-middle"><a href="https://github.com/ArduPilot/ardupilot/commit/${build_info['version']['git_hash']}">${build_info['version']['git_hash'].substring(0,8)}</a></td>
                                 <td class="align-middle">${build_info['board']['name']}</td>
                                 <td class="align-middle">${build_info['vehicle']['name']}</td>
                                 <td class="align-middle" id="${row_num}_features">
@@ -101,6 +101,9 @@ function updateBuildsTable(builds) {
                                     <button class="btn btn-md btn-outline-${download_button_color} m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="Download build artifacts" id="${build_info['build_id']}-download-btn" onclick="window.location.href='/api/v1/builds/${build_info['build_id']}/artifact';" ${downloadDisabled}>
                                         <i class="bi bi-download"></i>
                                     </button>
+                                    <button class="btn btn-md btn-outline-primary m-1 tooltip-button" data-bs-toggle="tooltip" data-bs-animation="false" data-bs-title="Copy and re-build" onclick="window.location.href='/add_build?rebuild_from=${build_info['build_id']}';">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
                                 </td>
                             </tr>`;
         row_num += 1;
@@ -115,7 +118,7 @@ function updateBuildsTable(builds) {
                                 <th scope="col" style="width: 5%">Vehicle</th>
                                 <th scope="col">Features</th>
                                 <th scope="col" style="width: 15%">Progress</th>
-                                <th scope="col" style="width: 15%">Actions</th>
+                                <th scope="col" style="width: 18%">Actions</th>
                             </thead>
                             <tbody>${table_body_html}</tbody>
                         </table>`;
