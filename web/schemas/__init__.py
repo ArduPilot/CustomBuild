@@ -12,6 +12,7 @@ from .admin import (
 
 # Build schemas
 from .builds import (
+    BuildVersionInfo,
     RemoteInfo,
     BuildProgress,
     BuildRequest,
@@ -36,6 +37,7 @@ __all__ = [
     # Admin
     "RefreshRemotesResponse",
     # Builds
+    "BuildVersionInfo",
     "RemoteInfo",
     "BuildProgress",
     "BuildRequest",

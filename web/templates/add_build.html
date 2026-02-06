@@ -123,6 +123,12 @@
         </div>
     </div>
   
+    {% if rebuild_from != None %}
+    <script>
+        var rebuildFromBuildId = '{{rebuild_from}}';
+    </script>
+    {% endif %}
+    
     <script type="text/javascript" src="/static/js/add_build.js"></script>
 </body>
 </html>

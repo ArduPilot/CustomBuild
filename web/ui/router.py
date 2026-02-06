@@ -33,17 +33,18 @@ async def index(request: Request, build_id: str = None):
 
 
 @router.get("/add_build", response_class=HTMLResponse)
-async def add_build(request: Request):
+async def add_build(request: Request, rebuild_from: str = None):
     """
     Render the add build page for creating new firmware builds.
 
     Args:
         request: FastAPI Request object
+        rebuild_from: Optional build ID to copy configuration from
 
     Returns:
         Rendered HTML template
     """
     return templates.TemplateResponse(
         "add_build.html",
-        {"request": request}
+        {"request": request, "rebuild_from": rebuild_from}
     )
