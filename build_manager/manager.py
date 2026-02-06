@@ -45,6 +45,7 @@ class BuildProgress:
 class BuildInfo:
     def __init__(self,
                  vehicle_id: str,
+                 version_id: str,
                  remote_info: RemoteInfo,
                  git_hash: str,
                  board: str,
@@ -56,6 +57,7 @@ class BuildInfo:
 
         Parameters:
             vehicle_id (str): The vehicle ID associated with the build.
+            version_id (str): The version ID associated with the build.
             remote_info (RemoteInfo): The remote repository containing the
             source commit to build on.
             git_hash (str): The git commit hash to build on.
@@ -63,6 +65,7 @@ class BuildInfo:
             selected_features (set): Set of features selected for the build.
         """
         self.vehicle_id = vehicle_id
+        self.version_id = version_id
         self.remote_info = remote_info
         self.git_hash = git_hash
         self.board = board
@@ -77,6 +80,7 @@ class BuildInfo:
     def to_dict(self) -> dict:
         return {
             'vehicle_id': self.vehicle_id,
+            'version_id': self.version_id,
             'remote_info': self.remote_info.to_dict(),
             'git_hash': self.git_hash,
             'board': self.board,
