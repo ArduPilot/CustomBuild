@@ -87,7 +87,7 @@ const Features = (() => {
         });
     }
 
-    function handleOptionStateChange(feature_id, triggered_by_ui) {
+    function handleOptionStateChange(feature_id, triggered_by_ui, updateDependencies = true) {
         // feature_id is the feature ID from the API
         let element = document.getElementById(feature_id);
         if (!element) return;
@@ -97,13 +97,17 @@ const Features = (() => {
         
         if (element.checked) {
             selected_options += 1;
-            enableDependenciesForFeature(feature.id);
+            if (updateDependencies) {
+                enableDependenciesForFeature(feature.id);
+            }
         } else {
             selected_options -= 1;
-            if (triggered_by_ui) {
-                askToDisableDependentsForFeature(feature.id);
-            } else {
-                disabledDependentsForFeature(feature.id);
+            if (updateDependencies) {
+                if (triggered_by_ui) {
+                    askToDisableDependentsForFeature(feature.id);
+                } else {
+                    disabledDependentsForFeature(feature.id);
+                }
             }
         }
 
@@ -262,7 +266,7 @@ const Features = (() => {
         });
     }
 
-    function checkUncheckOptionById(id, check) {
+    function checkUncheckOptionById(id, check, updateDependencies = true) {
         let feature = getOptionById(id);
         if (!feature) return;
         
@@ -273,7 +277,7 @@ const Features = (() => {
         }
         element.checked = check;
         const triggered_by_ui = false;
-        handleOptionStateChange(feature.id, triggered_by_ui);
+        handleOptionStateChange(feature.id, triggered_by_ui, updateDependencies);
     }
 
     function checkUncheckAll(check) {
@@ -288,13 +292,75 @@ const Features = (() => {
         });
     }
 
-    return {reset, handleOptionStateChange, getCategoryIdByName, applyDefaults, checkUncheckAll, checkUncheckCategory, getOptionById};
+    return {reset, handleOptionStateChange, getCategoryIdByName, applyDefaults, checkUncheckAll, checkUncheckCategory, getOptionById, checkUncheckOptionById};
 })();
 
 var init_categories_expanded = false;
 
-function init() {
+var rebuildConfig = {
+    vehicleId: null,
+    versionId: null,
+    boardId: null,
+    selectedFeatures: [],
+    isRebuildMode: false
+};
+
+async function init() {
+    if (typeof rebuildFromBuildId !== 'undefined') {
+        await initRebuild(rebuildFromBuildId);
+    }
+    
     fetchVehicles();
+}
+
+async function initRebuild(buildId) {
+    try {
+        const buildResponse = await fetch(`/api/v1/builds/${buildId}`);
+        if (!buildResponse.ok) {
+            throw new Error('Failed to fetch build details');
+        }
+        const buildData = await buildResponse.json();
+        
+        if (!buildData.vehicle || !buildData.vehicle.id) {
+            throw new Error('Vehicle information is missing from the build');
+        }
+        if (!buildData.version || !buildData.version.id) {
+            throw new Error('Version information is missing from the build');
+        }
+        if (!buildData.board || !buildData.board.id) {
+            throw new Error('Board information is missing from the build');
+        }
+        
+        rebuildConfig.vehicleId = buildData.vehicle.id;
+        rebuildConfig.versionId = buildData.version.id;
+        rebuildConfig.boardId = buildData.board.id;
+        rebuildConfig.selectedFeatures = buildData.selected_features || [];
+        rebuildConfig.isRebuildMode = true;
+        
+    } catch (error) {
+        console.error('Error loading rebuild configuration:', error);
+        alert('Failed to load build configuration: ' + error.message + '\n\nRedirecting to new build page...');
+        window.location.href = '/add_build';
+        throw error;
+    }
+}
+
+function applyRebuildFeatures(featuresList) {
+    Features.checkUncheckAll(false);
+    
+    if (featuresList && featuresList.length > 0) {
+        featuresList.forEach(featureId => {
+            Features.checkUncheckOptionById(featureId, true, false);
+        });
+    }
+}
+
+function clearRebuildConfig() {
+    rebuildConfig.vehicleId = null;
+    rebuildConfig.versionId = null;
+    rebuildConfig.boardId = null;
+    rebuildConfig.selectedFeatures = [];
+    rebuildConfig.isRebuildMode = false;
 }
 
 // enables or disables the elements with ids passed as an array
@@ -330,7 +396,19 @@ function fetchVehicles() {
     sendAjaxRequestForJsonResponse(request_url)
         .then((json_response) => {
             let all_vehicles = json_response;
-            let new_vehicle = all_vehicles.find(vehicle => vehicle.name === "Copter") ? "copter": all_vehicles[0].id;
+            
+            if (rebuildConfig.vehicleId) {
+                const vehicleExists = all_vehicles.some(v => v.id === rebuildConfig.vehicleId);
+                if (!vehicleExists) {
+                    console.warn(`Rebuild vehicle '${rebuildConfig.vehicleId}' not found in available vehicles`);
+                    alert(`Warning: The vehicle from the original build is no longer available.\n\nRedirecting to new build page...`);
+                    window.location.href = '/add_build';
+                    return;
+                }
+            }
+            
+            let new_vehicle = rebuildConfig.vehicleId || 
+                             (all_vehicles.find(vehicle => vehicle.name === "Copter") ? "copter" : all_vehicles[0].id);
             updateVehicles(all_vehicles, new_vehicle);
         })
         .catch((message) => {
@@ -360,7 +438,18 @@ function onVehicleChange(new_vehicle_id) {
         .then((json_response) => {
             let all_versions = json_response;
             all_versions = sortVersions(all_versions);
-            const new_version = all_versions[0].id;
+            
+            if (rebuildConfig.versionId) {
+                const versionExists = all_versions.some(v => v.id === rebuildConfig.versionId);
+                if (!versionExists) {
+                    console.warn(`Rebuild version '${rebuildConfig.versionId}' not found for vehicle '${new_vehicle_id}'`);
+                    alert(`Warning: The version from the original build is no longer available.\n\nRedirecting to new build page...`);
+                    window.location.href = '/add_build';
+                    return;
+                }
+            }
+            
+            const new_version = rebuildConfig.versionId || all_versions[0].id;
             updateVersions(all_versions, new_version);
         })
         .catch((message) => {
@@ -405,7 +494,18 @@ function onVersionChange(new_version) {
         .then((boards_response) => {
             // Keep full board objects with id and name
             let boards = boards_response;
-            let new_board = boards.length > 0 ? boards[0].id : null;
+            
+            if (rebuildConfig.boardId) {
+                const boardExists = boards.some(b => b.id === rebuildConfig.boardId);
+                if (!boardExists) {
+                    console.warn(`Rebuild board '${rebuildConfig.boardId}' not found for version '${version_id}'`);
+                    alert(`Warning: The board from the original build is no longer available.\n\nRedirecting to new build page...`);
+                    window.location.href = '/add_build';
+                    return;
+                }
+            }
+            
+            let new_board = rebuildConfig.boardId || (boards.length > 0 ? boards[0].id : null);
             updateBoards(boards, new_board);
         })
         .catch((message) => {
@@ -443,7 +543,14 @@ function onBoardChange(new_board) {
         .then((features_response) => {
             Features.reset(features_response);
             fillBuildOptions(features_response);
-            Features.applyDefaults();
+            
+            // TODO: Refactor to use a single method to apply both rebuild and default features
+            if (rebuildConfig.isRebuildMode) {
+                applyRebuildFeatures(rebuildConfig.selectedFeatures);
+                clearRebuildConfig();
+            } else {
+                Features.applyDefaults();
+            }
         })
         .catch((message) => {
             console.log("Features update failed. "+message);

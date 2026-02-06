@@ -12,6 +12,7 @@ from schemas import (
     BuildOut,
     BuildProgress,
     RemoteInfo,
+    BuildVersionInfo,
 )
 from schemas.vehicles import VehicleBase, BoardBase
 
@@ -139,6 +140,7 @@ class BuildsService:
         # Create build info
         build_info = build_manager.BuildInfo(
             vehicle_id=vehicle_id,
+            version_id=build_request.version_id,
             remote_info=remote_info,
             git_hash=git_hash,
             board=board_name,
@@ -370,8 +372,11 @@ class BuildsService:
                 id=build_info.board,
                 name=build_info.board  # Board name is same as board ID for now
             ),
-            git_hash=build_info.git_hash,
-            remote_info=remote_info,
+            version=BuildVersionInfo(
+                id=build_info.version_id,
+                remote_info=remote_info,
+                git_hash=build_info.git_hash
+            ),
             selected_features=selected_feature_labels,
             progress=progress,
             time_created=build_info.time_created,

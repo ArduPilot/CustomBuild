@@ -43,15 +43,24 @@ class BuildSubmitResponse(BaseModel):
     )
 
 
+# --- Build Version Info ---
+class BuildVersionInfo(BaseModel):
+    """Version information for a build."""
+    id: str = Field(..., description="Version ID used for this build")
+    remote_info: RemoteInfo = Field(
+        ..., description="Source repository information"
+    )
+    git_hash: str = Field(..., description="Git commit hash used for build")
+
+
 # --- Build Output ---
 class BuildOut(BaseModel):
     """Complete build information output schema."""
     build_id: str = Field(..., description="Unique build identifier")
     vehicle: VehicleBase = Field(..., description="Target vehicle information")
     board: BoardBase = Field(..., description="Target board information")
-    git_hash: str = Field(..., description="Git commit hash used for build")
-    remote_info: RemoteInfo = Field(
-        ..., description="Source repository information"
+    version: BuildVersionInfo = Field(
+        ..., description="Version information for this build"
     )
     selected_features: List[str] = Field(
         default_factory=list,
