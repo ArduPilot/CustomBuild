@@ -2,7 +2,6 @@ import time
 import redis
 import dill
 from enum import Enum
-from utils import RateLimiter
 import logging
 import hashlib
 from metadata_manager import RemoteInfo
@@ -136,14 +135,6 @@ class BuildManager:
         self.__task_queue = redis_task_queue_name
         self.__outdir = outdir
 
-        # Initialide an IP-based rate limiter.
-        # Allow 10 builds per hour per client
-        self.__ip_rate_limiter = RateLimiter(
-            redis_host=redis_host,
-            redis_port=redis_port,
-            time_window_sec=3600,
-            allowed_requests=10
-        )
         self.__build_entry_prefix = "buildmeta-"
         self.logger = logging.getLogger(__name__)
         self.logger.info(
@@ -218,21 +209,17 @@ class BuildManager:
         return bid
 
     def submit_build(self,
-                     build_info: BuildInfo,
-                     client_ip: str) -> str:
+                     build_info: BuildInfo) -> str:
         """
         Submit a new build request, generate a build ID, and queue the
         build for processing.
 
         Parameters:
             build_info (BuildInfo): The build information.
-            client_ip (str): The IP address of the client submitting the
-            build request.
 
         Returns:
             str: The generated build ID for the submitted build.
         """
-        self.__ip_rate_limiter.count(client_ip)
         build_id = self.__generate_build_id(build_info)
         self.__insert_build_info(build_id=build_id, build_info=build_info)
         self.__queue_build(build_id=build_id)
