@@ -16,7 +16,7 @@ from schemas import (
     BuildOut,
 )
 from services.builds import get_builds_service, BuildsService
-from utils import RateLimitExceededException
+from core.limiter import limiter
 
 router = APIRouter(prefix="/builds", tags=["builds"])
 
@@ -28,9 +28,19 @@ router = APIRouter(prefix="/builds", tags=["builds"])
     responses={
         400: {"description": "Invalid build configuration"},
         404: {"description": "Vehicle, board, or version not found"},
-        429: {"description": "Rate limit exceeded"}
+        429: {
+            "description": "Rate limit exceeded",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Too many requests. Try again after some time."
+                    }
+                }
+            }
+        }
     }
 )
+@limiter.limit("10/hour")
 async def create_build(
     build_request: BuildRequest,
     request: Request,
@@ -52,19 +62,7 @@ async def create_build(
         429: Rate limit exceeded
     """
     try:
-        # Get client IP for rate limiting
-        forwarded_for = request.headers.get('X-Forwarded-For', None)
-        if forwarded_for:
-            client_ip = forwarded_for.split(',')[0].strip()
-        else:
-            client_ip = request.client.host if request.client else "unknown"
-
-        return service.create_build(build_request, client_ip)
-    except RateLimitExceededException as e:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=str(e)
-        )
+        return service.create_build(build_request)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

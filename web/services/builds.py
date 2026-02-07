@@ -42,15 +42,13 @@ class BuildsService:
 
     def create_build(
         self,
-        build_request: BuildRequest,
-        client_ip: str
+        build_request: BuildRequest
     ) -> BuildSubmitResponse:
         """
         Create a new build request.
 
         Args:
             build_request: Build configuration
-            client_ip: Client IP address for rate limiting
 
         Returns:
             Simple response with build_id and URL
@@ -149,8 +147,7 @@ class BuildsService:
 
         # Submit build
         build_id = self.manager.submit_build(
-            build_info=build_info,
-            client_ip=client_ip,
+            build_info=build_info
         )
 
         # Return simple submission response
