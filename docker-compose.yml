@@ -22,6 +22,7 @@ services:
       CBS_REMOTES_RELOAD_TOKEN: ${CBS_REMOTES_RELOAD_TOKEN}
       PYTHONPATH: /app
       CBS_BUILD_TIMEOUT_SEC: ${CBS_BUILD_TIMEOUT_SEC:-900}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-*}
     volumes:
       - ./base:/base:rw
     depends_on:
