@@ -5,7 +5,21 @@ import time
 import logging
 import ap_git
 import os
+import re
 
+class Board:
+        def __init__(self, id: str, name: str, attributes: dict):
+            self.id = id
+            self.name = name
+            self.attributes = dict(attributes)
+
+        def to_dict(self) -> dict:
+            out = {
+                "id": self.id,
+                "name": self.name,
+                "attributes": self.attributes,
+            }
+            return out
 
 class APSourceMetadataFetcher:
     """
@@ -192,6 +206,8 @@ class APSourceMetadataFetcher:
             tuple: A tuple of two lists in order:
                 - A list contains boards for NON-'ap_periph' targets.
                 - A list contains boards for the 'ap_periph' target.
+                - A list of Boards for NON-'ap_periph' targets.
+                - A list of Boards for the 'ap_periph' target.
 
         Raises:
             RuntimeError: If the method is called when caching is disabled.
@@ -220,6 +236,11 @@ class APSourceMetadataFetcher:
             self.logger.exception(e)
             return None
 
+        # Invalidate stale cache entries that contain dicts instead of Board objects
+        if non_periph_boards and isinstance(non_periph_boards[0], dict):
+            self.logger.debug("Stale cache entry found, treating as cache miss")
+            return None
+
         return (
             non_periph_boards,
             periph_boards
@@ -237,8 +258,78 @@ class APSourceMetadataFetcher:
                 ret.append(b)
         return ret
 
+    def __board_has_can(self, hwdef_path: str) -> bool:
+        """Return True when the hwdef file advertises CAN support."""
+        if not hwdef_path or not os.path.isfile(hwdef_path):
+            self.logger.debug(
+                "hwdef.dat not found while checking CAN support: %s",
+                hwdef_path,
+            )
+            return False
+
+        try:
+            with open(hwdef_path, "r", encoding="utf-8", errors="ignore") as hwdef_file:
+                hwdef_contents = hwdef_file.read()
+        except OSError as exc:
+            self.logger.warning(
+                "Failed to read hwdef.dat at %s: %s",
+                hwdef_path,
+                exc,
+            )
+            return False
+
+        combined_contents = hwdef_contents
+
+        # If the hwdef uses an include *.inc, read that file as well so
+        # CAN keywords defined there are detected (e.g., CubeOrange).
+        include_match = re.search(r"^\s*include\s+(.+\.inc)\s*$", hwdef_contents, re.MULTILINE)
+        if include_match:
+            include_name = include_match.group(1).strip()
+            include_path = os.path.join(os.path.dirname(hwdef_path), include_name)
+            if os.path.isfile(include_path):
+                try:
+                    with open(include_path, "r", encoding="utf-8", errors="ignore") as inc_file:
+                        combined_contents += "\n" + inc_file.read()
+                except OSError as exc:
+                    self.logger.warning(
+                        "Failed to read included hwdef %s: %s",
+                        include_path,
+                        exc,
+                    )
+
+        return (
+            "CAN1" in combined_contents
+            or "HAL_NUM_CAN_IFACES" in combined_contents
+            or "CAN_P1_DRIVER" in combined_contents
+            or "CAN_D1_DRIVER" in combined_contents
+        )
+
+    def __build_board_metadata(self, board_names: list[str], hwdef_dir: str) -> list[Board]:
+        board_data: list[Board] = []
+        for board_name in board_names:
+            hwdef_path = None
+            if hwdef_dir:
+                candidate_path = os.path.join(hwdef_dir, board_name, "hwdef.dat")
+                if os.path.isfile(candidate_path):
+                    hwdef_path = candidate_path
+                else:
+                    self.logger.debug(
+                        "hwdef.dat not found for board %s at %s",
+                        board_name,
+                        candidate_path,
+                    )
+
+            has_can = self.__board_has_can(hwdef_path) if hwdef_path else False
+            board = Board(
+                id=board_name,
+                name=board_name,
+                attributes={"has_can": has_can},
+            )
+            board_data.append(board)
+        return board_data
+
     def __get_boards_at_commit_from_repo(self, remote: str,
-                                         commit_ref: str) -> tuple[list, list]:
+                                         commit_ref: str) -> tuple[list[Board], list[Board]]:
         """
         Returns the tuple of boards (for both non-periph and periph targets,
         in order) for a given commit from the git repo.
@@ -251,6 +342,8 @@ class APSourceMetadataFetcher:
             tuple: A tuple of two lists in order:
                 - A list contains boards for NON-'ap_periph' targets.
                 - A list contains boards for the 'ap_periph' target.
+                - A list of Boards for NON-'ap_periph' targets.
+                - A list of Boards for the 'ap_periph' target.
         """
         with self.repo.get_checkout_lock():
             self.repo.checkout_remote_commit_ref(
@@ -275,24 +368,24 @@ class APSourceMetadataFetcher:
             self.logger.debug(f"non_periph_boards raw: {non_periph_boards}")
             self.logger.debug(f"periph_boards raw: {periph_boards}")
 
-        non_periph_boards = self.__exclude_boards_matching_patterns(
-            boards=non_periph_boards,
-            patterns=['fmuv*', 'SITL*'],
-        )
-        self.logger.debug(f"non_periph_boards filtered: {non_periph_boards}")
+            non_periph_boards = self.__exclude_boards_matching_patterns(
+                boards=non_periph_boards,
+                patterns=['fmuv*', 'SITL*'],
+            )
+            self.logger.debug(f"non_periph_boards filtered: {non_periph_boards}")
 
-        non_periph_boards_sorted = sorted(non_periph_boards)
-        periph_boards_sorted = sorted(periph_boards)
+            non_periph_boards_sorted = sorted(non_periph_boards)
+            periph_boards_sorted = sorted(periph_boards)
 
-        self.logger.debug(
-            f"non_periph_boards sorted: {non_periph_boards_sorted}"
-        )
-        self.logger.debug(f"periph_boards sorted: {periph_boards_sorted}")
+            self.logger.debug(
+                f"non_periph_boards sorted: {non_periph_boards_sorted}"
+            )
+            self.logger.debug(f"periph_boards sorted: {periph_boards_sorted}")
 
-        return (
-            non_periph_boards_sorted,
-            periph_boards_sorted,
-        )
+            return (
+                self.__build_board_metadata(non_periph_boards_sorted, hwdef_dir),
+                self.__build_board_metadata(periph_boards_sorted, hwdef_dir),
+            )
 
     def __get_build_options_at_commit_from_repo(self,
                                                 remote: str,
@@ -334,7 +427,7 @@ class APSourceMetadataFetcher:
         return build_options
 
     def __get_boards_at_commit(self, remote: str,
-                               commit_ref: str) -> tuple[list, list]:
+                               commit_ref: str) -> tuple[list[Board], list[Board]]:
         """
         Retrieves lists of boards available for building at a
         specified commit for both NON-'ap_periph' and ap_periph targets
@@ -352,6 +445,8 @@ class APSourceMetadataFetcher:
             tuple: A tuple of two lists in order:
                 - A list contains boards for NON-'ap_periph' targets.
                 - A list contains boards for the 'ap_periph' target.
+                - A list of Boards for NON-'ap_periph' targets.
+                - A list of Boards for the 'ap_periph' target.
         """
         tstart = time.time()
         if not self.caching_enabled:
@@ -396,7 +491,7 @@ class APSourceMetadataFetcher:
         return boards
 
     def get_boards(self, remote: str, commit_ref: str,
-                   vehicle_id: str) -> list:
+                   vehicle_id: str) -> list[Board]:
         """
         Returns a list of boards available for building at a
         specified commit for given vehicle.
@@ -407,7 +502,7 @@ class APSourceMetadataFetcher:
             vehicle_id (str): The vehicle ID to get the boards list for.
 
         Returns:
-            list: A list of boards.
+            list: A list of Boards.
         """
         non_periph_boards, periph_boards = self.__get_boards_at_commit(
             remote=remote,
