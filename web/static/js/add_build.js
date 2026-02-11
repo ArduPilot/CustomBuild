@@ -570,7 +570,6 @@ function fillBoards(boards, default_board_id) {
     let boardList = document.getElementById("board")
     boards.forEach(board => {
         const boardName = (typeof board === 'object' && board !== null) ? board.name : board;
-        const hasCan = (typeof board === 'object' && board !== null) ? Boolean(board.has_can) : false;
         if (!boardName) {
             return;
         }
