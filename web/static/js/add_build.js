@@ -297,7 +297,7 @@ const Features = (() => {
 
 var init_categories_expanded = false;
 
-var rebuildConfig = {
+var preSelectConfig = {
     vehicleId: null,
     versionId: null,
     boardId: null,
@@ -306,46 +306,71 @@ var rebuildConfig = {
 };
 
 async function init() {
-    if (typeof rebuildFromBuildId !== 'undefined') {
-        await initRebuild(rebuildFromBuildId);
-    }
-    
-    fetchVehicles();
+  await initPreSelect();
+  fetchVehicles();
 }
 
-async function initRebuild(buildId) {
+async function initPreSelect() {
+  const params = new URLSearchParams(window.location.search);
+
+  if (params.has("rebuild_from")) {
+    const rebuildId = params.get("rebuild_from");
+
     try {
-        const buildResponse = await fetch(`/api/v1/builds/${buildId}`);
-        if (!buildResponse.ok) {
-            throw new Error('Failed to fetch build details');
-        }
-        const buildData = await buildResponse.json();
-        
-        if (!buildData.vehicle || !buildData.vehicle.id) {
-            throw new Error('Vehicle information is missing from the build');
-        }
-        if (!buildData.version || !buildData.version.id) {
-            throw new Error('Version information is missing from the build');
-        }
-        if (!buildData.board || !buildData.board.id) {
-            throw new Error('Board information is missing from the build');
-        }
-        
-        rebuildConfig.vehicleId = buildData.vehicle.id;
-        rebuildConfig.versionId = buildData.version.id;
-        rebuildConfig.boardId = buildData.board.id;
-        rebuildConfig.selectedFeatures = buildData.selected_features || [];
-        rebuildConfig.isRebuildMode = true;
-        
-    } catch (error) {
-        console.error('Error loading rebuild configuration:', error);
-        alert('Failed to load build configuration: ' + error.message + '\n\nRedirecting to new build page...');
-        window.location.href = '/add_build';
-        throw error;
+      const res = await fetch(`/api/v1/builds/${rebuildId}`);
+      if (!res.ok) throw new Error("Failed to fetch build");
+
+      const data = await res.json();
+
+      if (!data.vehicle || !data.vehicle.id) {
+        throw new Error("Vehicle information is missing from the build");
+      }
+
+      if (!data.version || !data.version.id) {
+        throw new Error("Version information is missing from the build");
+      }
+
+      if (!data.board || !data.board.id) {
+        throw new Error("Board information is missing from the build");
+      }
+
+      preSelectConfig.vehicleId = data.vehicle.id;
+      preSelectConfig.versionId = data.version.id;
+      preSelectConfig.boardId = data.board.id;
+      preSelectConfig.selectedFeatures = data.selected_features || [];
+      preSelectConfig.isRebuildMode = true;
+
+    } catch (err) {
+      console.error("Error loading rebuild config:", err);
+      alert(
+        "Failed to load build configuration: " +
+          err.message +
+          "\n\nRedirecting to new build page..."
+      );
+      window.location.href = "/add_build";
+      throw err;
     }
+
+    return;
+  }
+
+
+  if (params.has("vehicle_id")) {
+    preSelectConfig.vehicleId = params.get("vehicle_id");
+  }
+
+  if (params.has("version_id")) {
+    preSelectConfig.versionId = params.get("version_id");
+  }
+
+  if (params.has("board_id")) {
+    preSelectConfig.boardId = params.get("board_id");
+  }
 }
 
-function applyRebuildFeatures(featuresList) {
+
+ 
+function applyPreSelectedFeatures(featuresList) {
     Features.checkUncheckAll(false);
     
     if (featuresList && featuresList.length > 0) {
@@ -355,12 +380,12 @@ function applyRebuildFeatures(featuresList) {
     }
 }
 
-function clearRebuildConfig() {
-    rebuildConfig.vehicleId = null;
-    rebuildConfig.versionId = null;
-    rebuildConfig.boardId = null;
-    rebuildConfig.selectedFeatures = [];
-    rebuildConfig.isRebuildMode = false;
+function clearPreSelectConfig() {
+    preSelectConfig.vehicleId = null;
+    preSelectConfig.versionId = null;
+    preSelectConfig.boardId = null;
+    preSelectConfig.selectedFeatures = [];
+    preSelectConfig.isRebuildMode = false;
 }
 
 // enables or disables the elements with ids passed as an array
@@ -397,17 +422,18 @@ function fetchVehicles() {
         .then((json_response) => {
             let all_vehicles = json_response;
             
-            if (rebuildConfig.vehicleId) {
-                const vehicleExists = all_vehicles.some(v => v.id === rebuildConfig.vehicleId);
+            if (preSelectConfig.vehicleId) {
+                const vehicleExists = all_vehicles.some(v => v.id === preSelectConfig.vehicleId);
                 if (!vehicleExists) {
-                    console.warn(`Rebuild vehicle '${rebuildConfig.vehicleId}' not found in available vehicles`);
-                    alert(`Warning: The vehicle from the original build is no longer available.\n\nRedirecting to new build page...`);
+                    const msg = `Vehicle '${preSelectConfig.vehicleId}' is no longer listed for building. Redirecting to new build page...`;
+                    console.warn(msg);
+                    alert(msg);
                     window.location.href = '/add_build';
                     return;
                 }
             }
             
-            let new_vehicle = rebuildConfig.vehicleId || 
+            let new_vehicle = preSelectConfig.vehicleId || 
                              (all_vehicles.find(vehicle => vehicle.name === "Copter") ? "copter" : all_vehicles[0].id);
             updateVehicles(all_vehicles, new_vehicle);
         })
@@ -439,17 +465,19 @@ function onVehicleChange(new_vehicle_id) {
             let all_versions = json_response;
             all_versions = sortVersions(all_versions);
             
-            if (rebuildConfig.versionId) {
-                const versionExists = all_versions.some(v => v.id === rebuildConfig.versionId);
-                if (!versionExists) {
-                    console.warn(`Rebuild version '${rebuildConfig.versionId}' not found for vehicle '${new_vehicle_id}'`);
-                    alert(`Warning: The version from the original build is no longer available.\n\nRedirecting to new build page...`);
-                    window.location.href = '/add_build';
-                    return;
-                }
+            if (preSelectConfig.versionId) {
+                const versionExists = all_versions.some(v => v.id === preSelectConfig.versionId);
+              if (!versionExists) {
+                      const msg = `Version '${preSelectConfig.versionId}' is no longer listed for building. Redirecting to new build page...`;
+                      console.warn(msg);
+                      alert(msg);
+                      window.location.href = '/add_build';
+                      return;
+                  }
+
             }
             
-            const new_version = rebuildConfig.versionId || all_versions[0].id;
+            const new_version = preSelectConfig.versionId || all_versions[0].id;
             updateVersions(all_versions, new_version);
         })
         .catch((message) => {
@@ -495,17 +523,18 @@ function onVersionChange(new_version) {
             // Keep full board objects with id and name
             let boards = boards_response;
             
-            if (rebuildConfig.boardId) {
-                const boardExists = boards.some(b => b.id === rebuildConfig.boardId);
+            if (preSelectConfig.boardId) {
+                const boardExists = boards.some(b => b.id === preSelectConfig.boardId);
                 if (!boardExists) {
-                    console.warn(`Rebuild board '${rebuildConfig.boardId}' not found for version '${version_id}'`);
-                    alert(`Warning: The board from the original build is no longer available.\n\nRedirecting to new build page...`);
+                    const msg = `Board '${preSelectConfig.boardId}' is no longer listed for building. Redirecting to new build page...`;
+                    console.warn(msg);
+                    alert(msg);
                     window.location.href = '/add_build';
                     return;
-                }
+                  }
+
             }
-            
-            let new_board = rebuildConfig.boardId || (boards.length > 0 ? boards[0].id : null);
+            let new_board = preSelectConfig.boardId || (boards.length > 0 ? boards[0].id : null);
             updateBoards(boards, new_board);
         })
         .catch((message) => {
@@ -545,9 +574,9 @@ function onBoardChange(new_board) {
             fillBuildOptions(features_response);
             
             // TODO: Refactor to use a single method to apply both rebuild and default features
-            if (rebuildConfig.isRebuildMode) {
-                applyRebuildFeatures(rebuildConfig.selectedFeatures);
-                clearRebuildConfig();
+            if (preSelectConfig.isRebuildMode) {
+                applyPreSelectedFeatures(preSelectConfig.selectedFeatures);
+                clearPreSelectConfig();
             } else {
                 Features.applyDefaults();
             }
