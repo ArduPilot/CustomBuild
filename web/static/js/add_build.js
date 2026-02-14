@@ -302,15 +302,30 @@ var rebuildConfig = {
     versionId: null,
     boardId: null,
     selectedFeatures: [],
-    isRebuildMode: false
+    isRebuildMode: false,
+    fromUrlParams: false
 };
 
 async function init() {
     if (typeof rebuildFromBuildId !== 'undefined') {
         await initRebuild(rebuildFromBuildId);
+    } else {
+        initFromUrlParams();
     }
     
     fetchVehicles();
+}
+
+function initFromUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    const hasParams = params.has('vehicle') || params.has('board') || params.has('version');
+    
+    if (params.has('vehicle')) rebuildConfig.vehicleId = params.get('vehicle');
+    if (params.has('board')) rebuildConfig.boardId = params.get('board');
+    if (params.has('version')) rebuildConfig.versionId = params.get('version');
+    
+    // Set flag to indicate URL parameters were provided
+    rebuildConfig.fromUrlParams = hasParams;
 }
 
 async function initRebuild(buildId) {
@@ -361,6 +376,7 @@ function clearRebuildConfig() {
     rebuildConfig.boardId = null;
     rebuildConfig.selectedFeatures = [];
     rebuildConfig.isRebuildMode = false;
+    rebuildConfig.fromUrlParams = false;
 }
 
 // enables or disables the elements with ids passed as an array
@@ -400,10 +416,17 @@ function fetchVehicles() {
             if (rebuildConfig.vehicleId) {
                 const vehicleExists = all_vehicles.some(v => v.id === rebuildConfig.vehicleId);
                 if (!vehicleExists) {
-                    console.warn(`Rebuild vehicle '${rebuildConfig.vehicleId}' not found in available vehicles`);
-                    alert(`Warning: The vehicle from the original build is no longer available.\n\nRedirecting to new build page...`);
-                    window.location.href = '/add_build';
-                    return;
+                    if (rebuildConfig.isRebuildMode) {
+                        console.warn(`Rebuild vehicle '${rebuildConfig.vehicleId}' not found in available vehicles`);
+                        alert(`Warning: The vehicle from the original build is no longer available.\n\nRedirecting to new build page...`);
+                        window.location.href = '/add_build';
+                        return;
+                    } else if (rebuildConfig.fromUrlParams) {
+                        console.warn(`URL parameter vehicle '${rebuildConfig.vehicleId}' not found. Defaulting to first available vehicle.`);
+                        rebuildConfig.vehicleId = null;
+                    } else {
+                        rebuildConfig.vehicleId = null;
+                    }
                 }
             }
             
@@ -442,10 +465,17 @@ function onVehicleChange(new_vehicle_id) {
             if (rebuildConfig.versionId) {
                 const versionExists = all_versions.some(v => v.id === rebuildConfig.versionId);
                 if (!versionExists) {
-                    console.warn(`Rebuild version '${rebuildConfig.versionId}' not found for vehicle '${new_vehicle_id}'`);
-                    alert(`Warning: The version from the original build is no longer available.\n\nRedirecting to new build page...`);
-                    window.location.href = '/add_build';
-                    return;
+                    if (rebuildConfig.isRebuildMode) {
+                        console.warn(`Rebuild version '${rebuildConfig.versionId}' not found for vehicle '${new_vehicle_id}'`);
+                        alert(`Warning: The version from the original build is no longer available.\n\nRedirecting to new build page...`);
+                        window.location.href = '/add_build';
+                        return;
+                    } else if (rebuildConfig.fromUrlParams) {
+                        console.warn(`URL parameter version '${rebuildConfig.versionId}' not found for vehicle '${new_vehicle_id}'. Defaulting to first available version.`);
+                        rebuildConfig.versionId = null;
+                    } else {
+                        rebuildConfig.versionId = null;
+                    }
                 }
             }
             
@@ -498,10 +528,17 @@ function onVersionChange(new_version) {
             if (rebuildConfig.boardId) {
                 const boardExists = boards.some(b => b.id === rebuildConfig.boardId);
                 if (!boardExists) {
-                    console.warn(`Rebuild board '${rebuildConfig.boardId}' not found for version '${version_id}'`);
-                    alert(`Warning: The board from the original build is no longer available.\n\nRedirecting to new build page...`);
-                    window.location.href = '/add_build';
-                    return;
+                    if (rebuildConfig.isRebuildMode) {
+                        console.warn(`Rebuild board '${rebuildConfig.boardId}' not found for version '${version_id}'`);
+                        alert(`Warning: The board from the original build is no longer available.\n\nRedirecting to new build page...`);
+                        window.location.href = '/add_build';
+                        return;
+                    } else if (rebuildConfig.fromUrlParams) {
+                        console.warn(`URL parameter board '${rebuildConfig.boardId}' not found for version '${version_id}'. Defaulting to first available board.`);
+                        rebuildConfig.boardId = null;
+                    } else {
+                        rebuildConfig.boardId = null;
+                    }
                 }
             }
             
