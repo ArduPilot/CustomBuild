@@ -278,8 +278,11 @@ class BuildsService:
         if build_info is None:
             return None
 
-        # Only return artifact if build was successful
-        if build_info.progress.state.name != "SUCCESS":
+        # Return early if build is still ongoing
+        if build_info.progress.state in [
+            build_manager.BuildState.PENDING,
+            build_manager.BuildState.RUNNING,
+        ]:
             return None
 
         artifact_path = self.manager.get_build_archive_path(build_id)

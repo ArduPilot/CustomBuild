@@ -207,7 +207,7 @@ async def download_artifact(
 
     Raises:
         404: Build not found
-        404: Artifact not available (build not completed successfully)
+        404: Artifact not available (build not completed)
     """
     artifact_path = service.get_artifact_path(build_id)
     if not artifact_path:
@@ -215,7 +215,7 @@ async def download_artifact(
             status_code=404,
             detail=(
                 f"Artifact not available for build '{build_id}'. "
-                "Build may not be completed or successful."
+                "Build may not be completed."
             )
         )
     return FileResponse(
