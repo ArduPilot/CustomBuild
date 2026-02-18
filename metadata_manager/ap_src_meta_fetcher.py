@@ -259,7 +259,7 @@ class APSourceMetadataFetcher:
         return ret
 
     def __board_has_can(self, hwdef_path: str) -> bool:
-        """Return True when the hwdef file advertises CAN support."""
+        """Return True when the hwdef file or its includes advertise CAN support."""
         if not hwdef_path or not os.path.isfile(hwdef_path):
             self.logger.debug(
                 "hwdef.dat not found while checking CAN support: %s",
@@ -267,35 +267,51 @@ class APSourceMetadataFetcher:
             )
             return False
 
-        try:
-            with open(hwdef_path, "r", encoding="utf-8", errors="ignore") as hwdef_file:
-                hwdef_contents = hwdef_file.read()
-        except OSError as exc:
-            self.logger.warning(
-                "Failed to read hwdef.dat at %s: %s",
-                hwdef_path,
-                exc,
+        visited_paths = set()
+
+        def read_hwdef_tree(file_path: str) -> str:
+            if not file_path or not os.path.isfile(file_path):
+                return ""
+
+            normalized_path = os.path.normpath(file_path)
+            if normalized_path in visited_paths:
+                return ""
+            visited_paths.add(normalized_path)
+
+            try:
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as hwdef_file:
+                    contents = hwdef_file.read()
+            except OSError as exc:
+                self.logger.warning(
+                    "Failed to read hwdef file at %s: %s",
+                    file_path,
+                    exc,
+                )
+                return ""
+
+            combined = contents
+
+            # Parse include directives (both .dat and .inc files)
+            include_matches = re.findall(
+                r"^\s*include\s+([^\s#]+\.(?:dat|inc))\s*$",
+                contents,
+                re.MULTILINE,
             )
-            return False
-
-        combined_contents = hwdef_contents
-
-        # If the hwdef uses an include *.inc, read that file as well so
-        # CAN keywords defined there are detected (e.g., CubeOrange).
-        include_match = re.search(r"^\s*include\s+(.+\.inc)\s*$", hwdef_contents, re.MULTILINE)
-        if include_match:
-            include_name = include_match.group(1).strip()
-            include_path = os.path.join(os.path.dirname(hwdef_path), include_name)
-            if os.path.isfile(include_path):
-                try:
-                    with open(include_path, "r", encoding="utf-8", errors="ignore") as inc_file:
-                        combined_contents += "\n" + inc_file.read()
-                except OSError as exc:
-                    self.logger.warning(
-                        "Failed to read included hwdef %s: %s",
+            for include_name in include_matches:
+                include_path = os.path.normpath(
+                    os.path.join(os.path.dirname(file_path), include_name.strip())
+                )
+                if os.path.isfile(include_path):
+                    combined += "\n" + read_hwdef_tree(include_path)
+                else:
+                    self.logger.debug(
+                        "Included hwdef not found while checking CAN support: %s",
                         include_path,
-                        exc,
                     )
+
+            return combined
+
+        combined_contents = read_hwdef_tree(hwdef_path)
 
         return (
             "CAN1" in combined_contents
