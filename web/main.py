@@ -11,12 +11,16 @@ import argparse
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from api.v1 import router as v1_router
 from ui import router as ui_router
+
 from core.config import get_settings
 from core.startup import initialize_application
 from core.logging_config import setup_logging
+from core.limiter import limiter, rate_limit_exceeded_handler
 
 import ap_git
 import metadata_manager
@@ -90,6 +94,7 @@ async def lifespan(app: FastAPI):
     app.state.build_manager = build_mgr
     app.state.inbuilt_builder = inbuilt_builder
     app.state.inbuilt_builder_thread = inbuilt_builder_thread
+    app.state.limiter = limiter
 
     yield
 
@@ -113,6 +118,10 @@ app = FastAPI(
     redoc_url="/api/redoc",
     lifespan=lifespan,
 )
+
+# SlowAPIMiddleware is used for rate limiting
+app.add_middleware(SlowAPIMiddleware)
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # Mount static files
 WEB_ROOT = Path(__file__).resolve().parent
