@@ -41,7 +41,7 @@ async def create_build(
 
     Args:
         build_request: Build configuration including vehicle, board, version,
-                      and selected features
+                      selected features and custom defines
 
     Returns:
         Simple response with build_id, URL, and status

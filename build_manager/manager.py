@@ -49,7 +49,8 @@ class BuildInfo:
                  remote_info: RemoteInfo,
                  git_hash: str,
                  board: str,
-                 selected_features: set) -> None:
+                 selected_features: set,
+                 custom_defines: list[tuple[str, str | None]] = []) -> None:
         """
         Initialize build information object including vehicle,
         remote, git hash, selected features, and progress of the build.
@@ -63,6 +64,8 @@ class BuildInfo:
             git_hash (str): The git commit hash to build on.
             board (str): Board to build for.
             selected_features (set): Set of features selected for the build.
+            custom_defines (list[tuple[str,str|None]]): Custom defines to
+            pass to the build.
         """
         self.vehicle_id = vehicle_id
         self.version_id = version_id
@@ -70,6 +73,7 @@ class BuildInfo:
         self.git_hash = git_hash
         self.board = board
         self.selected_features = selected_features
+        self.custom_defines = custom_defines
         self.progress = BuildProgress(
             state=BuildState.PENDING,
             percent=0
@@ -85,6 +89,7 @@ class BuildInfo:
             'git_hash': self.git_hash,
             'board': self.board,
             'selected_features': list(self.selected_features),
+            'custom_defines': self.custom_defines,
             'progress': self.progress.to_dict(),
             'time_created': self.time_created,
             'time_started': getattr(self, 'time_started', None),
