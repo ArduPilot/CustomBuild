@@ -4,6 +4,13 @@ function init() {
     $('body').tooltip({
         selector: '[data-bs-toggle="tooltip"]'
     });
+
+    const params = new URLSearchParams(window.location.search);
+    const buildId = params.get("build_id");
+    if (buildId) {
+        launchLogModal(buildId);
+        autoDownloadIntervalId = setInterval(tryAutoDownload, 5000, buildId);
+    }
 }
 
 function refresh_builds() {
