@@ -120,22 +120,19 @@ class VehiclesService:
         )
 
         # Get boards list
-        with self.repo.get_checkout_lock():
-            boards = self.ap_src_metadata_fetcher.get_boards(
-                remote=version_info.remote_info.name,
-                commit_ref=version_info.commit_ref,
-                vehicle_id=vehicle_id,
-            )
-
-        board_dicts = [board.to_dict() for board in boards]
+        boards = self.ap_src_metadata_fetcher.get_boards(
+            remote=version_info.remote_info.name,
+            commit_ref=version_info.commit_ref,
+            vehicle_id=vehicle_id,
+        )
         return [
             BoardOut(
-                id=d['id'],
-                name=d['name'],
+                id=board.id,
+                name=board.name,
                 vehicle_id=vehicle_id,
                 version_id=version_id
             )
-            for d in board_dicts
+            for board in boards
         ]
 
     def get_board(
@@ -175,56 +172,12 @@ class VehiclesService:
             f'{version_info.remote_info.name} {version_info.commit_ref}'
         )
 
-        boards = self.ap_src_metadata_fetcher.get_boards(
+        options = self.ap_src_metadata_fetcher.get_build_options_for_board(
             remote=version_info.remote_info.name,
             commit_ref=version_info.commit_ref,
             vehicle_id=vehicle_id,
+            board_id=board_id,
         )
-        board_has_can = False
-        for board in boards:
-            if board.id == board_id or board.name == board_id:
-                board_has_can = bool(board.attributes.get("has_can"))
-                break
-
-        # Get build options from source
-        with self.repo.get_checkout_lock():
-            options = self.ap_src_metadata_fetcher.get_build_options_at_commit(
-                remote=version_info.remote_info.name,
-                commit_ref=version_info.commit_ref
-            )
-
-        if board_has_can is False:
-            options = [
-                option for option in options
-                if not option.category or (
-                    "CAN" not in option.category
-                    and "DroneCAN" not in option.category
-                )
-            ]
-
-        available_labels = {option.label for option in options}
-        pruned_options = []
-        changed = True
-        while changed:
-            changed = False
-            pruned_options = []
-            for option in options:
-                if not option.dependency:
-                    pruned_options.append(option)
-                    continue
-
-                dependencies = [
-                    label.strip()
-                    for label in option.dependency.split(',')
-                    if label.strip()
-                ]
-                if all(dep in available_labels for dep in dependencies):
-                    pruned_options.append(option)
-                else:
-                    changed = True
-
-            options = pruned_options
-            available_labels = {option.label for option in options}
 
         # Try to fetch board-specific defaults from firmware-server
         board_defaults = None

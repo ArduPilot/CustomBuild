@@ -206,8 +206,6 @@ class APSourceMetadataFetcher:
             tuple: A tuple of two lists in order:
                 - A list contains boards for NON-'ap_periph' targets.
                 - A list contains boards for the 'ap_periph' target.
-                - A list of Boards for NON-'ap_periph' targets.
-                - A list of Boards for the 'ap_periph' target.
 
         Raises:
             RuntimeError: If the method is called when caching is disabled.
@@ -234,11 +232,6 @@ class APSourceMetadataFetcher:
         except ValueError as e:
             self.logger.debug(f"Boards from cache: '{boards}'")
             self.logger.exception(e)
-            return None
-
-        # Invalidate stale cache entries that contain dicts instead of Board objects
-        if non_periph_boards and isinstance(non_periph_boards[0], dict):
-            self.logger.debug("Stale cache entry found, treating as cache miss")
             return None
 
         return (
@@ -358,8 +351,6 @@ class APSourceMetadataFetcher:
             tuple: A tuple of two lists in order:
                 - A list contains boards for NON-'ap_periph' targets.
                 - A list contains boards for the 'ap_periph' target.
-                - A list of Boards for NON-'ap_periph' targets.
-                - A list of Boards for the 'ap_periph' target.
         """
         with self.repo.get_checkout_lock():
             self.repo.checkout_remote_commit_ref(
@@ -390,25 +381,45 @@ class APSourceMetadataFetcher:
             )
             self.logger.debug(f"non_periph_boards filtered: {non_periph_boards}")
 
-            non_periph_boards_sorted = sorted(non_periph_boards)
-            periph_boards_sorted = sorted(periph_boards)
-
-            self.logger.debug(
-                f"non_periph_boards sorted: {non_periph_boards_sorted}"
+            hwdef_dir = os.path.join(
+                self.repo.get_local_path(),
+                'libraries', 'AP_HAL_ChibiOS', 'hwdef',
             )
-            self.logger.debug(f"periph_boards sorted: {periph_boards_sorted}")
-
-            return (
-                self.__build_board_metadata(non_periph_boards_sorted, hwdef_dir),
-                self.__build_board_metadata(periph_boards_sorted, hwdef_dir),
+            non_periph_board_data = self.__build_board_metadata(
+                non_periph_boards,
+                hwdef_dir,
             )
+            periph_board_data = self.__build_board_metadata(
+                periph_boards,
+                hwdef_dir,
+            )
+
+        non_periph_boards_sorted = sorted(
+            non_periph_board_data,
+            key=lambda board: board.id,
+        )
+        periph_boards_sorted = sorted(
+            periph_board_data,
+            key=lambda board: board.id,
+        )
+
+        self.logger.debug(
+            "non_periph_boards sorted: %s",
+            [board.id for board in non_periph_boards_sorted],
+        )
+        self.logger.debug(
+            "periph_boards sorted: %s",
+            [board.id for board in periph_boards_sorted],
+        )
+
+        return (
+            non_periph_boards_sorted,
+            periph_boards_sorted,
+        )
 
     def __get_build_options_at_commit_from_repo(self,
                                                 remote: str,
-                                                commit_ref: str) -> tuple[
-                                                    list,
-                                                    list
-                                                ]:
+                                                commit_ref: str) -> list:
         """
         Returns the list of build options for a given commit from the git repo.
 
@@ -442,6 +453,76 @@ class APSourceMetadataFetcher:
             build_options = mod.BUILD_OPTIONS
         return build_options
 
+    def __get_board_by_id(self, remote: str, commit_ref: str,
+                          vehicle_id: str, board_id: str) -> Board | None:
+        boards = self.get_boards(
+            remote=remote,
+            commit_ref=commit_ref,
+            vehicle_id=vehicle_id,
+        )
+        for board in boards:
+            if board.id == board_id or board.name == board_id:
+                return board
+        return None
+
+    @staticmethod
+    def __is_can_option(option) -> bool:
+        return bool(
+            option.category and (
+                "CAN" in option.category or "DroneCAN" in option.category
+            )
+        )
+
+    def __prune_options_with_missing_dependencies(self, options: list) -> list:
+        available_labels = {option.label for option in options}
+
+        changed = True
+        while changed:
+            changed = False
+            pruned_options = []
+            for option in options:
+                if not option.dependency:
+                    pruned_options.append(option)
+                    continue
+
+                dependencies = [
+                    label.strip()
+                    for label in option.dependency.split(',')
+                    if label.strip()
+                ]
+                if all(dep in available_labels for dep in dependencies):
+                    pruned_options.append(option)
+                else:
+                    changed = True
+
+            options = pruned_options
+            available_labels = {option.label for option in options}
+
+        return options
+
+    def get_build_options_for_board(self, remote: str, commit_ref: str,
+                                    vehicle_id: str, board_id: str) -> list:
+        board = self.__get_board_by_id(
+            remote=remote,
+            commit_ref=commit_ref,
+            vehicle_id=vehicle_id,
+            board_id=board_id,
+        )
+        board_has_can = bool(board and board.attributes.get("has_can"))
+
+        options = self.get_build_options_at_commit(
+            remote=remote,
+            commit_ref=commit_ref,
+        )
+
+        if not board_has_can:
+            options = [
+                option for option in options
+                if not self.__is_can_option(option)
+            ]
+
+        return self.__prune_options_with_missing_dependencies(options)
+
     def __get_boards_at_commit(self, remote: str,
                                commit_ref: str) -> tuple[list[Board], list[Board]]:
         """
@@ -461,8 +542,6 @@ class APSourceMetadataFetcher:
             tuple: A tuple of two lists in order:
                 - A list contains boards for NON-'ap_periph' targets.
                 - A list contains boards for the 'ap_periph' target.
-                - A list of Boards for NON-'ap_periph' targets.
-                - A list of Boards for the 'ap_periph' target.
         """
         tstart = time.time()
         if not self.caching_enabled:
