@@ -120,17 +120,15 @@ class VehiclesService:
         )
 
         # Get boards list
-        with self.repo.get_checkout_lock():
-            boards = self.ap_src_metadata_fetcher.get_boards(
-                remote=version_info.remote_info.name,
-                commit_ref=version_info.commit_ref,
-                vehicle_id=vehicle_id,
-            )
-
+        boards = self.ap_src_metadata_fetcher.get_boards(
+            remote=version_info.remote_info.name,
+            commit_ref=version_info.commit_ref,
+            vehicle_id=vehicle_id,
+        )
         return [
             BoardOut(
-                id=board,
-                name=board,
+                id=board.id,
+                name=board.name,
                 vehicle_id=vehicle_id,
                 version_id=version_id
             )
@@ -174,12 +172,12 @@ class VehiclesService:
             f'{version_info.remote_info.name} {version_info.commit_ref}'
         )
 
-        # Get build options from source
-        with self.repo.get_checkout_lock():
-            options = self.ap_src_metadata_fetcher.get_build_options_at_commit(
-                remote=version_info.remote_info.name,
-                commit_ref=version_info.commit_ref
-            )
+        options = self.ap_src_metadata_fetcher.get_build_options_for_board(
+            remote=version_info.remote_info.name,
+            commit_ref=version_info.commit_ref,
+            vehicle_id=vehicle_id,
+            board_id=board_id,
+        )
 
         # Try to fetch board-specific defaults from firmware-server
         board_defaults = None
