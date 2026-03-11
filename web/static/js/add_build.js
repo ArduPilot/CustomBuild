@@ -829,13 +829,17 @@ async function handleFormSubmit(event) {
             // The checkbox ID is already the feature define (ID)
             selected_features.push(checkbox.id);
         });
-        
+
+        // Collect custom defines
+        const custom_defines = document.getElementById('custom_defines').value;
+
         // Create build request payload
         const buildRequest = {
             vehicle_id: vehicle_id,
             version_id: version_id,
             board_id: board_id,
-            selected_features: selected_features
+            selected_features: selected_features,
+            custom_defines: custom_defines,
         };
         
         // Send POST request to API
