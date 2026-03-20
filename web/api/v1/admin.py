@@ -6,15 +6,15 @@ from services.admin import get_admin_service, AdminService
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
-async def verify_admin_token(
+async def verify_remote_reload_token(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     admin_service: AdminService = Depends(get_admin_service)
 ) -> None:
     """
-    Verify the bearer token for admin authentication.
+    Verify the bearer token for remote reload authentication.
 
     Args:
         credentials: HTTP authorization credentials from request header
@@ -24,9 +24,15 @@ async def verify_admin_token(
         401: Invalid or missing token
         500: Server configuration error (token not configured)
     """
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid authentication token"
+        )
+
     token = credentials.credentials
     try:
-        if not await admin_service.verify_token(token):
+        if not await admin_service.verify_remote_reload_token(token):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication token"
@@ -52,7 +58,7 @@ async def verify_admin_token(
     }
 )
 async def refresh_remotes(
-    _: None = Depends(verify_admin_token),
+    _: None = Depends(verify_remote_reload_token),
     admin_service: AdminService = Depends(get_admin_service)
 ):
     """
