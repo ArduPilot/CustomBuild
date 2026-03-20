@@ -5,7 +5,7 @@ import logging
 from typing import List, Optional
 from fastapi import Request
 
-from schemas import (
+from web.schemas import (
     VehicleBase,
     RemoteInfo,
     VersionOut,

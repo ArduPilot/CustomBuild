@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from schemas import RefreshRemotesResponse
-from services.admin import get_admin_service, AdminService
+from web.schemas import RefreshRemotesResponse
+from web.services.admin import get_admin_service, AdminService
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])

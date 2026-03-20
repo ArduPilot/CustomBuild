@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from core.config import get_settings
+from web.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 

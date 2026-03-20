@@ -6,7 +6,7 @@ to be included in the main FastAPI application.
 """
 from fastapi import APIRouter
 
-from . import vehicles, builds, admin
+from web.api.v1 import vehicles, builds, admin
 
 # Create the main v1 router
 router = APIRouter(prefix="/v1")
