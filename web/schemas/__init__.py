@@ -6,12 +6,12 @@ across the API endpoints.
 """
 
 # Admin schemas
-from .admin import (
+from web.schemas.admin import (
     RefreshRemotesResponse,
 )
 
 # Build schemas
-from .builds import (
+from web.schemas.builds import (
     BuildVersionInfo,
     RemoteInfo,
     BuildProgress,
@@ -21,7 +21,7 @@ from .builds import (
 )
 
 # Vehicle schemas
-from .vehicles import (
+from web.schemas.vehicles import (
     VehicleBase,
     VersionBase,
     VersionOut,

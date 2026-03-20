@@ -1,6 +1,6 @@
 """
 UI module for web interface routes.
 """
-from .router import router
+from web.ui.router import router
 
 __all__ = ["router"]

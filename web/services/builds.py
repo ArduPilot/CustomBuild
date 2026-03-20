@@ -6,7 +6,7 @@ import os
 from fastapi import Request
 from typing import List, Optional
 
-from schemas import (
+from web.schemas import (
     BuildRequest,
     BuildSubmitResponse,
     BuildOut,
@@ -14,7 +14,7 @@ from schemas import (
     RemoteInfo,
     BuildVersionInfo,
 )
-from schemas.vehicles import VehicleBase, BoardBase
+from web.schemas.vehicles import VehicleBase, BoardBase
 
 # Import external modules
 # pylint: disable=wrong-import-position

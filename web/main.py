@@ -14,13 +14,13 @@ from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from api.v1 import router as v1_router
-from ui import router as ui_router
+from web.api.v1 import router as v1_router
+from web.ui import router as ui_router
 
-from core.config import get_settings
-from core.startup import initialize_application
-from core.logging_config import setup_logging
-from core.limiter import limiter, rate_limit_exceeded_handler
+from web.core.config import get_settings
+from web.core.startup import initialize_application
+from web.core.logging_config import setup_logging
+from web.core.limiter import limiter, rate_limit_exceeded_handler
 
 import ap_git
 import metadata_manager

@@ -1,13 +1,13 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Path
 
-from schemas import (
+from web.schemas import (
     VehicleBase,
     VersionOut,
     BoardOut,
     FeatureOut,
 )
-from services.vehicles import get_vehicles_service, VehiclesService
+from web.services.vehicles import get_vehicles_service, VehiclesService
 
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
 

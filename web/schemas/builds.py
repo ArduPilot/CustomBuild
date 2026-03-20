@@ -1,7 +1,7 @@
 from typing import List, Literal
 
 from pydantic import BaseModel, Field
-from schemas.vehicles import VehicleBase, BoardBase, RemoteInfo
+from web.schemas.vehicles import VehicleBase, BoardBase, RemoteInfo
 
 
 # --- Build Progress ---
