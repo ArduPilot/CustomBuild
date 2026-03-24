@@ -10,13 +10,9 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
-# We use the same redis instance which is used to store build metadata
-# and other cached data. To keep that data separate, we use db-1 of the
-# redis instance instead of the default db-0.
-REDIS_DB_NUMBER = 1
 limiter = Limiter(
     key_func=get_remote_address,
-    storage_uri=f"redis://{settings.redis_host}:{settings.redis_port}/{REDIS_DB_NUMBER}",
+    storage_uri=settings.rate_limiter_storage_uri,
     strategy="fixed-window",
 )
 

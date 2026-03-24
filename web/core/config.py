@@ -68,6 +68,21 @@ class Settings:
         return os.path.join(self.base_dir, 'configs', 'remotes.json')
 
     @property
+    def rate_limiter_storage_uri(self) -> str:
+        """
+        Storage URI for the rate limiter.
+
+        Uses CBS_RATE_LIMITER_STORAGE_URI env var if set and non-empty,
+        otherwise falls back to redis backend. When using the redis backend,
+        db index 1 is used to avoid conflicts with any other components that
+        use db index 0.
+        """
+        uri = os.getenv('CBS_RATE_LIMITER_STORAGE_URI', '').strip()
+        if uri:
+            return uri
+        return f"redis://{self.redis_host}:{self.redis_port}/1"
+
+    @property
     def enable_inbuilt_builder(self) -> bool:
         """Whether to enable the inbuilt builder."""
         return os.getenv('CBS_ENABLE_INBUILT_BUILDER', '1') == '1'
