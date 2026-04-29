@@ -276,18 +276,24 @@ class GitRepo:
         subprocess.run(cmd, cwd=self.__local_path, shell=False)
 
     def __branch_create(self, branch_name: str,
-                        start_point: str = None) -> None:
+                        start_point: str = None,
+                        force: bool = False) -> None:
         """
         Create a new branch starting from a given commit.
 
         Parameters:
             branch_name (str): Name of the branch to create
             start_point (str): Starting commit or branch (optional)
+            force (bool): Force creation, resetting the branch tip if it
+                          already exists (default is False)
         """
         if branch_name is None:
             raise ValueError("branch_name is required, cannot be None.")
 
         cmd = ['git', 'branch', branch_name]
+
+        if force:
+            cmd.append('-f')
 
         if start_point:
             if not self.__is_commit_present_locally(commit_ref=start_point):
@@ -626,7 +632,7 @@ class GitRepo:
         # as shallow clone needs a branch
         temp_branch_name = "temp-b-" + commit_id
         source_repo.__branch_create(
-            branch_name=temp_branch_name, start_point=commit_id
+            branch_name=temp_branch_name, start_point=commit_id, force=True
         )
 
         # perform the clone from the source repository
