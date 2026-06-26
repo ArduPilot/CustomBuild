@@ -6,6 +6,18 @@ import logging
 import ap_git
 import os
 
+from utils.apache_dir_listing import parse_apache_dir_listing
+
+
+class FirmwareServerUnavailableError(Exception):
+    """Raised when the firmware server cannot be reached or returns an error."""
+
+
+def _board_artifacts_subdir(board_id: str, vehicle_id: str = None) -> str:
+    if vehicle_id == "heli":
+        return f"{board_id}-heli"
+    return board_id
+
 
 class APSourceMetadataFetcher:
     """
@@ -503,11 +515,7 @@ class APSourceMetadataFetcher:
         """
         import requests
 
-        # Heli builds are stored under a separate folder
-        artifacts_subdir = board_id
-        if vehicle_id == "Heli":
-            artifacts_subdir += "-heli"
-
+        artifacts_subdir = _board_artifacts_subdir(board_id, vehicle_id)
         features_txt_url = f"{artifacts_url}/{artifacts_subdir}/features.txt"
 
         try:
@@ -550,6 +558,50 @@ class APSourceMetadataFetcher:
                 f"Failed to fetch board defaults from {features_txt_url}: {e}"
             )
             return None
+
+    def get_board_standard_artifacts_from_fw_server(
+        self,
+        version_artifacts_url: str,
+        board_id: str,
+        vehicle_id: str = None,
+    ) -> list | None:
+        """
+        Fetch standard build artifact file listings from firmware.ardupilot.org.
+
+        Parameters:
+            version_artifacts_url (str): Base URL for build artifacts for a version.
+            board_id (str): Board identifier
+            vehicle_id (str): Vehicle identifier (for special handling like Heli)
+
+        Returns:
+            list: File entries with name, url, size, and modified fields.
+            None: If the board directory does not exist on the firmware server.
+
+        Raises:
+            FirmwareServerUnavailableError: If the firmware server is unreachable
+                or returns a non-404 error.
+        """
+        import requests
+
+        board_artifacts_subdir = _board_artifacts_subdir(board_id, vehicle_id)
+        listing_url = f"{version_artifacts_url.rstrip('/')}/{board_artifacts_subdir}/"
+
+        try:
+            response = requests.get(listing_url, timeout=30)
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            return parse_apache_dir_listing(response.text, base_url=listing_url)
+        except requests.HTTPError as e:
+            self.logger.warning(
+                f"Failed to fetch standard artifacts from {listing_url}: {e}"
+            )
+            raise FirmwareServerUnavailableError(str(e)) from e
+        except requests.RequestException as e:
+            self.logger.warning(
+                f"Failed to fetch standard artifacts from {listing_url}: {e}"
+            )
+            raise FirmwareServerUnavailableError(str(e)) from e
 
     @staticmethod
     def get_singleton():
