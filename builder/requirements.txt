@@ -1,3 +1,4 @@
 jsonschema
 redis
 dill==0.3.8
+beautifulsoup4==4.12.3
