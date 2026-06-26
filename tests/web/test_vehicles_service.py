@@ -1145,3 +1145,149 @@ class TestVehiclesService:
         assert result is not None
         assert result.id == "FEATURE_B"
         assert result.default.enabled is False
+
+    # Tests for get_board_standard_artifacts
+
+    def test_get_board_standard_artifacts_version_not_found_returns_none(
+        self, service, mock_versions_fetcher
+    ):
+        mock_versions_fetcher.get_version_info.return_value = None
+
+        result = service.get_board_standard_artifacts(
+            "copter", "nonexistent-version-id", "CubeRed"
+        )
+
+        assert result is None
+
+    def test_get_board_standard_artifacts_board_not_found_returns_none(
+        self, service, mock_versions_fetcher, mock_ap_src_metadata_fetcher
+    ):
+        version_info = VersionInfo(
+            remote_info=RemoteInfo(
+                name="ardupilot",
+                url="https://github.com/ArduPilot/ardupilot.git",
+            ),
+            commit_ref="refs/tags/Copter-4.5.0",
+            release_type="stable",
+            version_number="4.5.0",
+            ap_build_artifacts_url="https://firmware.ardupilot.org/Copter/stable-4.5.0",
+        )
+        mock_versions_fetcher.get_version_info.return_value = version_info
+        mock_ap_src_metadata_fetcher.get_boards.return_value = ["CubeOrange"]
+
+        result = service.get_board_standard_artifacts(
+            "copter", version_info.version_id, "UnknownBoard"
+        )
+
+        assert result is None
+
+    def test_get_board_standard_artifacts_no_artifacts_url_returns_none(
+        self, service, mock_versions_fetcher, mock_ap_src_metadata_fetcher
+    ):
+        version_info = VersionInfo(
+            remote_info=RemoteInfo(
+                name="ardupilot",
+                url="https://github.com/ArduPilot/ardupilot.git",
+            ),
+            commit_ref="refs/tags/Copter-4.5.0",
+            release_type="stable",
+            version_number="4.5.0",
+            ap_build_artifacts_url=None,
+        )
+        mock_versions_fetcher.get_version_info.return_value = version_info
+        mock_ap_src_metadata_fetcher.get_boards.return_value = ["CubeRed"]
+
+        result = service.get_board_standard_artifacts(
+            "copter", version_info.version_id, "CubeRed"
+        )
+
+        assert result is None
+        mock_ap_src_metadata_fetcher.get_board_standard_artifacts_from_fw_server.assert_not_called()
+
+    def test_get_board_standard_artifacts_success(
+        self, service, mock_versions_fetcher, mock_ap_src_metadata_fetcher
+    ):
+        from datetime import datetime, timezone
+
+        version_info = VersionInfo(
+            remote_info=RemoteInfo(
+                name="ardupilot",
+                url="https://github.com/ArduPilot/ardupilot.git",
+            ),
+            commit_ref="refs/tags/Copter-4.5.0",
+            release_type="stable",
+            version_number="4.5.0",
+            ap_build_artifacts_url="https://firmware.ardupilot.org/Copter/stable-4.5.0",
+        )
+        mock_versions_fetcher.get_version_info.return_value = version_info
+        mock_ap_src_metadata_fetcher.get_boards.return_value = ["CubeRed"]
+        mock_ap_src_metadata_fetcher.get_board_standard_artifacts_from_fw_server.return_value = [
+            {
+                "name": "arducopter.apj",
+                "url": "https://firmware.ardupilot.org/Copter/stable-4.5.0/CubeRed/arducopter.apj",
+                "size": 1640045,
+                "modified": datetime(2024, 4, 2, 5, 11, 12, tzinfo=timezone.utc),
+            }
+        ]
+
+        result = service.get_board_standard_artifacts(
+            "copter", version_info.version_id, "CubeRed"
+        )
+
+        assert len(result) == 1
+        assert result[0].name == "arducopter.apj"
+        assert result[0].size == 1640045
+        mock_ap_src_metadata_fetcher.get_board_standard_artifacts_from_fw_server.assert_called_once_with(
+            version_artifacts_url="https://firmware.ardupilot.org/Copter/stable-4.5.0",
+            board_id="CubeRed",
+            vehicle_id="copter",
+        )
+
+    def test_get_board_standard_artifacts_fw_server_404_returns_none(
+        self, service, mock_versions_fetcher, mock_ap_src_metadata_fetcher
+    ):
+        version_info = VersionInfo(
+            remote_info=RemoteInfo(
+                name="ardupilot",
+                url="https://github.com/ArduPilot/ardupilot.git",
+            ),
+            commit_ref="refs/tags/Copter-4.5.0",
+            release_type="stable",
+            version_number="4.5.0",
+            ap_build_artifacts_url="https://firmware.ardupilot.org/Copter/stable-4.5.0",
+        )
+        mock_versions_fetcher.get_version_info.return_value = version_info
+        mock_ap_src_metadata_fetcher.get_boards.return_value = ["CubeRed"]
+        mock_ap_src_metadata_fetcher.get_board_standard_artifacts_from_fw_server.return_value = None
+
+        result = service.get_board_standard_artifacts(
+            "copter", version_info.version_id, "CubeRed"
+        )
+
+        assert result is None
+
+    def test_get_board_standard_artifacts_fw_server_error_propagates(
+        self, service, mock_versions_fetcher, mock_ap_src_metadata_fetcher
+    ):
+        from metadata_manager.ap_src_meta_fetcher import FirmwareServerUnavailableError
+
+        version_info = VersionInfo(
+            remote_info=RemoteInfo(
+                name="ardupilot",
+                url="https://github.com/ArduPilot/ardupilot.git",
+            ),
+            commit_ref="refs/tags/Copter-4.5.0",
+            release_type="stable",
+            version_number="4.5.0",
+            ap_build_artifacts_url="https://firmware.ardupilot.org/Copter/stable-4.5.0",
+        )
+        mock_versions_fetcher.get_version_info.return_value = version_info
+        mock_ap_src_metadata_fetcher.get_boards.return_value = ["CubeRed"]
+        mock_ap_src_metadata_fetcher.get_board_standard_artifacts_from_fw_server.side_effect = (
+            FirmwareServerUnavailableError("connection failed")
+        )
+
+        with pytest.raises(FirmwareServerUnavailableError):
+            service.get_board_standard_artifacts(
+                "copter", version_info.version_id, "CubeRed"
+            )

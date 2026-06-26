@@ -9,6 +9,7 @@ from web.schemas import (
     VehicleBase,
     VersionOut,
     BoardOut,
+    StandardArtifactOut,
     FeatureOut,
     CategoryBase,
     FeatureDefault,
@@ -76,6 +77,18 @@ class TestVehiclesAPI:
             board_id=board_id,
             default=FeatureDefault(enabled=True, source="build-options-py"),
             dependencies=[],
+        )
+
+    @staticmethod
+    def dummy_standard_artifact(
+        name="arducopter.apj",
+        url="https://firmware.ardupilot.org/Copter/stable-4.5.0/CubeOrange/arducopter.apj",
+    ):
+        return StandardArtifactOut(
+            name=name,
+            url=url,
+            size=1640045,
+            modified=None,
         )
 
     # GET /vehicles
@@ -440,6 +453,75 @@ class TestVehiclesAPI:
         """Non-GET methods on .../boards/{board_id} return 405."""
         for method in [client.post, client.put, client.patch, client.delete]:
             response = method("/api/v1/vehicles/copter/versions/v1/boards/b1")
+            assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+
+    # GET /vehicles/{vehicle_id}/versions/{version_id}/boards/{board_id}/standard_artifacts
+
+    _STANDARD_ARTIFACTS_URL = (
+        "/api/v1/vehicles/copter/versions/copter-4.5.0-stable/"
+        "boards/MatekH743/standard_artifacts"
+    )
+
+    def test_list_board_standard_artifacts_returns_200(self, client):
+        mock_vehicles_service = Mock()
+        mock_vehicles_service.get_board_standard_artifacts.return_value = [
+            self.dummy_standard_artifact()
+        ]
+        with self.override_vehicles_service(client, mock_vehicles_service):
+            response = client.get(self._STANDARD_ARTIFACTS_URL)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert "application/json" in response.headers["content-type"]
+
+    def test_list_board_standard_artifacts_returns_404_when_not_found(self, client):
+        mock_vehicles_service = Mock()
+        mock_vehicles_service.get_board_standard_artifacts.return_value = None
+        with self.override_vehicles_service(client, mock_vehicles_service):
+            response = client.get(self._STANDARD_ARTIFACTS_URL)
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert "MatekH743" in response.json()["detail"]
+
+    def test_list_board_standard_artifacts_returns_502_on_fw_server_error(self, client):
+        from metadata_manager.ap_src_meta_fetcher import FirmwareServerUnavailableError
+
+        mock_vehicles_service = Mock()
+        mock_vehicles_service.get_board_standard_artifacts.side_effect = (
+            FirmwareServerUnavailableError("connection failed")
+        )
+        with self.override_vehicles_service(client, mock_vehicles_service):
+            response = client.get(self._STANDARD_ARTIFACTS_URL)
+
+        assert response.status_code == status.HTTP_502_BAD_GATEWAY
+
+    def test_list_board_standard_artifacts_response_schema(self, client):
+        mock_vehicles_service = Mock()
+        mock_vehicles_service.get_board_standard_artifacts.return_value = [
+            self.dummy_standard_artifact()
+        ]
+        with self.override_vehicles_service(client, mock_vehicles_service):
+            response = client.get(self._STANDARD_ARTIFACTS_URL)
+
+        data = response.json()
+        assert len(data) == 1
+        for field in ["name", "url", "size", "modified"]:
+            assert field in data[0]
+
+    def test_list_board_standard_artifacts_service_called_with_correct_ids(self, client):
+        mock_vehicles_service = Mock()
+        mock_vehicles_service.get_board_standard_artifacts.return_value = [
+            self.dummy_standard_artifact()
+        ]
+        with self.override_vehicles_service(client, mock_vehicles_service):
+            client.get(self._STANDARD_ARTIFACTS_URL)
+
+        mock_vehicles_service.get_board_standard_artifacts.assert_called_once_with(
+            "copter", "copter-4.5.0-stable", "MatekH743"
+        )
+
+    def test_list_board_standard_artifacts_method_not_allowed(self, client):
+        for method in [client.post, client.put, client.patch, client.delete]:
+            response = method(self._STANDARD_ARTIFACTS_URL)
             assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
     # GET /vehicles/{vehicle_id}/versions/{version_id}/boards/{board_id}/features
