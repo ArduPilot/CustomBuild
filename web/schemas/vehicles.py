@@ -1,4 +1,5 @@
 # app/schemas/vehicles.py
+from datetime import datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -47,6 +48,15 @@ class BoardBase(BaseModel):
 class BoardOut(BoardBase):
     vehicle_id: str = Field(..., description="Associated vehicle identifier")
     version_id: str = Field(..., description="Associated version identifier")
+
+
+class StandardArtifactOut(BaseModel):
+    name: str = Field(..., description="Artifact filename")
+    url: str = Field(..., description="Download URL on firmware.ardupilot.org")
+    size: Optional[int] = Field(None, description="File size in bytes")
+    modified: Optional[datetime] = Field(
+        None, description="Last modified time (UTC, ISO 8601)"
+    )
 
 
 # --- Features ---

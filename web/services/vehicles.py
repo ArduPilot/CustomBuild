@@ -10,6 +10,7 @@ from web.schemas import (
     RemoteInfo,
     VersionOut,
     BoardOut,
+    StandardArtifactOut,
     FeatureOut,
     CategoryBase,
     FeatureDefault,
@@ -149,6 +150,52 @@ class VehiclesService:
             if board.id == board_id:
                 return board
         return None
+
+    def get_board_standard_artifacts(
+        self,
+        vehicle_id: str,
+        version_id: str,
+        board_id: str,
+    ) -> Optional[List[StandardArtifactOut]]:
+        """Get standard build artifacts from firmware.ardupilot.org for a board."""
+        version_info = self.versions_fetcher.get_version_info(
+            vehicle_id=vehicle_id,
+            version_id=version_id,
+        )
+        if not version_info:
+            return None
+
+        if not self.get_board(vehicle_id, version_id, board_id):
+            return None
+
+        if version_info.ap_build_artifacts_url is None:
+            return None
+
+        logger.info(
+            f'Standard artifacts requested for {vehicle_id} '
+            f'{version_info.remote_info.name} {version_info.commit_ref} '
+            f'board {board_id}'
+        )
+
+        artifacts = (
+            self.ap_src_metadata_fetcher.get_board_standard_artifacts_from_fw_server(
+                version_artifacts_url=version_info.ap_build_artifacts_url,
+                board_id=board_id,
+                vehicle_id=vehicle_id,
+            )
+        )
+        if artifacts is None:
+            return None
+
+        return [
+            StandardArtifactOut(
+                name=entry["name"],
+                url=entry["url"],
+                size=entry.get("size"),
+                modified=entry.get("modified"),
+            )
+            for entry in artifacts
+        ]
 
     def get_features(
         self,

@@ -5,9 +5,11 @@ from web.schemas import (
     VehicleBase,
     VersionOut,
     BoardOut,
+    StandardArtifactOut,
     FeatureOut,
 )
 from web.services.vehicles import get_vehicles_service, VehiclesService
+from metadata_manager.ap_src_meta_fetcher import FirmwareServerUnavailableError
 
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
 
@@ -181,6 +183,55 @@ async def get_board(
             detail=f"Board '{board_id}' not found"
         )
     return board
+
+
+@router.get(
+    "/{vehicle_id}/versions/{version_id}/boards/{board_id}/standard_artifacts",
+    response_model=List[StandardArtifactOut],
+    responses={
+        404: {"description": "Standard artifacts not found"},
+        502: {"description": "Firmware server unavailable"},
+    }
+)
+async def list_board_standard_artifacts(
+    vehicle_id: str = Path(..., description="Vehicle identifier"),
+    version_id: str = Path(..., description="Version identifier"),
+    board_id: str = Path(..., description="Board identifier"),
+    service: VehiclesService = Depends(get_vehicles_service)
+):
+    """
+    Get standard build artifact files from firmware.ardupilot.org for a board.
+
+    Args:
+        vehicle_id: The vehicle identifier
+        version_id: The version identifier
+        board_id: The board identifier
+
+    Returns:
+        List of artifact files with download URLs
+    """
+    try:
+        artifacts = service.get_board_standard_artifacts(
+            vehicle_id, version_id, board_id
+        )
+    except FirmwareServerUnavailableError:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Failed to fetch standard artifacts from firmware server"
+            )
+        )
+
+    if artifacts is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Standard artifacts not found for board '{board_id}' "
+                f"in vehicle '{vehicle_id}' version '{version_id}'"
+            )
+        )
+
+    return artifacts
 
 
 # --- Feature Endpoints ---

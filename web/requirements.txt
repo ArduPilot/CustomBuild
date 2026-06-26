@@ -3,6 +3,7 @@ uvicorn==0.40.0
 pydantic==2.5.0
 redis==5.2.1
 requests==2.31.0
+beautifulsoup4==4.12.3
 jsonschema==4.20.0
 dill==0.3.8
 packaging==25.0
