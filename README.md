@@ -137,9 +137,9 @@ The default directory structure is established as follows:
         ├── ardupilot            (used by the web component)
         ├── artifacts
         ├── configs
-        |   └── remotes.json     (auto-generated, see examples/remotes.json.sample)
+        |   └── remotes.json     (optional, see examples/remotes.json.sample)
         ├── secrets
-        |   └── reload_token     (optional)
+        |   └── admin_token      (optional)
         ├── tmp
             └── ardupilot        (used by the builder component)
 ```
