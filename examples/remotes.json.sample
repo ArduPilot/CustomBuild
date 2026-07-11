@@ -4,7 +4,7 @@
     "url": "https://github.com/ardupilot/ardupilot.git",
     "vehicles": [
       {
-        "name": "Copter",
+        "id": "copter",
         "releases": [
           {
             "release_type": "latest",
@@ -21,7 +21,7 @@
     "url": "https://github.com/cool-user-007/ardupilot.git",
     "vehicles": [
       {
-        "name": "Copter",
+        "id": "copter",
         "releases": [
           {
             "release_type": "Custom",
@@ -37,7 +37,7 @@
     "url": "https://github.com/ardupilot/ardupilot.git",
     "vehicles": [
       {
-        "name": "Copter",
+        "id": "copter",
         "releases": [
           {
             "release_type": "latest",
