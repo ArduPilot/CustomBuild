@@ -44,27 +44,27 @@ class TestSettings:
             assert settings.enable_inbuilt_builder is False
 
 
-class TestRemoteReloadToken:
-    """Test suite for remote_reload_token property."""
+class TestAdminToken:
+    """Test suite for admin_token property."""
 
     def test_token_from_file(self, tmp_path):
         """Test that token is read from file when it exists."""
         secrets_dir = tmp_path / 'secrets'
         secrets_dir.mkdir()
-        token_file = secrets_dir / 'reload_token'
+        token_file = secrets_dir / 'admin_token'
 
         expected_token = "test-token-from-file"
         token_file.write_text(f"  {expected_token}  \n")  # Test whitespace stripping
 
         with patch.dict(os.environ, {"CBS_BASEDIR": str(tmp_path)}, clear=True):
             settings = Settings()
-            assert settings.remote_reload_token == expected_token
+            assert settings.admin_token == expected_token
 
     def test_token_file_takes_precedence_over_env(self, tmp_path):
         """Test that token from file takes precedence over environment variable."""
         secrets_dir = tmp_path / 'secrets'
         secrets_dir.mkdir()
-        token_file = secrets_dir / 'reload_token'
+        token_file = secrets_dir / 'admin_token'
 
         file_token = "token-from-file"
         env_token = "token-from-env"
@@ -73,10 +73,10 @@ class TestRemoteReloadToken:
 
         with patch.dict(os.environ, {
             "CBS_BASEDIR": str(tmp_path),
-            "CBS_REMOTES_RELOAD_TOKEN": env_token
+            "CBS_ADMIN_TOKEN": env_token
         }, clear=True):
             settings = Settings()
-            assert settings.remote_reload_token == file_token
+            assert settings.admin_token == file_token
 
     def test_token_from_env_when_file_not_found(self, tmp_path):
         """Test that token falls back to environment variable when file doesn't exist."""
@@ -84,10 +84,10 @@ class TestRemoteReloadToken:
 
         with patch.dict(os.environ, {
             "CBS_BASEDIR": str(tmp_path),
-            "CBS_REMOTES_RELOAD_TOKEN": expected_token
+            "CBS_ADMIN_TOKEN": expected_token
         }, clear=True):
             settings = Settings()
-            assert settings.remote_reload_token == expected_token
+            assert settings.admin_token == expected_token
 
     def test_token_from_env_on_file_read_error(self, tmp_path):
         """Test that token falls back to env var when file cannot be read."""
@@ -95,23 +95,23 @@ class TestRemoteReloadToken:
 
         with patch.dict(os.environ, {
             "CBS_BASEDIR": str(tmp_path),
-            "CBS_REMOTES_RELOAD_TOKEN": env_token
+            "CBS_ADMIN_TOKEN": env_token
         }, clear=True):
             with patch("builtins.open", side_effect=PermissionError("No access")):
                 settings = Settings()
-                assert settings.remote_reload_token == env_token
+                assert settings.admin_token == env_token
 
     def test_token_none_when_not_configured(self, tmp_path):
         """Test that token is None when neither file nor env var is set."""
         with patch.dict(os.environ, {"CBS_BASEDIR": str(tmp_path)}, clear=True):
             settings = Settings()
-            assert settings.remote_reload_token is None
+            assert settings.admin_token is None
 
     def test_token_none_when_env_is_empty_string(self, tmp_path):
         """Test that token is None when env var is empty string."""
         with patch.dict(os.environ, {
             "CBS_BASEDIR": str(tmp_path),
-            "CBS_REMOTES_RELOAD_TOKEN": ""
+            "CBS_ADMIN_TOKEN": ""
         }, clear=True):
             settings = Settings()
-            assert settings.remote_reload_token is None
+            assert settings.admin_token is None
