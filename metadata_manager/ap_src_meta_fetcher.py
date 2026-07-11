@@ -505,7 +505,7 @@ class APSourceMetadataFetcher:
 
         # Heli builds are stored under a separate folder
         artifacts_subdir = board_id
-        if vehicle_id == "Heli":
+        if vehicle_id == "heli":
             artifacts_subdir += "-heli"
 
         features_txt_url = f"{artifacts_url}/{artifacts_subdir}/features.txt"
