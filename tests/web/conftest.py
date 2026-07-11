@@ -25,7 +25,7 @@ TEST_REMOTES_JSON = [
         "url": "https://github.com/test/ardupilot.git",
         "vehicles": [
             {
-                "name": "Copter",
+                "id": "copter",
                 "releases": [
                     {
                         "release_type": "latest",
@@ -40,7 +40,7 @@ TEST_REMOTES_JSON = [
                 ]
             },
             {
-                "name": "Plane",
+                "id": "plane",
                 "releases": [
                     {
                         "release_type": "latest",
@@ -56,7 +56,7 @@ TEST_REMOTES_JSON = [
         "url": "https://github.com/another/ardupilot.git",
         "vehicles": [
             {
-                "name": "Rover",
+                "id": "rover",
                 "releases": [
                     {
                         "release_type": "Custom",
@@ -90,10 +90,10 @@ def test_base_dir() -> Generator[str, None, None]:
     with open(remotes_json_path, "w") as f:
         json.dump(TEST_REMOTES_JSON, f, indent=2)
 
-    # Create remote reload token file
-    token_file_path = os.path.join(temp_dir, "secrets", "reload_token")
+    # Create admin token file
+    token_file_path = os.path.join(temp_dir, "secrets", "admin_token")
     with open(token_file_path, "w") as f:
-        f.write("test-remote-reload-token-12345")
+        f.write("test-admin-token-12345")
 
     yield temp_dir
 
@@ -130,9 +130,9 @@ def mock_ap_src_metadata_fetcher():
 
 
 @pytest.fixture
-def mock_versions_fetcher(test_base_dir):
+def mock_versions_manager(test_base_dir):
     """
-    Create a mock VersionsFetcher that doesn't actually fetch versions.
+    Create a mock VersionsManager that doesn't actually fetch versions.
 
     This allows tests to run without starting background threads or
     making actual git operations.
@@ -141,27 +141,27 @@ def mock_versions_fetcher(test_base_dir):
         test_base_dir: Test base directory fixture
 
     Returns:
-        Mock: Mock VersionsFetcher instance
+        Mock: Mock VersionsManager instance
     """
-    from metadata_manager.versions_fetcher import RemoteInfo
+    from metadata_manager import RemoteInfo
 
-    mock_fetcher = Mock()
+    mock_manager = Mock()
 
-    # Mock the reload_remotes_json method
-    mock_fetcher.reload_remotes_json = Mock(return_value=None)
+    # Mock the refresh methods
+    mock_manager.refresh_all = Mock(return_value=None)
 
     # Mock get_all_remotes_info to return test remotes
     test_remotes = [
         RemoteInfo(name="test-remote-1", url="https://github.com/test/ardupilot.git"),
         RemoteInfo(name="test-remote-2", url="https://github.com/another/ardupilot.git")
     ]
-    mock_fetcher.get_all_remotes_info = Mock(return_value=test_remotes)
+    mock_manager.get_all_remotes_info = Mock(return_value=test_remotes)
 
     # Mock start/stop methods (no-op for tests)
-    mock_fetcher.start = Mock()
-    mock_fetcher.stop = Mock()
+    mock_manager.start = Mock()
+    mock_manager.stop = Mock()
 
-    return mock_fetcher
+    return mock_manager
 
 
 @pytest.fixture
@@ -191,7 +191,6 @@ def mock_vehicles_manager():
         Mock: Mock VehiclesManager instance
     """
     mock_manager = Mock()
-    mock_manager.get_vehicle_names = Mock(return_value=["Copter", "Plane", "Rover"])
     return mock_manager
 
 
@@ -199,7 +198,7 @@ def mock_vehicles_manager():
 def app_with_mocked_dependencies(
     test_base_dir,
     mock_git_repo,
-    mock_versions_fetcher,
+    mock_versions_manager,
     mock_build_manager,
     mock_vehicles_manager,
 ):
@@ -215,7 +214,7 @@ def app_with_mocked_dependencies(
     Args:
         test_base_dir: Test base directory
         mock_git_repo: Mock git repository
-        mock_versions_fetcher: Mock versions fetcher
+        mock_versions_manager: Mock versions manager
         mock_build_manager: Mock build manager
         mock_vehicles_manager: Mock vehicles manager
 
@@ -240,7 +239,7 @@ def app_with_mocked_dependencies(
         """Test lifespan that doesn't start background tasks."""
         # Setup: Attach mocked dependencies to app state
         app.state.repo = mock_git_repo
-        app.state.versions_fetcher = mock_versions_fetcher
+        app.state.versions_manager = mock_versions_manager
         app.state.vehicles_manager = mock_vehicles_manager
         app.state.build_manager = mock_build_manager
         app.state.limiter = limiter
@@ -250,7 +249,7 @@ def app_with_mocked_dependencies(
         app.state.ap_src_metadata_fetcher = mock_ap_src_fetcher
 
         # Don't start background tasks in test mode
-        # versions_fetcher.start()
+        # versions_manager.start()
         # cleaner.start()
         # progress_updater.start()
 

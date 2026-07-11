@@ -1,0 +1,62 @@
+{
+  "format-version": "1.0.0",
+  "firmware": [
+    {
+      "vehicletype": "Copter",
+      "platform": "CubeOrange",
+      "git-sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "url": "https://firmware.ardupilot.org/Copter/stable-4.6.3/CubeOrange/arducopter.apj",
+      "mav-firmware-version-type": "STABLE-4.6.3",
+      "mav-firmware-version": "4.6.3",
+      "format": "apj",
+      "latest": 0,
+      "mav-type": "QUADROTOR",
+      "image_size": 100
+    },
+    {
+      "vehicletype": "Copter",
+      "platform": "CubeOrange-heli",
+      "git-sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "url": "https://firmware.ardupilot.org/Copter/stable-4.6.3/CubeOrange-heli/arducopter-heli.apj",
+      "mav-firmware-version-type": "STABLE-4.6.3",
+      "mav-firmware-version": "4.6.3",
+      "format": "apj",
+      "latest": 0,
+      "mav-type": "HELICOPTER",
+      "image_size": 100
+    },
+    {
+      "vehicletype": "Copter",
+      "platform": "CubeOrange",
+      "git-sha": "cccccccccccccccccccccccccccccccccccccccc",
+      "url": "https://firmware.ardupilot.org/Copter/beta/CubeOrange/arducopter.apj",
+      "mav-firmware-version-type": "BETA",
+      "mav-firmware-version": "4.7.0",
+      "format": "apj",
+      "latest": 0,
+      "mav-type": "QUADROTOR"
+    },
+    {
+      "vehicletype": "AntennaTracker",
+      "platform": "CubeOrange",
+      "git-sha": "dddddddddddddddddddddddddddddddddddddddd",
+      "url": "https://firmware.ardupilot.org/AntennaTracker/stable-4.6.3/CubeOrange/antennatracker.apj",
+      "mav-firmware-version-type": "STABLE-4.6.3",
+      "mav-firmware-version": "4.6.3",
+      "format": "apj",
+      "latest": 0,
+      "mav-type": "ANTENNA_TRACKER"
+    },
+    {
+      "vehicletype": "Copter",
+      "platform": "CubeOrange",
+      "git-sha": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "url": "https://firmware.ardupilot.org/Copter/latest/CubeOrange/arducopter.apj",
+      "mav-firmware-version-type": "DEV",
+      "mav-firmware-version": "4.8.0",
+      "format": "apj",
+      "latest": 1,
+      "mav-type": "QUADROTOR"
+    }
+  ]
+}

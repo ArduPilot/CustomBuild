@@ -9,11 +9,11 @@ from fastapi import status
 from web.core.config import get_settings
 
 
-class TestAdminRefreshRemotesEndpoint:
-    """Test suite for the /admin/refresh_remotes endpoint."""
+class TestAdminRefreshVersionsEndpoint:
+    """Test suite for the /admin/refresh_versions endpoint."""
 
-    AUTH_HEADERS = {"Authorization": "Bearer test-remote-reload-token-12345"}
-    TEST_TOKEN = "test-remote-reload-token-12345"
+    AUTH_HEADERS = {"Authorization": "Bearer test-admin-token-12345"}
+    TEST_TOKEN = "test-admin-token-12345"
 
     @staticmethod
     @contextmanager
@@ -25,8 +25,8 @@ class TestAdminRefreshRemotesEndpoint:
         finally:
             client.app.dependency_overrides.pop(get_settings, None)
 
-    def test_refresh_remotes_success(self, client, test_base_dir):
-        """Test successful refresh of remotes with valid auth and verifies against remotes.json."""
+    def test_refresh_versions_success(self, client, test_base_dir):
+        """Test successful refresh with valid auth and verifies against remotes.json."""
         import os
         import json
 
@@ -37,10 +37,10 @@ class TestAdminRefreshRemotesEndpoint:
             initial_remotes = json.load(f)
 
         mock_settings = Mock()
-        mock_settings.remote_reload_token = self.TEST_TOKEN
+        mock_settings.admin_token = self.TEST_TOKEN
         with self.override_settings(client, mock_settings):
             response = client.post(
-                "/api/v1/admin/refresh_remotes",
+                "/api/v1/admin/refresh_versions",
                 headers=self.AUTH_HEADERS
             )
 
@@ -54,22 +54,22 @@ class TestAdminRefreshRemotesEndpoint:
         for name in expected_names:
             assert name in data["remotes"]
 
-    def test_refresh_remotes_no_auth(self, client):
+    def test_refresh_versions_no_auth(self, client):
         """Test refresh without authentication - should fail."""
         mock_settings = Mock()
-        mock_settings.remote_reload_token = self.TEST_TOKEN
+        mock_settings.admin_token = self.TEST_TOKEN
         with self.override_settings(client, mock_settings):
-            response = client.post("/api/v1/admin/refresh_remotes")
+            response = client.post("/api/v1/admin/refresh_versions")
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_refresh_remotes_invalid_token(self, client):
+    def test_refresh_versions_invalid_token(self, client):
         """Test refresh with invalid token - should fail."""
         mock_settings = Mock()
-        mock_settings.remote_reload_token = self.TEST_TOKEN
+        mock_settings.admin_token = self.TEST_TOKEN
         with self.override_settings(client, mock_settings):
             response = client.post(
-                "/api/v1/admin/refresh_remotes",
+                "/api/v1/admin/refresh_versions",
                 headers={"Authorization": "Bearer invalid-token-xyz"}
             )
 
@@ -79,31 +79,31 @@ class TestAdminRefreshRemotesEndpoint:
         assert "detail" in data
         assert "Invalid authentication token" in data["detail"]
 
-    def test_refresh_remotes_malformed_auth_header(self, client):
+    def test_refresh_versions_malformed_auth_header(self, client):
         """Test refresh with malformed authorization header."""
         mock_settings = Mock()
-        mock_settings.remote_reload_token = self.TEST_TOKEN
+        mock_settings.admin_token = self.TEST_TOKEN
         with self.override_settings(client, mock_settings):
             response = client.post(
-                "/api/v1/admin/refresh_remotes",
-                headers={"Authorization": "test-remote-reload-token-12345"}
+                "/api/v1/admin/refresh_versions",
+                headers={"Authorization": "test-admin-token-12345"}
             )
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_refresh_remotes_empty_token(self, client):
+    def test_refresh_versions_empty_token(self, client):
         """Test refresh with empty token."""
         mock_settings = Mock()
-        mock_settings.remote_reload_token = self.TEST_TOKEN
+        mock_settings.admin_token = self.TEST_TOKEN
         with self.override_settings(client, mock_settings):
             response = client.post(
-                "/api/v1/admin/refresh_remotes",
+                "/api/v1/admin/refresh_versions",
                 headers={"Authorization": "Bearer "}
             )
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_refresh_remotes_method_not_allowed(self, client):
+    def test_refresh_versions_method_not_allowed(self, client):
         """Test that only POST method is allowed."""
         disallowed_methods = [
             ("GET", client.get),
@@ -113,11 +113,11 @@ class TestAdminRefreshRemotesEndpoint:
         ]
 
         mock_settings = Mock()
-        mock_settings.remote_reload_token = self.TEST_TOKEN
+        mock_settings.admin_token = self.TEST_TOKEN
         with self.override_settings(client, mock_settings):
             for method_name, method_func in disallowed_methods:
                 response = method_func(
-                    "/api/v1/admin/refresh_remotes",
+                    "/api/v1/admin/refresh_versions",
                     headers=self.AUTH_HEADERS
                 )
                 assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED, \

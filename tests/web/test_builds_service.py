@@ -7,7 +7,7 @@ from unittest.mock import Mock, MagicMock
 
 import build_manager as bm
 from metadata_manager import RemoteInfo as ManagerRemoteInfo
-from metadata_manager.versions_fetcher import RemoteInfo, VersionInfo
+from metadata_manager import RemoteInfo, VersionInfo
 from web.schemas import BuildRequest
 from web.services.builds import BuildsService
 
@@ -15,14 +15,14 @@ from web.services.builds import BuildsService
 @pytest.fixture
 def service(
     mock_build_manager,
-    mock_versions_fetcher,
+    mock_versions_manager,
     mock_ap_src_metadata_fetcher,
     mock_git_repo,
     mock_vehicles_manager,
 ):
     """Create a BuildsService instance with mocked dependencies."""
-    mock_versions_fetcher.get_version_info.return_value = make_version_info()
-    mock_versions_fetcher.get_remote_info.return_value = RemoteInfo(
+    mock_versions_manager.get_version_info.return_value = make_version_info()
+    mock_versions_manager.get_remote_info.return_value = RemoteInfo(
         name="ardupilot", url="https://github.com/ArduPilot/ardupilot.git"
     )
     mock_ap_src_metadata_fetcher.get_boards.return_value = ["MatekH743", "CubeOrange"]
@@ -37,11 +37,10 @@ def service(
     mock_vehicles_manager.get_vehicle_by_id = Mock(
         side_effect=lambda vid: vehicles.get(vid)
     )
-    mock_vehicles_manager.get_vehicle_names = Mock(return_value=[v.name for v in vehicles.values()])
 
     return BuildsService(
         build_manager=mock_build_manager,
-        versions_fetcher=mock_versions_fetcher,
+        versions_manager=mock_versions_manager,
         ap_src_metadata_fetcher=mock_ap_src_metadata_fetcher,
         repo=mock_git_repo,
         vehicles_manager=mock_vehicles_manager,
@@ -179,10 +178,10 @@ class TestBuildsService:
             service.create_build(request)
 
     def test_create_build_raises_value_error_for_invalid_version(
-        self, service, mock_versions_fetcher
+        self, service, mock_versions_manager
     ):
         """ValueError is raised when the version_id is not found."""
-        mock_versions_fetcher.get_version_info.return_value = None
+        mock_versions_manager.get_version_info.return_value = None
         request = BuildRequest(
             vehicle_id="copter",
             board_id="MatekH743",
@@ -194,10 +193,10 @@ class TestBuildsService:
             service.create_build(request)
 
     def test_create_build_queries_version_info_with_correct_params(
-        self, service, mock_versions_fetcher
+        self, service, mock_versions_manager
     ):
         """get_version_info is called with the correct vehicle_id and version_id."""
-        mock_versions_fetcher.get_version_info.return_value = None
+        mock_versions_manager.get_version_info.return_value = None
         request = BuildRequest(
             vehicle_id="plane",
             board_id="CubeOrange",
@@ -208,16 +207,16 @@ class TestBuildsService:
         with pytest.raises(ValueError):
             service.create_build(request)
 
-        mock_versions_fetcher.get_version_info.assert_called_once_with(
+        mock_versions_manager.get_version_info.assert_called_once_with(
             vehicle_id="plane",
             version_id="plane-4.4.0-stable",
         )
 
     def test_create_build_raises_value_error_when_remote_not_found(
-        self, service, mock_versions_fetcher
+        self, service, mock_versions_manager
     ):
         """ValueError is raised when the remote is not found."""
-        mock_versions_fetcher.get_remote_info.return_value = None
+        mock_versions_manager.get_remote_info.return_value = None
         request = BuildRequest(
             vehicle_id="some-vehicle",
             board_id="some-board",
