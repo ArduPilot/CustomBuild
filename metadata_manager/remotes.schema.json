@@ -21,9 +21,9 @@
             "type": "object",
             "description": "Vehicle object",
             "properties": {
-              "name": {
+              "id": {
                 "type": "string",
-                "description": "Name of vehicle"
+                "description": "Vehicle id"
               },
               "releases": {
                 "type": "array",
@@ -55,7 +55,7 @@
               }
             },
             "required": [
-              "name",
+              "id",
               "releases"
             ]
           }

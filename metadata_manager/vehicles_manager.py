@@ -3,13 +3,11 @@ class Vehicle:
                  id: str,
                  name: str,
                  ap_source_subdir: str,
-                 fw_server_vehicle_sdir: str,
                  waf_build_command: str,
                  ) -> None:
         self.id = id
         self.name = name
         self.ap_source_subdir = ap_source_subdir
-        self.fw_server_vehicle_sdir = fw_server_vehicle_sdir
         self.waf_build_command = waf_build_command
 
     def __eq__(self, other):
@@ -27,56 +25,48 @@ DEFAULT_VEHICLES = [
         id="copter",
         name="Copter",
         ap_source_subdir="ArduCopter",
-        fw_server_vehicle_sdir="Copter",
         waf_build_command="copter"
     ),
     Vehicle(
         id="plane",
         name="Plane",
         ap_source_subdir="ArduPlane",
-        fw_server_vehicle_sdir="Plane",
         waf_build_command="plane"
     ),
     Vehicle(
         id="rover",
         name="Rover",
         ap_source_subdir="Rover",
-        fw_server_vehicle_sdir="Rover",
         waf_build_command="rover"
     ),
     Vehicle(
         id="sub",
         name="Sub",
         ap_source_subdir="ArduSub",
-        fw_server_vehicle_sdir="Sub",
         waf_build_command="sub"
     ),
     Vehicle(
         id="heli",
         name="Heli",
         ap_source_subdir="ArduCopter",
-        fw_server_vehicle_sdir="Copter",
         waf_build_command="heli"
     ),
     Vehicle(
         id="blimp",
         name="Blimp",
         ap_source_subdir="Blimp",
-        fw_server_vehicle_sdir="Blimp",
         waf_build_command="blimp"
     ),
     Vehicle(
         id="tracker",
         name="Tracker",
         ap_source_subdir="AntennaTracker",
-        fw_server_vehicle_sdir="AntennaTracker",
         waf_build_command="antennatracker"
     ),
     Vehicle(
         id="ap-periph",
         name="AP_Periph",
         ap_source_subdir="Tools/AP_Periph",
-        fw_server_vehicle_sdir="AP_Periph",
         waf_build_command="AP_Periph"
     ),
 ]
