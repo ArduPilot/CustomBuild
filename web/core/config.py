@@ -88,33 +88,43 @@ class Settings:
         return os.getenv('CBS_ENABLE_INBUILT_BUILDER', '1') == '1'
 
     @property
-    def remote_reload_token(self) -> Optional[str]:
+    def manifest_cache_dir(self) -> str:
+        """Directory for cached firmware manifest files."""
+        return os.path.dirname(self.remotes_json_path)
+
+    @property
+    def ap_firmware_manifest_url(self) -> str:
+        """URL for the ArduPilot firmware manifest."""
+        return os.getenv(
+            'CBS_AP_FIRMWARE_MANIFEST_URL',
+            'https://firmware.ardupilot.org/manifest.json',
+        )
+
+    @property
+    def admin_token(self) -> Optional[str]:
         """
-        Get remote reload token from file or environment variable.
+        Get admin API token from file or environment variable.
 
         Tries to read token from file first, falls back to environment variable.
 
         Returns:
             The authorization token if found, None otherwise
         """
-        token_file_path = os.path.join(self.base_dir, 'secrets', 'reload_token')
+        token_file_path = os.path.join(self.base_dir, 'secrets', 'admin_token')
 
         try:
-            # Try to read the secret token from the file
             with open(token_file_path, 'r') as file:
                 token = file.read().strip()
                 return token
         except (FileNotFoundError, PermissionError):
-            # If the file does not exist or no permission, check environment
-            env_token = os.getenv('CBS_REMOTES_RELOAD_TOKEN', '')
+            env_token = os.getenv('CBS_ADMIN_TOKEN', '')
             return env_token if env_token != '' else None
         except Exception as e:
             logger.error(
                 f"Unexpected error reading token file at {token_file_path}: {e}. "
                 "Checking environment for token."
             )
-            # For any other error, fall back to environment variable
-            env_token = os.getenv('CBS_REMOTES_RELOAD_TOKEN', None)
+            env_token = os.getenv('CBS_ADMIN_TOKEN', None)
             return env_token if env_token != '' else None
 
 

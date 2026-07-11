@@ -14,20 +14,20 @@ logger = logging.getLogger(__name__)
 class AdminService:
     """Service for managing administrative operations."""
 
-    def __init__(self, remote_reload_token: str, versions_fetcher=None):
+    def __init__(self, admin_token: str, versions_manager=None):
         """
         Initialize the admin service.
 
         Args:
-            remote_reload_token: Remote reload authentication token
-            versions_fetcher: VersionsFetcher instance for managing remotes
+            admin_token: Admin API authentication token
+            versions_manager: VersionsManager instance for managing remotes
         """
-        self.remote_reload_token = remote_reload_token
-        self.versions_fetcher = versions_fetcher
+        self.admin_token = admin_token
+        self.versions_manager = versions_manager
 
-    async def verify_remote_reload_token(self, token: str) -> bool:
+    async def verify_admin_token(self, token: str) -> bool:
         """
-        Verify that the provided token matches the expected remote reload token.
+        Verify that the provided token matches the expected admin token.
 
         Args:
             token: The token to verify
@@ -38,33 +38,31 @@ class AdminService:
         if not token:
             return False
 
-        return token == self.remote_reload_token
+        return token == self.admin_token
 
-    async def refresh_remotes(self) -> List[str]:
+    async def refresh_versions(self) -> List[str]:
         """
-        Trigger a refresh of remote metadata.
+        Refresh all version providers and sync git remotes.
 
         Returns:
-            List of remote names that were refreshed
+            List of git remote names synced after the refresh
 
         Raises:
             Exception: If refresh operation fails
         """
-        logger.info("Triggering remote metadata refresh")
+        logger.info("Triggering version provider refresh")
 
-        # Reload remotes.json
-        self.versions_fetcher.reload_remotes_json()
+        self.versions_manager.refresh_all()
 
-        # Get list of remotes that are now available
-        remotes_info = self.versions_fetcher.get_all_remotes_info()
-        remotes_refreshed = [remote.name for remote in remotes_info]
+        remotes_info = self.versions_manager.get_all_remotes_info()
+        remotes_synced = [remote.name for remote in remotes_info]
 
         logger.info(
-            f"Successfully refreshed {len(remotes_refreshed)} remotes: "
-            f"{remotes_refreshed}"
+            f"Successfully refreshed version providers; "
+            f"synced {len(remotes_synced)} remotes: {remotes_synced}"
         )
 
-        return remotes_refreshed
+        return remotes_synced
 
 
 def get_admin_service(
@@ -82,14 +80,14 @@ def get_admin_service(
         AdminService instance initialized with app state dependencies
 
     Raises:
-        RuntimeError: If remote reload token is not configured
+        RuntimeError: If admin token is not configured
     """
-    remote_reload_token = settings.remote_reload_token
+    admin_token = settings.admin_token
 
-    if remote_reload_token is None:
-        raise RuntimeError("Remote reload token not configured on server")
+    if admin_token is None:
+        raise RuntimeError("Admin token not configured on server")
 
     return AdminService(
-        remote_reload_token=remote_reload_token,
-        versions_fetcher=request.app.state.versions_fetcher
+        admin_token=admin_token,
+        versions_manager=request.app.state.versions_manager
     )

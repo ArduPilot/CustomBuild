@@ -23,8 +23,13 @@ from web.core.logging_config import setup_logging
 from web.core.limiter import limiter, rate_limit_exceeded_handler
 
 import ap_git
-import metadata_manager
 import build_manager
+from metadata_manager import (
+    APSourceMetadataFetcher,
+    ManifestJSON,
+    VehiclesManager,
+    VersionsManager,
+)
 
 setup_logging()
 
@@ -45,20 +50,26 @@ async def lifespan(app: FastAPI):
         recurse_submodules=True,
     )
 
-    vehicles_manager = metadata_manager.VehiclesManager()
+    vehicles_manager = VehiclesManager()
 
-    ap_src_metadata_fetcher = metadata_manager.APSourceMetadataFetcher(
+    manifest_json = ManifestJSON(
+        url=settings.ap_firmware_manifest_url,
+        cache_dir=settings.manifest_cache_dir,
+    )
+
+    ap_src_metadata_fetcher = APSourceMetadataFetcher(
         ap_repo=repo,
         caching_enabled=True,
         redis_host=settings.redis_host,
         redis_port=settings.redis_port,
     )
 
-    versions_fetcher = metadata_manager.VersionsFetcher(
+    versions_manager = VersionsManager(
+        ap_repo=repo,
         remotes_json_path=settings.remotes_json_path,
-        ap_repo=repo
+        manifest_json=manifest_json,
     )
-    versions_fetcher.reload_remotes_json()
+    versions_manager.refresh_all()
 
     build_mgr = build_manager.BuildManager(
         outdir=settings.outdir_parent,
@@ -83,13 +94,14 @@ async def lifespan(app: FastAPI):
         )
         inbuilt_builder_thread.start()
 
-    versions_fetcher.start()
+    versions_manager.start()
     cleaner.start()
     progress_updater.start()
 
     app.state.repo = repo
     app.state.ap_src_metadata_fetcher = ap_src_metadata_fetcher
-    app.state.versions_fetcher = versions_fetcher
+    app.state.manifest_json = manifest_json
+    app.state.versions_manager = versions_manager
     app.state.vehicles_manager = vehicles_manager
     app.state.build_manager = build_mgr
     app.state.inbuilt_builder = inbuilt_builder
@@ -99,7 +111,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
-    versions_fetcher.stop()
+    versions_manager.stop()
     cleaner.stop()
     progress_updater.stop()
     if inbuilt_builder is not None:

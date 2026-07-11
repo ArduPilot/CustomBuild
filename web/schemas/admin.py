@@ -3,10 +3,9 @@ from typing import List
 from pydantic import BaseModel, Field
 
 
-# --- Refresh Remotes Response ---
-class RefreshRemotesResponse(BaseModel):
-    """Response schema for remote refresh operation."""
+class RefreshVersionsResponse(BaseModel):
+    """Response schema for version metadata refresh operation."""
     remotes: List[str] = Field(
         ...,
-        description="List of remotes discovered in remotes.json file"
+        description="Git remotes synced after refreshing all version providers",
     )

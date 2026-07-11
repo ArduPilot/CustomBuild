@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from web.schemas import RefreshRemotesResponse
+from web.schemas import RefreshVersionsResponse
 from web.services.admin import get_admin_service, AdminService
 
 
@@ -9,12 +9,12 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 security = HTTPBearer(auto_error=False)
 
 
-async def verify_remote_reload_token(
+async def verify_admin_token(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     admin_service: AdminService = Depends(get_admin_service)
 ) -> None:
     """
-    Verify the bearer token for remote reload authentication.
+    Verify the bearer token for admin API authentication.
 
     Args:
         credentials: HTTP authorization credentials from request header
@@ -32,7 +32,7 @@ async def verify_remote_reload_token(
 
     token = credentials.credentials
     try:
-        if not await admin_service.verify_remote_reload_token(token):
+        if not await admin_service.verify_admin_token(token):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication token"
@@ -45,8 +45,8 @@ async def verify_remote_reload_token(
 
 
 @router.post(
-    "/refresh_remotes",
-    response_model=RefreshRemotesResponse,
+    "/refresh_versions",
+    response_model=RefreshVersionsResponse,
     responses={
         401: {"description": "Invalid or missing authentication token"},
         500: {
@@ -57,12 +57,12 @@ async def verify_remote_reload_token(
         }
     }
 )
-async def refresh_remotes(
-    _: None = Depends(verify_remote_reload_token),
+async def refresh_versions(
+    _: None = Depends(verify_admin_token),
     admin_service: AdminService = Depends(get_admin_service)
 ):
     """
-    Trigger a hot reset/refresh of remote metadata.
+    Trigger a refresh of all version metadata providers.
 
     This endpoint requires bearer token authentication in the Authorization
     header:
@@ -71,17 +71,17 @@ async def refresh_remotes(
     ```
 
     Returns:
-        RefreshRemotesResponse: List of remotes that were refreshed
+        RefreshVersionsResponse: Git remotes synced after the refresh
 
     Raises:
         401: Invalid or missing authentication token
         500: Refresh operation failed
     """
     try:
-        remotes = await admin_service.refresh_remotes()
-        return RefreshRemotesResponse(remotes=remotes)
+        remotes = await admin_service.refresh_versions()
+        return RefreshVersionsResponse(remotes=remotes)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to refresh remotes: {str(e)}"
+            detail=f"Failed to refresh versions: {str(e)}"
         )
