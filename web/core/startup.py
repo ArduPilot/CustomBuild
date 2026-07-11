@@ -25,7 +25,6 @@ def ensure_base_structure(base_dir: str) -> None:
         logger.warning("Base directory not specified, skipping initialization")
         return
 
-    # Define required subdirectories
     subdirs = [
         'artifacts',
         'configs',
@@ -39,52 +38,12 @@ def ensure_base_structure(base_dir: str) -> None:
         logger.debug(f"Ensured directory exists: {path}")
 
 
-def ensure_remotes_json(base_dir: str, remote_name: str = "ardupilot") -> None:
-    """
-    Ensure remotes.json configuration file exists.
-
-    If the remotes.json file doesn't exist, creates it by fetching release
-    information from the specified remote.
-
-    Args:
-        base_dir: The base directory path (typically from CBS_BASEDIR)
-        remote_name: The remote repository name to fetch releases from
-    """
-    if not base_dir:
-        logger.warning(
-            "Base directory not specified, "
-            "skipping remotes.json initialization"
-        )
-        return
-
-    remotes_json_path = os.path.join(base_dir, 'configs', 'remotes.json')
-
-    if not os.path.isfile(remotes_json_path):
-        logger.info(
-            f"remotes.json not found at {remotes_json_path}, "
-            f"creating it..."
-        )
-        try:
-            from scripts import fetch_releases
-            fetch_releases.run(
-                base_dir=base_dir,
-                remote_name=remote_name,
-            )
-            logger.info("Successfully created remotes.json")
-        except Exception as e:
-            logger.error(f"Failed to create remotes.json: {e}")
-            raise
-    else:
-        logger.debug(f"remotes.json already exists at {remotes_json_path}")
-
-
 def initialize_application(base_dir: str) -> None:
     """
     Initialize the application environment.
 
-    Performs all necessary setup operations including:
-    - Creating required directory structure
-    - Ensuring remotes.json configuration exists
+    Performs all necessary setup operations including creating the required
+    directory structure.
 
     Args:
         base_dir: The base directory path (typically from CBS_BASEDIR)
@@ -95,10 +54,6 @@ def initialize_application(base_dir: str) -> None:
 
     logger.info(f"Initializing application with base directory: {base_dir}")
 
-    # Ensure directory structure
     ensure_base_structure(base_dir)
-
-    # Ensure remotes.json exists
-    ensure_remotes_json(base_dir)
 
     logger.info("Application initialization complete")

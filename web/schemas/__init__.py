@@ -7,7 +7,7 @@ across the API endpoints.
 
 # Admin schemas
 from web.schemas.admin import (
-    RefreshRemotesResponse,
+    RefreshVersionsResponse,
 )
 
 # Build schemas
@@ -35,7 +35,7 @@ from web.schemas.vehicles import (
 
 __all__ = [
     # Admin
-    "RefreshRemotesResponse",
+    "RefreshVersionsResponse",
     # Builds
     "BuildVersionInfo",
     "RemoteInfo",

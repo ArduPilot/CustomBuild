@@ -29,13 +29,13 @@ class BuildsService:
     def __init__(
         self,
         build_manager=None,
-        versions_fetcher=None,
+        versions_manager=None,
         ap_src_metadata_fetcher=None,
         repo=None,
         vehicles_manager=None
     ):
         self.manager = build_manager
-        self.versions_fetcher = versions_fetcher
+        self.versions_manager = versions_manager
         self.ap_src_metadata_fetcher = ap_src_metadata_fetcher
         self.repo = repo
         self.vehicles_manager = vehicles_manager
@@ -66,7 +66,7 @@ class BuildsService:
             raise ValueError("vehicle_id is required")
 
         # Get version info using version_id
-        version_info = self.versions_fetcher.get_version_info(
+        version_info = self.versions_manager.get_version_info(
             vehicle_id=vehicle_id,
             version_id=build_request.version_id
         )
@@ -77,7 +77,7 @@ class BuildsService:
         commit_ref = version_info.commit_ref
 
         # Validate remote
-        remote_info = self.versions_fetcher.get_remote_info(remote_name)
+        remote_info = self.versions_manager.get_remote_info(remote_name)
         if remote_info is None:
             raise ValueError(f"Remote {remote_name} is not whitelisted")
 
@@ -395,7 +395,7 @@ def get_builds_service(request: Request) -> BuildsService:
     """
     return BuildsService(
         build_manager=request.app.state.build_manager,
-        versions_fetcher=request.app.state.versions_fetcher,
+        versions_manager=request.app.state.versions_manager,
         ap_src_metadata_fetcher=request.app.state.ap_src_metadata_fetcher,
         repo=request.app.state.repo,
         vehicles_manager=request.app.state.vehicles_manager,

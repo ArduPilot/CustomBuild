@@ -23,11 +23,11 @@ class VehiclesService:
     """Service for managing vehicles, versions, boards, and features."""
 
     def __init__(self, vehicle_manager=None,
-                 versions_fetcher=None,
+                 versions_manager=None,
                  ap_src_metadata_fetcher=None,
                  repo=None):
         self.vehicles_manager = vehicle_manager
-        self.versions_fetcher = versions_fetcher
+        self.versions_manager = versions_manager
         self.ap_src_metadata_fetcher = ap_src_metadata_fetcher
         self.repo = repo
 
@@ -58,7 +58,7 @@ class VehiclesService:
         """Get all versions available for a specific vehicle."""
         versions = []
 
-        for version_info in self.versions_fetcher.get_versions_for_vehicle(
+        for version_info in self.versions_manager.get_versions_for_vehicle(
             vehicle_id=vehicle_id
         ):
             # Apply type filter if provided
@@ -107,7 +107,7 @@ class VehiclesService:
     ) -> List[BoardOut]:
         """Get all boards available for a specific vehicle version."""
         # Get version info
-        version_info = self.versions_fetcher.get_version_info(
+        version_info = self.versions_manager.get_version_info(
             vehicle_id=vehicle_id,
             version_id=version_id
         )
@@ -162,7 +162,7 @@ class VehiclesService:
         vehicle version/board.
         """
         # Get version info
-        version_info = self.versions_fetcher.get_version_info(
+        version_info = self.versions_manager.get_version_info(
             vehicle_id=vehicle_id,
             version_id=version_id
         )
@@ -267,7 +267,7 @@ def get_vehicles_service(request: Request) -> VehiclesService:
     """
     return VehiclesService(
         vehicle_manager=request.app.state.vehicles_manager,
-        versions_fetcher=request.app.state.versions_fetcher,
+        versions_manager=request.app.state.versions_manager,
         ap_src_metadata_fetcher=request.app.state.ap_src_metadata_fetcher,
         repo=request.app.state.repo,
     )
