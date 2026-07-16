@@ -2,10 +2,43 @@ import logging
 import re
 from collections import defaultdict
 from typing import Optional
+from urllib.parse import urlparse
 
 from packaging.version import InvalidVersion, Version
 
-from .models import ReleaseRecord
+from .models import BoardArtifact, ReleaseRecord
+
+FIRMWARE_SERVER_BASE = "https://firmware.ardupilot.org"
+
+# CBS vehicle id -> firmware.ardupilot.org top-level directory.
+FIRMWARE_SERVER_DIR_BY_VEHICLE_ID = {
+    "copter": "Copter",
+    "plane": "Plane",
+    "rover": "Rover",
+    "sub": "Sub",
+    "heli": "Copter",
+    "blimp": "Blimp",
+    "tracker": "AntennaTracker",
+    "ap-periph": "AP_Periph",
+}
+
+
+def firmware_server_dir(vehicle_id: str) -> str:
+    try:
+        return FIRMWARE_SERVER_DIR_BY_VEHICLE_ID[vehicle_id]
+    except KeyError as exc:
+        raise ValueError(f"Unknown vehicle id: {vehicle_id}") from exc
+
+
+def latest_features_txt_url(vehicle_id: str, board_id: str) -> str:
+    """Hardcoded firmware-server latest features.txt URL for tag builds."""
+    board_subdir = board_id + ("-heli" if vehicle_id == "heli" else "")
+    return (
+        f"{FIRMWARE_SERVER_BASE}/"
+        f"{firmware_server_dir(vehicle_id)}/latest/"
+        f"{board_subdir}/features.txt"
+    )
+
 
 # Minimum version for a vehicle to expose from manifest entries.
 MIN_VERSION_BY_VEHICLE_ID = {
@@ -80,9 +113,52 @@ def parse_artifacts_base_url(url: str) -> Optional[str]:
     return None
 
 
+def manifest_platform_key(platform: str, vehicle_id: str) -> str:
+    """Normalize manifest platform field to the board id used for lookups."""
+    if vehicle_id == "heli" and platform.endswith("-heli"):
+        return platform[:-5]
+    return platform
+
+
+def _artifact_name_from_url(url: str) -> str:
+    return urlparse(url).path.rstrip("/").split("/")[-1]
+
+
+def _versioned_release_path_segment(release_type: str, version_number: str) -> str:
+    if version_number == "NA":
+        return release_type
+    return f"{release_type}-{version_number}"
+
+
+def _artifact_url_specificity(url: str, release_type: str, version_number: str) -> int:
+    """Prefer versioned firmware-server paths over generic release aliases."""
+    segment = _versioned_release_path_segment(release_type, version_number)
+    if f"/{segment}/" in url:
+        return 2
+    if f"/{release_type}/" in url:
+        return 1
+    return 0
+
+
+def _dedupe_board_artifacts(
+    artifacts: list[BoardArtifact],
+    release_type: str,
+    version_number: str,
+) -> list[BoardArtifact]:
+    """Manifest entries may alias the same file under versioned and generic URLs."""
+    by_name: dict[str, BoardArtifact] = {}
+    for artifact in artifacts:
+        existing = by_name.get(artifact.name)
+        if existing is None or _artifact_url_specificity(
+            artifact.url, release_type, version_number
+        ) > _artifact_url_specificity(existing.url, release_type, version_number):
+            by_name[artifact.name] = artifact
+    return list(by_name.values())
+
+
 def _release_fields_from_entry(
     entry: dict,
-) -> Optional[tuple[str, str, str, str, str]]:
+) -> Optional[tuple[str, str, str, str]]:
     vehicle_id = vehicle_id_for_manifest_entry(entry)
     if vehicle_id is None:
         return None
@@ -106,7 +182,7 @@ def _release_fields_from_entry(
         return None
 
     version_number = "NA" if release_type == "latest" else manifest_version
-    return vehicle_id, release_type, version_number, base_url, git_sha
+    return vehicle_id, release_type, version_number, git_sha
 
 
 def _record_release_meta(
@@ -114,7 +190,6 @@ def _record_release_meta(
     vehicle_id: str,
     release_type: str,
     version_number: str,
-    base_url: str,
     git_sha: str,
     logger: logging.Logger,
 ) -> None:
@@ -124,7 +199,6 @@ def _record_release_meta(
             "vehicle_id": vehicle_id,
             "release_type": release_type,
             "version_number": version_number,
-            "ap_build_artifacts_url": base_url,
             "git_sha": git_sha,
         }
         return
@@ -138,6 +212,30 @@ def _record_release_meta(
         )
 
 
+def _record_board_artifact(
+    artifacts_by_release: dict[tuple[str, str, str], dict[str, list[BoardArtifact]]],
+    entry: dict,
+    vehicle_id: str,
+    release_type: str,
+    version_number: str,
+) -> None:
+    platform = entry.get("platform")
+    artifact_url = entry.get("url", "")
+    if not platform or not artifact_url:
+        return
+
+    platform = manifest_platform_key(platform, vehicle_id)
+    key = (vehicle_id, release_type, version_number)
+    artifacts_by_release[key][platform].append(
+        BoardArtifact(
+            name=_artifact_name_from_url(artifact_url),
+            url=artifact_url,
+            format=entry.get("format", ""),
+            size=entry.get("image_size"),
+        )
+    )
+
+
 def _releases_from_meta(
     release_meta: dict[tuple, dict],
 ) -> dict[str, list[ReleaseRecord]]:
@@ -149,7 +247,6 @@ def _releases_from_meta(
                 release_type=meta["release_type"],
                 version_number=meta["version_number"],
                 commit_reference=meta["git_sha"],
-                ap_build_artifacts_url=meta["ap_build_artifacts_url"],
             )
         )
 
@@ -168,33 +265,80 @@ def _releases_from_meta(
 class ManifestIndex:
     """In-memory index built from a parsed manifest document."""
 
-    def __init__(self, releases_by_vehicle: dict[str, list[ReleaseRecord]]):
+    def __init__(
+        self,
+        releases_by_vehicle: dict[str, list[ReleaseRecord]],
+        artifacts_by_release: dict[
+            tuple[str, str, str], dict[str, list[BoardArtifact]]
+        ],
+    ):
         self.releases_by_vehicle = releases_by_vehicle
+        self.artifacts_by_release = artifacts_by_release
 
     @classmethod
     def build(cls, manifest: dict) -> "ManifestIndex":
         logger = logging.getLogger(__name__)
         release_meta: dict[tuple, dict] = {}
+        artifacts_by_release: dict[
+            tuple[str, str, str], dict[str, list[BoardArtifact]]
+        ] = defaultdict(lambda: defaultdict(list))
 
         for entry in manifest.get("firmware") or []:
             fields = _release_fields_from_entry(entry)
             if fields is None:
                 continue
-            vehicle_id, release_type, version_number, base_url, git_sha = fields
+            vehicle_id, release_type, version_number, git_sha = fields
             _record_release_meta(
                 release_meta,
                 vehicle_id,
                 release_type,
                 version_number,
-                base_url,
                 git_sha,
                 logger,
             )
+            _record_board_artifact(
+                artifacts_by_release,
+                entry,
+                vehicle_id,
+                release_type,
+                version_number,
+            )
 
-        return cls(_releases_from_meta(release_meta))
+        return cls(
+            _releases_from_meta(release_meta),
+            {
+                release_key: dict(platforms)
+                for release_key, platforms in artifacts_by_release.items()
+            },
+        )
 
     def get_releases(self, vehicle_id: str) -> list[ReleaseRecord]:
         return list(self.releases_by_vehicle.get(vehicle_id, []))
+
+    def get_board_artifacts(
+        self,
+        vehicle_id: str,
+        release_type: str,
+        version_number: str,
+        board_id: str,
+    ) -> list[BoardArtifact]:
+        key = (vehicle_id, release_type, version_number)
+        artifacts = list(self.artifacts_by_release.get(key, {}).get(board_id, []))
+        return _dedupe_board_artifacts(artifacts, release_type, version_number)
+
+    def get_features_txt_url(
+        self,
+        vehicle_id: str,
+        release_type: str,
+        version_number: str,
+        board_id: str,
+    ) -> Optional[str]:
+        artifacts = self.get_board_artifacts(
+            vehicle_id, release_type, version_number, board_id
+        )
+        if not artifacts:
+            return None
+        return artifacts[0].url.rsplit("/", 1)[0] + "/features.txt"
 
 
 def _version_sort_key(version_number: str) -> tuple:

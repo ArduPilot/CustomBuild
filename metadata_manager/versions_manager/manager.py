@@ -60,7 +60,6 @@ class VersionsManager:
             )
         self._providers = providers
         self.repo = ap_repo
-        self._remotes_json_path = remotes_json_path
         self.__task__runner = TaskRunner(tasks=((self.refresh_all, 1200),))
         VersionsManager.__singleton = self
 

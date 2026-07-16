@@ -39,10 +39,6 @@
                       "type": "string",
                       "description": "Ardupilot version number for that release"
                     },
-                    "ap_build_artifacts_url": {
-                      "type": "string",
-                      "description": "url to build artifacts at AP firmware server to fetch features.txt"
-                    },
                     "commit_reference": {
                       "type": "string",
                       "description": "reference to commit for that release, this can be branch name, tag or git hash"

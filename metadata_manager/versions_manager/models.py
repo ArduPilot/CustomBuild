@@ -41,13 +41,11 @@ class VersionInfo:
         commit_ref: str,
         release_type: str,
         version_number: str,
-        ap_build_artifacts_url,
     ) -> None:
         self.remote_info = remote_info
         self.commit_ref = commit_ref
         self.release_type = release_type
         self.version_number = version_number
-        self.ap_build_artifacts_url = ap_build_artifacts_url
 
         commit_ref_sanitized = commit_ref.replace("/", "-")
         commit_ref_hash = hashlib.md5(commit_ref.encode()).hexdigest()[:8]
@@ -66,5 +64,4 @@ class VersionInfo:
             commit_ref=release.commit_reference,
             release_type=release.release_type,
             version_number=release.version_number,
-            ap_build_artifacts_url=release.ap_build_artifacts_url,
         )
