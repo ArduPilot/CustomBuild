@@ -5,6 +5,7 @@ import pytest
 from unittest.mock import Mock
 
 from metadata_manager import (
+    BoardArtifact,
     RemoteInfo,
     Vehicle,
     VersionInfo,
@@ -13,11 +14,34 @@ from web.services.vehicles import VehiclesService
 
 
 @pytest.fixture
-def service(mock_vehicles_manager, mock_versions_manager, mock_ap_src_metadata_fetcher, mock_git_repo):
+def mock_manifest_json():
+    mock = Mock()
+    mock.get_features_txt_url.return_value = None
+    return mock
+
+
+@pytest.fixture
+def mock_features_txt_client():
+    mock = Mock()
+    mock.get_defaults.return_value = None
+    return mock
+
+
+@pytest.fixture
+def service(
+    mock_vehicles_manager,
+    mock_versions_manager,
+    mock_ap_src_metadata_fetcher,
+    mock_manifest_json,
+    mock_features_txt_client,
+    mock_git_repo,
+):
     return VehiclesService(
         vehicle_manager=mock_vehicles_manager,
         versions_manager=mock_versions_manager,
         ap_src_metadata_fetcher=mock_ap_src_metadata_fetcher,
+        manifest_json=mock_manifest_json,
+        features_txt_client=mock_features_txt_client,
         repo=mock_git_repo,
     )
 
@@ -154,7 +178,6 @@ class TestVehiclesService:
                 commit_ref="refs/heads/master",
                 release_type="latest",
                 version_number="NA",
-                ap_build_artifacts_url=None,
             ),
         ]
         versions = service.get_versions("copter")
@@ -169,21 +192,18 @@ class TestVehiclesService:
                 commit_ref="refs/heads/master",
                 release_type="latest",
                 version_number="NA",
-                ap_build_artifacts_url=None,
             ),
             VersionInfo(
                 remote_info=RemoteInfo(name="ardupilot", url="https://github.com/ArduPilot/ardupilot.git"),
                 commit_ref="refs/tags/Copter-4.5.0",
                 release_type="stable",
                 version_number="4.5.0",
-                ap_build_artifacts_url=None,
             ),
             VersionInfo(
                 remote_info=RemoteInfo(name="ardupilot", url="https://github.com/ArduPilot/ardupilot.git"),
                 commit_ref="refs/tags/Copter-4.6.0-beta",
                 release_type="beta",
                 version_number="4.6.0",
-                ap_build_artifacts_url=None,
             ),
         ]
         versions = service.get_versions("copter")
@@ -198,21 +218,18 @@ class TestVehiclesService:
                 commit_ref="refs/tags/Copter-4.5.0",
                 release_type="stable",
                 version_number="4.5.0",
-                ap_build_artifacts_url=None,
             ),
             VersionInfo(
                 remote_info=RemoteInfo(name="ardupilot", url="https://github.com/ArduPilot/ardupilot.git"),
                 commit_ref="refs/heads/master",
                 release_type="latest",
                 version_number="NA",
-                ap_build_artifacts_url=None,
             ),
             VersionInfo(
                 remote_info=RemoteInfo(name="ardupilot", url="https://github.com/ArduPilot/ardupilot.git"),
                 commit_ref="refs/tags/Copter-4.6.0-beta",
                 release_type="beta",
                 version_number="4.6.0",
-                ap_build_artifacts_url=None,
             ),
         ]
         versions = service.get_versions("copter")
@@ -241,21 +258,18 @@ class TestVehiclesService:
                 commit_ref="refs/tags/Copter-4.5.0",
                 release_type="stable",
                 version_number="4.5.0",
-                ap_build_artifacts_url=None,
             ),
             VersionInfo(
                 remote_info=RemoteInfo(name="ardupilot", url="https://github.com/ArduPilot/ardupilot.git"),
                 commit_ref="refs/tags/Copter-4.6.0-beta",
                 release_type="beta",
                 version_number="4.6.0",
-                ap_build_artifacts_url=None,
             ),
             VersionInfo(
                 remote_info=RemoteInfo(name="ardupilot", url="https://github.com/ArduPilot/ardupilot.git"),
                 commit_ref="refs/heads/master",
                 release_type="latest",
                 version_number="NA",
-                ap_build_artifacts_url=None,
             ),
         ]
         versions = service.get_versions("copter", type_filter="stable")
@@ -273,14 +287,12 @@ class TestVehiclesService:
                 commit_ref="refs/tags/Copter-4.5.0",
                 release_type="stable",
                 version_number="4.5.0",
-                ap_build_artifacts_url=None,
             ),
             VersionInfo(
                 remote_info=RemoteInfo(name="ardupilot", url="https://github.com/ArduPilot/ardupilot.git"),
                 commit_ref="refs/tags/Copter-4.6.0-beta",
                 release_type="beta",
                 version_number="4.6.0",
-                ap_build_artifacts_url=None,
             ),
         ]
         versions = service.get_versions("copter", type_filter="latest")
@@ -297,21 +309,18 @@ class TestVehiclesService:
                 commit_ref="refs/tags/Copter-4.5.0",
                 release_type="stable",
                 version_number="4.5.0",
-                ap_build_artifacts_url=None,
             ),
             VersionInfo(
                 remote_info=RemoteInfo(name="ardupilot", url="https://github.com/ArduPilot/ardupilot.git"),
                 commit_ref="refs/tags/Copter-4.6.0-beta",
                 release_type="beta",
                 version_number="4.6.0",
-                ap_build_artifacts_url=None,
             ),
             VersionInfo(
                 remote_info=RemoteInfo(name="ardupilot", url="https://github.com/ArduPilot/ardupilot.git"),
                 commit_ref="refs/heads/master",
                 release_type="latest",
                 version_number="NA",
-                ap_build_artifacts_url=None,
             ),
         ]
         versions = service.get_versions("copter")
@@ -328,21 +337,18 @@ class TestVehiclesService:
                 commit_ref="refs/tags/Copter-4.4.0",
                 release_type="stable",
                 version_number="4.4.0",
-                ap_build_artifacts_url=None,
             ),
             VersionInfo(
                 remote_info=RemoteInfo(name="ardupilot", url="https://github.com/ArduPilot/ardupilot.git"),
                 commit_ref="refs/tags/Copter-4.5.0",
                 release_type="stable",
                 version_number="4.5.0",
-                ap_build_artifacts_url=None,
             ),
             VersionInfo(
                 remote_info=RemoteInfo(name="ardupilot", url="https://github.com/ArduPilot/ardupilot.git"),
                 commit_ref="refs/heads/master",
                 release_type="latest",
                 version_number="NA",
-                ap_build_artifacts_url=None,
             ),
         ]
         versions = service.get_versions("copter", type_filter="stable")
@@ -360,7 +366,6 @@ class TestVehiclesService:
                 commit_ref="refs/heads/master",
                 release_type="latest",
                 version_number="NA",
-                ap_build_artifacts_url=None,
             ),
         ]
         versions = service.get_versions("copter")
@@ -377,7 +382,6 @@ class TestVehiclesService:
                 commit_ref="refs/tags/Copter-4.5.0",
                 release_type="stable",
                 version_number="4.5.0",
-                ap_build_artifacts_url=None,
             ),
         ]
         versions = service.get_versions("copter")
@@ -393,7 +397,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         mock_versions_manager.get_versions_for_vehicle.return_value = [version_info]
 
@@ -410,7 +413,6 @@ class TestVehiclesService:
                 commit_ref="refs/tags/Copter-4.5.0",
                 release_type="stable",
                 version_number="4.5.0",
-                ap_build_artifacts_url=None,
             ),
         ]
 
@@ -433,21 +435,18 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         beta_info = VersionInfo(
             remote_info=RemoteInfo(name="ardupilot", url="https://github.com/ArduPilot/ardupilot.git"),
             commit_ref="refs/tags/Copter-4.6.0-beta",
             release_type="beta",
             version_number="4.6.0",
-            ap_build_artifacts_url=None,
         )
         latest_info = VersionInfo(
             remote_info=RemoteInfo(name="ardupilot", url="https://github.com/ArduPilot/ardupilot.git"),
             commit_ref="refs/heads/master",
             release_type="latest",
             version_number="NA",
-            ap_build_artifacts_url=None,
         )
         mock_versions_manager.get_versions_for_vehicle.return_value = [
             stable_info, beta_info, latest_info,
@@ -491,7 +490,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_boards.return_value = []
@@ -509,7 +507,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_boards.return_value = ["CubeRed"]
@@ -529,7 +526,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_boards.return_value = [
@@ -550,7 +546,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_boards.return_value = ["CubeRed"]
@@ -569,7 +564,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_boards.return_value = []
@@ -591,7 +585,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_boards.return_value = ["CubeRed", "CubeOrange"]
@@ -611,7 +604,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_boards.return_value = ["CubeRed", "CubeOrange"]
@@ -629,7 +621,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_boards.return_value = [
@@ -662,7 +653,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = []
@@ -680,7 +670,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         opt = Mock()
         opt.label = "HAL_LOGGING_ENABLED"
@@ -691,7 +680,6 @@ class TestVehiclesService:
         opt.dependency = None
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt]
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = None
 
         result = service.get_features("copter", version_info.version_id, "CubeRed")
 
@@ -708,7 +696,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         opt_logging = Mock()
         opt_logging.label, opt_logging.define, opt_logging.category = "HAL_LOGGING_ENABLED", "HAL_LOGGING_ENABLED", "Logging"
@@ -721,7 +708,6 @@ class TestVehiclesService:
         opt_sensors.description, opt_sensors.default, opt_sensors.dependency = "", 1, None
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt_logging, opt_ekf, opt_sensors]
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = None
 
         result = service.get_features("copter", version_info.version_id, "CubeRed")
 
@@ -736,7 +722,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         opt_z = Mock()
         opt_z.label, opt_z.define, opt_z.category = "FEATURE_Z", "DEFINE_Z", "Sensors"
@@ -749,22 +734,21 @@ class TestVehiclesService:
         opt_m.description, opt_m.default, opt_m.dependency = "", 1, None
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt_z, opt_a, opt_m]
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = None
 
         result = service.get_features("copter", version_info.version_id, "CubeRed")
 
         assert [f.category.name for f in result] == ["EKF", "Logging", "Sensors"]
 
-    def test_get_features_uses_fallback_defaults_when_no_artifacts_url(
-        self, service, mock_versions_manager, mock_ap_src_metadata_fetcher
+    def test_get_features_uses_fallback_defaults_when_no_features_url(
+        self, service, mock_versions_manager, mock_ap_src_metadata_fetcher,
+        mock_manifest_json, mock_features_txt_client,
     ):
-        """Test that build-options-py defaults are used when ap_build_artifacts_url is None."""
+        """Test that build-options-py defaults are used when no features.txt URL is available."""
         version_info = VersionInfo(
             remote_info=RemoteInfo(name="ardupilot", url="https://github.com/ArduPilot/ardupilot.git"),
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         opt_on = Mock()
         opt_on.label, opt_on.define, opt_on.category = "FEATURE_ON", "DEFINE_ON", "Cat"
@@ -774,6 +758,7 @@ class TestVehiclesService:
         opt_off.description, opt_off.default, opt_off.dependency = "", 0, None
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt_on, opt_off]
+        mock_manifest_json.get_features_txt_url.return_value = None
 
         result = service.get_features("copter", version_info.version_id, "CubeRed")
 
@@ -782,10 +767,11 @@ class TestVehiclesService:
         assert by_id["FEATURE_ON"].source == "build-options-py"
         assert by_id["FEATURE_OFF"].enabled is False
         assert by_id["FEATURE_OFF"].source == "build-options-py"
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.assert_not_called()
+        mock_features_txt_client.get_defaults.assert_not_called()
 
     def test_get_features_uses_firmware_server_defaults_when_available(
-        self, service, mock_versions_manager, mock_ap_src_metadata_fetcher
+        self, service, mock_versions_manager, mock_ap_src_metadata_fetcher,
+        mock_manifest_json, mock_features_txt_client,
     ):
         """Test that firmware-server defaults override build-options-py when present."""
         version_info = VersionInfo(
@@ -793,7 +779,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url="https://firmware.ardupilot.org/Copter/stable-4.5.0",
         )
         opt_a = Mock()
         opt_a.label, opt_a.define, opt_a.category = "FEATURE_A", "DEFINE_A", "Cat"
@@ -803,8 +788,11 @@ class TestVehiclesService:
         opt_b.description, opt_b.default, opt_b.dependency = "", 1, None
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt_a, opt_b]
-        # firmware server says DEFINE_A is disabled, DEFINE_B is enabled
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = {
+        features_url = (
+            "https://firmware.ardupilot.org/Copter/stable-4.5.0/CubeRed/features.txt"
+        )
+        mock_manifest_json.get_features_txt_url.return_value = features_url
+        mock_features_txt_client.get_defaults.return_value = {
             "DEFINE_A": 0,
             "DEFINE_B": 1,
         }
@@ -816,9 +804,11 @@ class TestVehiclesService:
         assert by_id["FEATURE_A"].source == "firmware-server"
         assert by_id["FEATURE_B"].enabled is True
         assert by_id["FEATURE_B"].source == "firmware-server"
+        mock_features_txt_client.get_defaults.assert_called_once_with(features_url)
 
     def test_get_features_falls_back_to_defaults_when_firmware_server_returns_none(
-        self, service, mock_versions_manager, mock_ap_src_metadata_fetcher
+        self, service, mock_versions_manager, mock_ap_src_metadata_fetcher,
+        mock_manifest_json, mock_features_txt_client,
     ):
         """Test that build-options-py fallback is used when firmware server fetch fails."""
         version_info = VersionInfo(
@@ -826,14 +816,16 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url="https://firmware.ardupilot.org/Copter/stable-4.5.0",
         )
         opt = Mock()
         opt.label, opt.define, opt.category = "FEATURE_A", "DEFINE_A", "Cat"
         opt.description, opt.default, opt.dependency = "", 1, None
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt]
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = None
+        mock_manifest_json.get_features_txt_url.return_value = (
+            "https://firmware.ardupilot.org/Copter/stable-4.5.0/CubeRed/features.txt"
+        )
+        mock_features_txt_client.get_defaults.return_value = None
 
         result = service.get_features("copter", version_info.version_id, "CubeRed")
 
@@ -841,7 +833,8 @@ class TestVehiclesService:
         assert result[0].default.source == "build-options-py"
 
     def test_get_features_firmware_server_overrides_only_known_defines(
-        self, service, mock_versions_manager, mock_ap_src_metadata_fetcher
+        self, service, mock_versions_manager, mock_ap_src_metadata_fetcher,
+        mock_manifest_json, mock_features_txt_client,
     ):
         """Test that a define absent from firmware-server data falls back to build-options-py."""
         version_info = VersionInfo(
@@ -849,7 +842,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url="https://firmware.ardupilot.org/Copter/stable-4.5.0",
         )
         opt_known = Mock()
         opt_known.label, opt_known.define, opt_known.category = "FEATURE_KNOWN", "DEFINE_KNOWN", "Cat"
@@ -859,8 +851,10 @@ class TestVehiclesService:
         opt_unknown.description, opt_unknown.default, opt_unknown.dependency = "", 1, None
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt_known, opt_unknown]
-        # firmware server only knows about DEFINE_KNOWN
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = {
+        mock_manifest_json.get_features_txt_url.return_value = (
+            "https://firmware.ardupilot.org/Copter/stable-4.5.0/CubeRed/features.txt"
+        )
+        mock_features_txt_client.get_defaults.return_value = {
             "DEFINE_KNOWN": 1,
         }
 
@@ -872,6 +866,65 @@ class TestVehiclesService:
         assert by_id["FEATURE_UNKNOWN"].enabled is True
         assert by_id["FEATURE_UNKNOWN"].source == "build-options-py"
 
+    def test_get_features_tag_version_uses_latest_url(
+        self, service, mock_versions_manager, mock_ap_src_metadata_fetcher,
+        mock_manifest_json, mock_features_txt_client,
+    ):
+        """Fork tag builds use hardcoded latest features.txt URL."""
+        version_info = VersionInfo(
+            remote_info=RemoteInfo(name="shiv-tyagi", url="https://github.com/shiv-tyagi/ardupilot.git"),
+            commit_ref="refs/tags/custom-build/my-feature",
+            release_type="tag",
+            version_number="my-feature",
+        )
+        opt = Mock()
+        opt.label, opt.define, opt.category = "FEATURE_A", "DEFINE_A", "Cat"
+        opt.description, opt.default, opt.dependency = "", 0, None
+        mock_versions_manager.get_version_info.return_value = version_info
+        mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt]
+        latest_url = (
+            "https://firmware.ardupilot.org/Copter/latest/CubeOrange/features.txt"
+        )
+        mock_features_txt_client.get_defaults.return_value = {"DEFINE_A": 1}
+
+        result = service.get_features("copter", version_info.version_id, "CubeOrange")
+
+        mock_manifest_json.get_features_txt_url.assert_not_called()
+        mock_features_txt_client.get_defaults.assert_called_once_with(latest_url)
+        assert result[0].default.enabled is True
+        assert result[0].default.source == "firmware-server"
+
+    def test_get_features_fork_remote_uses_latest_url(
+        self, service, mock_versions_manager, mock_ap_src_metadata_fetcher,
+        mock_manifest_json, mock_features_txt_client,
+    ):
+        """Non-official fork remotes use latest ardupilot features.txt for any release."""
+        version_info = VersionInfo(
+            remote_info=RemoteInfo(
+                name="test-remote-1",
+                url="https://github.com/test/ardupilot.git",
+            ),
+            commit_ref="refs/heads/master",
+            release_type="latest",
+            version_number="4.6.0",
+        )
+        opt = Mock()
+        opt.label, opt.define, opt.category = "FEATURE_A", "DEFINE_A", "Cat"
+        opt.description, opt.default, opt.dependency = "", 1, None
+        mock_versions_manager.get_version_info.return_value = version_info
+        mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt]
+        latest_url = (
+            "https://firmware.ardupilot.org/Copter/latest/CubeOrange/features.txt"
+        )
+        mock_features_txt_client.get_defaults.return_value = {"DEFINE_A": 0}
+
+        result = service.get_features("copter", version_info.version_id, "CubeOrange")
+
+        mock_manifest_json.get_features_txt_url.assert_not_called()
+        mock_features_txt_client.get_defaults.assert_called_once_with(latest_url)
+        assert result[0].default.enabled is False
+        assert result[0].default.source == "firmware-server"
+
     def test_get_features_dependency_none(
         self, service, mock_versions_manager, mock_ap_src_metadata_fetcher
     ):
@@ -881,14 +934,12 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         opt = Mock()
         opt.label, opt.define, opt.category = "FEATURE_A", "DEFINE_A", "Cat"
         opt.description, opt.default, opt.dependency = "", 1, None
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt]
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = None
 
         result = service.get_features("copter", version_info.version_id, "CubeRed")
 
@@ -903,14 +954,12 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         opt = Mock()
         opt.label, opt.define, opt.category = "FEATURE_A", "DEFINE_A", "Cat"
         opt.description, opt.default, opt.dependency = "", 1, "DEP_ONE"
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt]
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = None
 
         result = service.get_features("copter", version_info.version_id, "CubeRed")
 
@@ -925,14 +974,12 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         opt = Mock()
         opt.label, opt.define, opt.category = "FEATURE_A", "DEFINE_A", "Cat"
         opt.description, opt.default, opt.dependency = "", 1, "DEP_ONE,DEP_TWO,DEP_THREE"
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt]
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = None
 
         result = service.get_features("copter", version_info.version_id, "CubeRed")
 
@@ -947,14 +994,12 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         opt = Mock()
         opt.label, opt.define, opt.category = "FEATURE_A", "DEFINE_A", "Cat"
         opt.description, opt.default, opt.dependency = "", 1, "DEP_ONE , DEP_TWO , DEP_THREE"
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt]
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = None
 
         result = service.get_features("copter", version_info.version_id, "CubeRed")
 
@@ -969,14 +1014,12 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         opt = Mock()
         opt.label, opt.define, opt.category = "FEATURE_A", "DEFINE_A", "Cat"
         opt.description, opt.default, opt.dependency = "", 1, None
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt]
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = None
 
         result = service.get_features("copter", version_info.version_id, "CubeRed")
 
@@ -993,7 +1036,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         opt_logging = Mock()
         opt_logging.label, opt_logging.define, opt_logging.category = "HAL_LOGGING_ENABLED", "HAL_LOGGING_ENABLED", "Logging"
@@ -1006,7 +1048,6 @@ class TestVehiclesService:
         opt_sensors.description, opt_sensors.default, opt_sensors.dependency = "", 1, None
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt_logging, opt_ekf, opt_sensors]
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = None
 
         result = service.get_features("copter", version_info.version_id, "CubeRed", category_id="Logging")
 
@@ -1023,7 +1064,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         opt_logging = Mock()
         opt_logging.label, opt_logging.define, opt_logging.category = "HAL_LOGGING_ENABLED", "HAL_LOGGING_ENABLED", "Logging"
@@ -1033,7 +1073,6 @@ class TestVehiclesService:
         opt_ekf.description, opt_ekf.default, opt_ekf.dependency = "", 1, None
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt_logging, opt_ekf]
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = None
 
         result = service.get_features("copter", version_info.version_id, "CubeRed", category_id="Sensors")
 
@@ -1048,7 +1087,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         opt_a = Mock()
         opt_a.label, opt_a.define, opt_a.category = "FEATURE_A", "DEFINE_A", "Logging"
@@ -1058,7 +1096,6 @@ class TestVehiclesService:
         opt_b.description, opt_b.default, opt_b.dependency = "", 1, None
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt_a, opt_b]
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = None
 
         result = service.get_features("copter", version_info.version_id, "CubeRed", category_id="NonExistent")
 
@@ -1075,14 +1112,12 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         opt = Mock()
         opt.label, opt.define, opt.category = "HAL_LOGGING_ENABLED", "HAL_LOGGING_ENABLED", "Logging"
         opt.description, opt.default, opt.dependency = "", 1, None
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt]
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = None
 
         result = service.get_feature("copter", version_info.version_id, "CubeRed", "HAL_LOGGING_ENABLED")
 
@@ -1099,14 +1134,12 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         opt = Mock()
         opt.label, opt.define, opt.category = "HAL_LOGGING_ENABLED", "HAL_LOGGING_ENABLED", "Logging"
         opt.description, opt.default, opt.dependency = "", 1, None
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt]
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = None
 
         result = service.get_feature("copter", version_info.version_id, "CubeRed", "NONEXISTENT_FEATURE")
 
@@ -1121,7 +1154,6 @@ class TestVehiclesService:
             commit_ref="refs/tags/Copter-4.5.0",
             release_type="stable",
             version_number="4.5.0",
-            ap_build_artifacts_url=None,
         )
         opt_a = Mock()
         opt_a.label, opt_a.define, opt_a.category = "FEATURE_A", "DEFINE_A", "Cat"
@@ -1134,10 +1166,107 @@ class TestVehiclesService:
         opt_c.description, opt_c.default, opt_c.dependency = "", 1, None
         mock_versions_manager.get_version_info.return_value = version_info
         mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt_a, opt_b, opt_c]
-        mock_ap_src_metadata_fetcher.get_board_defaults_from_fw_server.return_value = None
 
         result = service.get_feature("copter", version_info.version_id, "CubeRed", "FEATURE_B")
 
         assert result is not None
         assert result.id == "FEATURE_B"
         assert result.default.enabled is False
+
+
+class TestGetBoardStandardArtifacts:
+    def test_board_not_found_returns_none(
+        self, service, mock_versions_manager, mock_ap_src_metadata_fetcher,
+        mock_manifest_json,
+    ):
+        remote_info = Mock()
+        remote_info.name = "ardupilot"
+        mock_versions_manager.get_version_info.return_value = Mock(
+            version_id="v1",
+            commit_ref="abc123",
+            remote_info=remote_info,
+        )
+        mock_ap_src_metadata_fetcher.get_boards.return_value = []
+
+        result = service.get_board_standard_artifacts("copter", "v1", "CubeOrange")
+
+        assert result is None
+        mock_manifest_json.get_board_artifacts.assert_not_called()
+
+    def test_success(
+        self, service, mock_versions_manager, mock_ap_src_metadata_fetcher,
+        mock_manifest_json,
+    ):
+        remote_info = Mock()
+        remote_info.name = "ardupilot"
+        version_info = Mock(
+            version_id="v1",
+            commit_ref="abc123",
+            release_type="stable",
+            version_number="4.6.3",
+            remote_info=remote_info,
+        )
+        mock_versions_manager.get_version_info.return_value = version_info
+        mock_ap_src_metadata_fetcher.get_boards.return_value = ["CubeOrange"]
+        mock_manifest_json.get_board_artifacts.return_value = [
+            BoardArtifact(
+                name="arducopter.apj",
+                url="https://firmware.ardupilot.org/Copter/stable-4.6.3/CubeOrange/arducopter.apj",
+                format="apj",
+                size=100,
+            )
+        ]
+
+        result = service.get_board_standard_artifacts("copter", "v1", "CubeOrange")
+
+        assert len(result) == 1
+        assert result[0].name == "arducopter.apj"
+        assert result[0].format == "apj"
+        mock_manifest_json.get_board_artifacts.assert_called_once_with(
+            vehicle_id="copter",
+            release_type="stable",
+            version_number="4.6.3",
+            board_id="CubeOrange",
+        )
+
+    def test_not_in_manifest_returns_none(
+        self, service, mock_versions_manager, mock_ap_src_metadata_fetcher,
+        mock_manifest_json,
+    ):
+        remote_info = Mock()
+        remote_info.name = "ardupilot"
+        version_info = Mock(
+            version_id="v1",
+            commit_ref="abc123",
+            release_type="stable",
+            version_number="4.6.3",
+            remote_info=remote_info,
+        )
+        mock_versions_manager.get_version_info.return_value = version_info
+        mock_ap_src_metadata_fetcher.get_boards.return_value = ["CubeOrange"]
+        mock_manifest_json.get_board_artifacts.return_value = []
+
+        result = service.get_board_standard_artifacts("copter", "v1", "CubeOrange")
+
+        assert result is None
+
+    def test_fork_remote_returns_none_without_manifest_lookup(
+        self, service, mock_versions_manager, mock_ap_src_metadata_fetcher,
+        mock_manifest_json,
+    ):
+        remote_info = Mock()
+        remote_info.name = "shiv-tyagi"
+        version_info = Mock(
+            version_id="v1",
+            commit_ref="abc123",
+            release_type="tag",
+            version_number="my-feature",
+            remote_info=remote_info,
+        )
+        mock_versions_manager.get_version_info.return_value = version_info
+        mock_ap_src_metadata_fetcher.get_boards.return_value = ["CubeOrange"]
+
+        result = service.get_board_standard_artifacts("copter", "v1", "CubeOrange")
+
+        assert result is None
+        mock_manifest_json.get_board_artifacts.assert_not_called()

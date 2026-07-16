@@ -9,6 +9,7 @@ from web.schemas import (
     VehicleBase,
     VersionOut,
     BoardOut,
+    StandardArtifactOut,
     FeatureOut,
     CategoryBase,
     FeatureDefault,
@@ -57,6 +58,15 @@ class TestVehiclesAPI:
             name=board_id,
             vehicle_id=vehicle_id,
             version_id=version_id,
+        )
+
+    @staticmethod
+    def dummy_standard_artifact():
+        return StandardArtifactOut(
+            name="arducopter.apj",
+            url="https://firmware.ardupilot.org/Copter/stable-4.6.3/CubeOrange/arducopter.apj",
+            format="apj",
+            size=100,
         )
 
     @staticmethod
@@ -441,6 +451,56 @@ class TestVehiclesAPI:
         for method in [client.post, client.put, client.patch, client.delete]:
             response = method("/api/v1/vehicles/copter/versions/v1/boards/b1")
             assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+
+    # GET /vehicles/{vehicle_id}/versions/{version_id}/boards/{board_id}/standard_artifacts
+
+    _STANDARD_ARTIFACTS_URL = (
+        "/api/v1/vehicles/copter/versions/copter-4.5.0-stable/"
+        "boards/MatekH743/standard_artifacts"
+    )
+
+    def test_list_board_standard_artifacts_returns_200(self, client):
+        mock_vehicles_service = Mock()
+        mock_vehicles_service.get_board_standard_artifacts.return_value = [
+            self.dummy_standard_artifact()
+        ]
+        with self.override_vehicles_service(client, mock_vehicles_service):
+            response = client.get(self._STANDARD_ARTIFACTS_URL)
+
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_list_board_standard_artifacts_returns_404_when_not_found(self, client):
+        mock_vehicles_service = Mock()
+        mock_vehicles_service.get_board_standard_artifacts.return_value = None
+        with self.override_vehicles_service(client, mock_vehicles_service):
+            response = client.get(self._STANDARD_ARTIFACTS_URL)
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_list_board_standard_artifacts_response_schema(self, client):
+        mock_vehicles_service = Mock()
+        mock_vehicles_service.get_board_standard_artifacts.return_value = [
+            self.dummy_standard_artifact()
+        ]
+        with self.override_vehicles_service(client, mock_vehicles_service):
+            response = client.get(self._STANDARD_ARTIFACTS_URL)
+
+        data = response.json()
+        assert data[0]["name"] == "arducopter.apj"
+        assert data[0]["format"] == "apj"
+        assert "url" in data[0]
+
+    def test_list_board_standard_artifacts_service_called_with_correct_ids(self, client):
+        mock_vehicles_service = Mock()
+        mock_vehicles_service.get_board_standard_artifacts.return_value = [
+            self.dummy_standard_artifact()
+        ]
+        with self.override_vehicles_service(client, mock_vehicles_service):
+            client.get(self._STANDARD_ARTIFACTS_URL)
+
+        mock_vehicles_service.get_board_standard_artifacts.assert_called_once_with(
+            "copter", "copter-4.5.0-stable", "MatekH743"
+        )
 
     # GET /vehicles/{vehicle_id}/versions/{version_id}/boards/{board_id}/features
 

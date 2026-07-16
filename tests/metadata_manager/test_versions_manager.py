@@ -71,7 +71,6 @@ class TestVersionsManagerDedup:
             commit_ref=commit_ref,
             release_type=release_type,
             version_number=version_number,
-            ap_build_artifacts_url=None,
         )
 
     def test_stable_wins_when_beta_is_seen_first(self, versions_manager):
