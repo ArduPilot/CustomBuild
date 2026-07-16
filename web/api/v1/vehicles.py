@@ -5,6 +5,7 @@ from web.schemas import (
     VehicleBase,
     VersionOut,
     BoardOut,
+    StandardArtifactOut,
     FeatureOut,
 )
 from web.services.vehicles import get_vehicles_service, VehiclesService
@@ -181,6 +182,38 @@ async def get_board(
             detail=f"Board '{board_id}' not found"
         )
     return board
+
+
+@router.get(
+    "/{vehicle_id}/versions/{version_id}/boards/{board_id}/standard_artifacts",
+    response_model=List[StandardArtifactOut],
+    responses={
+        404: {"description": "Standard artifacts not found"},
+    },
+)
+async def list_board_standard_artifacts(
+    vehicle_id: str = Path(..., description="Vehicle identifier"),
+    version_id: str = Path(..., description="Version identifier"),
+    board_id: str = Path(..., description="Board identifier"),
+    service: VehiclesService = Depends(get_vehicles_service),
+):
+    """
+    Get standard build artifact files from firmware.ardupilot.org for a board.
+
+    Only official manifest-backed versions include per-board artifact URLs.
+    """
+    artifacts = service.get_board_standard_artifacts(
+        vehicle_id, version_id, board_id
+    )
+    if artifacts is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Standard artifacts not found for board '{board_id}' "
+                f"in vehicle '{vehicle_id}' version '{version_id}'"
+            ),
+        )
+    return artifacts
 
 
 # --- Feature Endpoints ---

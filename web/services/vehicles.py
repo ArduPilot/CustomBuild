@@ -5,11 +5,14 @@ import logging
 from typing import List, Optional
 from fastapi import Request
 
+from metadata_manager.firmware_server.index import latest_features_txt_url
+from metadata_manager.versions_manager.providers import OFFICIAL_REMOTE_NAME
 from web.schemas import (
     VehicleBase,
     RemoteInfo,
     VersionOut,
     BoardOut,
+    StandardArtifactOut,
     FeatureOut,
     CategoryBase,
     FeatureDefault,
@@ -25,10 +28,14 @@ class VehiclesService:
     def __init__(self, vehicle_manager=None,
                  versions_manager=None,
                  ap_src_metadata_fetcher=None,
+                 manifest_json=None,
+                 features_txt_client=None,
                  repo=None):
         self.vehicles_manager = vehicle_manager
         self.versions_manager = versions_manager
         self.ap_src_metadata_fetcher = ap_src_metadata_fetcher
+        self.manifest_json = manifest_json
+        self.features_txt_client = features_txt_client
         self.repo = repo
 
     def get_all_vehicles(self) -> List[VehicleBase]:
@@ -150,6 +157,58 @@ class VehiclesService:
                 return board
         return None
 
+    def get_board_standard_artifacts(
+        self,
+        vehicle_id: str,
+        version_id: str,
+        board_id: str,
+    ) -> Optional[List[StandardArtifactOut]]:
+        """Get standard build artifacts for an official manifest-backed version."""
+        version_info = self.versions_manager.get_version_info(
+            vehicle_id=vehicle_id,
+            version_id=version_id,
+        )
+        if (
+            version_info is None
+            or version_info.remote_info.name != OFFICIAL_REMOTE_NAME
+        ):
+            return None
+
+        with self.repo.get_checkout_lock():
+            boards = self.ap_src_metadata_fetcher.get_boards(
+                remote=version_info.remote_info.name,
+                commit_ref=version_info.commit_ref,
+                vehicle_id=vehicle_id,
+            )
+        if board_id not in boards:
+            return None
+
+        logger.info(
+            "Standard artifacts requested for %s version %s board %s",
+            vehicle_id,
+            version_id,
+            board_id,
+        )
+
+        artifacts = self.manifest_json.get_board_artifacts(
+            vehicle_id=vehicle_id,
+            release_type=version_info.release_type,
+            version_number=version_info.version_number,
+            board_id=board_id,
+        )
+        if not artifacts:
+            return None
+
+        return [
+            StandardArtifactOut(
+                name=artifact.name,
+                url=artifact.url,
+                format=artifact.format,
+                size=artifact.size,
+            )
+            for artifact in artifacts
+        ]
+
     def get_features(
         self,
         vehicle_id: str,
@@ -182,16 +241,20 @@ class VehiclesService:
             )
 
         # Try to fetch board-specific defaults from firmware-server
-        board_defaults = None
-        artifacts_dir = version_info.ap_build_artifacts_url
-        if artifacts_dir is not None:
-            board_defaults = (
-                self.ap_src_metadata_fetcher.get_board_defaults_from_fw_server(
-                    artifacts_url=artifacts_dir,
-                    board_id=board_id,
-                    vehicle_id=vehicle_id,
-                )
+        if version_info.remote_info.name == OFFICIAL_REMOTE_NAME:
+            features_url = self.manifest_json.get_features_txt_url(
+                vehicle_id=vehicle_id,
+                release_type=version_info.release_type,
+                version_number=version_info.version_number,
+                board_id=board_id,
             )
+        else:
+            features_url = latest_features_txt_url(vehicle_id, board_id)
+        board_defaults = (
+            self.features_txt_client.get_defaults(features_url)
+            if features_url
+            else None
+        )
 
         # Build feature list
         features = []
@@ -269,5 +332,7 @@ def get_vehicles_service(request: Request) -> VehiclesService:
         vehicle_manager=request.app.state.vehicles_manager,
         versions_manager=request.app.state.versions_manager,
         ap_src_metadata_fetcher=request.app.state.ap_src_metadata_fetcher,
+        manifest_json=request.app.state.manifest_json,
+        features_txt_client=request.app.state.features_txt_client,
         repo=request.app.state.repo,
     )
