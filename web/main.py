@@ -26,6 +26,7 @@ import ap_git
 import build_manager
 from metadata_manager import (
     APSourceMetadataFetcher,
+    FeaturesTxtClient,
     ManifestJSON,
     VehiclesManager,
     VersionsManager,
@@ -62,6 +63,12 @@ async def lifespan(app: FastAPI):
         caching_enabled=True,
         redis_host=settings.redis_host,
         redis_port=settings.redis_port,
+    )
+
+    features_txt_client = FeaturesTxtClient(
+        redis_host=settings.redis_host,
+        redis_port=settings.redis_port,
+        caching_enabled=True,
     )
 
     versions_manager = VersionsManager(
@@ -101,6 +108,7 @@ async def lifespan(app: FastAPI):
     app.state.repo = repo
     app.state.ap_src_metadata_fetcher = ap_src_metadata_fetcher
     app.state.manifest_json = manifest_json
+    app.state.features_txt_client = features_txt_client
     app.state.versions_manager = versions_manager
     app.state.vehicles_manager = vehicles_manager
     app.state.build_manager = build_mgr

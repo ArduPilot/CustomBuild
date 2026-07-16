@@ -49,6 +49,13 @@ class BoardOut(BoardBase):
     version_id: str = Field(..., description="Associated version identifier")
 
 
+class StandardArtifactOut(BaseModel):
+    name: str = Field(..., description="Artifact filename")
+    url: str = Field(..., description="Download URL on firmware.ardupilot.org")
+    format: str = Field(..., description="Artifact format (e.g. apj)")
+    size: Optional[int] = Field(None, description="File size in bytes")
+
+
 # --- Features ---
 class CategoryBase(BaseModel):
     id: str = Field(..., description="Unique category identifier")
