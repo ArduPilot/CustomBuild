@@ -18,26 +18,6 @@ from .models import ForkRemoteSpec, RemoteInfo, VersionInfo
 
 OFFICIAL_REMOTE_NAME = "ardupilot"
 OFFICIAL_REMOTE_URL = "https://github.com/ardupilot/ardupilot.git"
-FIRMWARE_SERVER_BASE = "https://firmware.ardupilot.org"
-
-# CBS vehicle id -> firmware.ardupilot.org top-level directory.
-_FIRMWARE_SERVER_DIR_BY_VEHICLE_ID = {
-    "copter": "Copter",
-    "plane": "Plane",
-    "rover": "Rover",
-    "sub": "Sub",
-    "heli": "Copter",
-    "blimp": "Blimp",
-    "tracker": "AntennaTracker",
-    "ap-periph": "AP_Periph",
-}
-
-
-def _firmware_server_dir(vehicle_id: str) -> str:
-    try:
-        return _FIRMWARE_SERVER_DIR_BY_VEHICLE_ID[vehicle_id]
-    except KeyError as exc:
-        raise ValueError(f"Unknown vehicle id: {vehicle_id}") from exc
 
 
 def _vehicle_id_for_tag_segment(segment: str) -> Optional[str]:
@@ -187,10 +167,6 @@ class WhitelistedForkTagVersionsProvider(VersionsProvider):
                             release_type="tag",
                             version_number=parts[-1],
                             commit_reference=tag_info["object"]["sha"],
-                            ap_build_artifacts_url=(
-                                f"{FIRMWARE_SERVER_BASE}/"
-                                f"{_firmware_server_dir(vid)}/latest"
-                            ),
                         )
                     )
 
@@ -294,9 +270,6 @@ class RemotesJsonVersionsProvider(VersionsProvider):
                             commit_ref=release.get("commit_reference"),
                             release_type=release.get("release_type"),
                             version_number=release.get("version_number"),
-                            ap_build_artifacts_url=release.get(
-                                "ap_build_artifacts_url"
-                            ),
                         )
                     )
         return versions

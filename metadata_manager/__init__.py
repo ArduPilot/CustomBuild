@@ -1,5 +1,5 @@
 from .ap_src_meta_fetcher import APSourceMetadataFetcher
-from .firmware_server import ManifestJSON, ManifestFetchError, ReleaseRecord
+from .firmware_server import BoardArtifact, FeaturesTxtClient, ManifestJSON, ManifestFetchError, ReleaseRecord
 from .firmware_server.client import ManifestClient
 from .firmware_server.index import ManifestIndex
 from .vehicles_manager import DEFAULT_VEHICLES, Vehicle, VehiclesManager
@@ -18,6 +18,8 @@ from .versions_manager import (
 
 __all__ = [
     "APSourceMetadataFetcher",
+    "BoardArtifact",
+    "FeaturesTxtClient",
     "DEFAULT_VEHICLES",
     "DEFAULT_WHITELISTED_FORK_REMOTES",
     "ForkRemoteSpec",
