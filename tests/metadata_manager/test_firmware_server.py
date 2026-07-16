@@ -3,8 +3,9 @@ import lzma
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from metadata_manager import ManifestClient, ManifestIndex
+from metadata_manager import ManifestClient, ManifestIndex, ManifestJSON
 from metadata_manager.firmware_server.client import _CacheMeta
+from metadata_manager.firmware_server.index import latest_features_txt_url
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -34,9 +35,114 @@ class TestManifestIndex:
         assert len(latest) == 1
         assert latest[0].commit_reference.startswith("eeee")
         assert latest[0].version_number == "NA"
-        assert latest[0].ap_build_artifacts_url == (
-            "https://firmware.ardupilot.org/Copter/latest"
+
+    def test_indexes_board_artifacts_for_vehicle_version_board(self):
+        index = ManifestIndex.build(SAMPLE_MANIFEST)
+
+        copter_artifacts = index.get_board_artifacts(
+            "copter", "stable", "4.6.3", "CubeOrange"
         )
+        assert len(copter_artifacts) == 1
+        assert copter_artifacts[0].name == "arducopter.apj"
+        assert copter_artifacts[0].format == "apj"
+        assert copter_artifacts[0].url.endswith("/Copter/stable-4.6.3/CubeOrange/arducopter.apj")
+
+        heli_artifacts = index.get_board_artifacts(
+            "heli", "stable", "4.6.3", "CubeOrange"
+        )
+        assert len(heli_artifacts) == 1
+        assert heli_artifacts[0].name == "arducopter-heli.apj"
+
+        latest_artifacts = index.get_board_artifacts(
+            "copter", "latest", "NA", "CubeOrange"
+        )
+        assert len(latest_artifacts) == 1
+        assert latest_artifacts[0].url.endswith("/Copter/latest/CubeOrange/arducopter.apj")
+
+    def test_board_artifacts_dedupe_generic_stable_alias(self):
+        index = ManifestIndex.build(SAMPLE_MANIFEST)
+
+        copter_artifacts = index.get_board_artifacts(
+            "copter", "stable", "4.6.3", "CubeOrange"
+        )
+        assert len(copter_artifacts) == 1
+        assert copter_artifacts[0].url.endswith("/Copter/stable-4.6.3/CubeOrange/arducopter.apj")
+
+        heli_artifacts = index.get_board_artifacts(
+            "heli", "stable", "4.6.3", "CubeOrange"
+        )
+        assert len(heli_artifacts) == 1
+        assert heli_artifacts[0].name == "arducopter-heli.apj"
+
+        latest_artifacts = index.get_board_artifacts(
+            "copter", "latest", "NA", "CubeOrange"
+        )
+        assert len(latest_artifacts) == 1
+        assert latest_artifacts[0].url.endswith("/Copter/latest/CubeOrange/arducopter.apj")
+
+    def test_board_artifacts_missing_returns_empty_list(self):
+        index = ManifestIndex.build(SAMPLE_MANIFEST)
+
+        assert index.get_board_artifacts("copter", "stable", "4.6.3", "UnknownBoard") == []
+
+    def test_get_features_txt_url_from_manifest_artifact(self):
+        index = ManifestIndex.build(SAMPLE_MANIFEST)
+
+        url = index.get_features_txt_url("copter", "stable", "4.6.3", "CubeOrange")
+        assert url == (
+            "https://firmware.ardupilot.org/Copter/stable-4.6.3/"
+            "CubeOrange/features.txt"
+        )
+
+        heli_url = index.get_features_txt_url("heli", "stable", "4.6.3", "CubeOrange")
+        assert heli_url == (
+            "https://firmware.ardupilot.org/Copter/stable-4.6.3/"
+            "CubeOrange-heli/features.txt"
+        )
+
+    def test_get_features_txt_url_missing_board_returns_none(self):
+        index = ManifestIndex.build(SAMPLE_MANIFEST)
+
+        assert index.get_features_txt_url(
+            "copter", "stable", "4.6.3", "UnknownBoard"
+        ) is None
+
+
+class TestLatestFeaturesTxtUrl:
+    def test_copter_board(self):
+        assert latest_features_txt_url("copter", "CubeOrange") == (
+            "https://firmware.ardupilot.org/Copter/latest/CubeOrange/features.txt"
+        )
+
+    def test_heli_board(self):
+        assert latest_features_txt_url("heli", "CubeOrange") == (
+            "https://firmware.ardupilot.org/Copter/latest/CubeOrange-heli/features.txt"
+        )
+
+
+class TestManifestJSONFeaturesUrl:
+    def test_tag_release_uses_latest_url(self):
+        manifest_json = ManifestJSON(url="https://example.com/manifest.json", cache_dir="/tmp")
+        assert manifest_json.get_features_txt_url(
+            "copter", "tag", "my-feature", "CubeOrange"
+        ) == latest_features_txt_url("copter", "CubeOrange")
+
+    def test_stable_release_uses_manifest_index(self):
+        manifest_json = ManifestJSON(url="https://example.com/manifest.json", cache_dir="/tmp")
+        manifest_json._index = ManifestIndex.build(SAMPLE_MANIFEST)
+
+        assert manifest_json.get_features_txt_url(
+            "copter", "stable", "4.6.3", "CubeOrange"
+        ) == (
+            "https://firmware.ardupilot.org/Copter/stable-4.6.3/"
+            "CubeOrange/features.txt"
+        )
+
+    def test_unavailable_manifest_returns_none_for_stable(self):
+        manifest_json = ManifestJSON(url="https://example.com/manifest.json", cache_dir="/tmp")
+        assert manifest_json.get_features_txt_url(
+            "copter", "stable", "4.6.3", "CubeOrange"
+        ) is None
 
 
 class TestManifestClientCache:

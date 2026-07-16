@@ -53,14 +53,12 @@ def make_version_info(
     commit_ref="refs/tags/Copter-4.5.0",
     release_type="stable",
     version_number="4.5.0",
-    ap_build_artifacts_url=None,
 ):
     return VersionInfo(
         remote_info=RemoteInfo(name=remote_name, url=remote_url),
         commit_ref=commit_ref,
         release_type=release_type,
         version_number=version_number,
-        ap_build_artifacts_url=ap_build_artifacts_url,
     )
 
 

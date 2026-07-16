@@ -247,6 +247,8 @@ def app_with_mocked_dependencies(
         # Create mock AP source metadata fetcher
         mock_ap_src_fetcher = Mock()
         app.state.ap_src_metadata_fetcher = mock_ap_src_fetcher
+        app.state.manifest_json = Mock()
+        app.state.features_txt_client = Mock()
 
         # Don't start background tasks in test mode
         # versions_manager.start()
