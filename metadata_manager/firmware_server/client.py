@@ -1,5 +1,6 @@
 import json
 import logging
+import lzma
 import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -34,7 +35,7 @@ class _CacheMeta:
 
 
 class ManifestClient:
-    """Fetch and cache the ArduPilot firmware manifest.json file."""
+    """Fetch and cache the ArduPilot firmware manifest.json.xz file."""
 
     def __init__(
         self,
@@ -81,7 +82,8 @@ class ManifestClient:
                 )
             )
 
-        raw = response.content
+        wire_bytes = response.content
+        raw = lzma.decompress(wire_bytes)
         self._write_cache(
             raw,
             _CacheMeta(
@@ -90,7 +92,11 @@ class ManifestClient:
                 fetched_at=self._now_iso(),
             ),
         )
-        self.logger.info("Downloaded manifest (%d bytes)", len(raw))
+        self.logger.info(
+            "Downloaded manifest (%d wire bytes, %d decompressed bytes)",
+            len(wire_bytes),
+            len(raw),
+        )
         return raw
 
     def fetch(self) -> dict:
