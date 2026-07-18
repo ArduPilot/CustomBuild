@@ -97,7 +97,7 @@ class Settings:
         """URL for the ArduPilot firmware manifest."""
         return os.getenv(
             'CBS_AP_FIRMWARE_MANIFEST_URL',
-            'https://firmware.ardupilot.org/manifest.json',
+            'https://firmware.ardupilot.org/manifest.json.xz',
         )
 
     @property
