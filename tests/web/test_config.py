@@ -23,6 +23,7 @@ class TestSettings:
             assert settings.log_level == "INFO"
             assert settings.ap_git_url == "https://github.com/ardupilot/ardupilot.git"
             assert settings.enable_inbuilt_builder is True
+            assert settings.ap_firmware_manifest_url.endswith(".xz")
 
     def test_env_var_overrides(self):
         """Test that environment variables override default settings."""
