@@ -107,6 +107,57 @@ class TestVersionsManagerDedup:
         assert len(versions) == 1
         assert versions[0].release_type == "stable"
 
+    def test_stable_wins_over_beta_with_same_number_different_commits(
+        self, versions_manager
+    ):
+        beta = self._make_version("beta", "4.7.0", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+        stable = self._make_version(
+            "stable", "4.7.0", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
+
+        provider = Mock()
+        provider.get_versions.return_value = [beta, stable]
+        versions_manager._providers = [provider]
+
+        versions = versions_manager.get_versions_for_vehicle("sub")
+
+        assert len(versions) == 1
+        assert versions[0].release_type == "stable"
+        assert versions[0].version_number == "4.7.0"
+        assert versions[0].commit_ref == stable.commit_ref
+
+    def test_different_version_numbers_are_kept(self, versions_manager):
+        stable = self._make_version(
+            "stable", "4.6.0", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
+        beta = self._make_version(
+            "beta", "4.7.0", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        )
+
+        provider = Mock()
+        provider.get_versions.return_value = [stable, beta]
+        versions_manager._providers = [provider]
+
+        versions = versions_manager.get_versions_for_vehicle("sub")
+
+        assert {v.version_number for v in versions} == {"4.6.0", "4.7.0"}
+
+    def test_na_version_numbers_are_not_collapsed(self, versions_manager):
+        latest_a = self._make_version(
+            "latest", "NA", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
+        latest_b = self._make_version(
+            "latest", "NA", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        )
+
+        provider = Mock()
+        provider.get_versions.return_value = [latest_a, latest_b]
+        versions_manager._providers = [provider]
+
+        versions = versions_manager.get_versions_for_vehicle("sub")
+
+        assert len(versions) == 2
+
 
 class TestForkRemoteSpec:
     def test_default_rmackay9_uses_custom_repo_name(self):
