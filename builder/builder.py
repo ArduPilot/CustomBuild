@@ -72,6 +72,14 @@ class Builder:
                             "Selected Features:\n")
             for d in build_info.selected_features:
                 build_log.write(f"{d}\n")
+            if build_info.custom_defines:
+                build_log.write("---\n"
+                                "Custom defines:\n")
+                for define, value in build_info.custom_defines:
+                    if value:
+                        build_log.write(f"{define}={value}\n")
+                    else:
+                        build_log.write(f"{define}\n")
             build_log.write("---\n")
 
     def __generate_extrahwdef(self, build_id: str) -> None:
@@ -119,6 +127,8 @@ class Builder:
         self.logger.info(f"Enabled defines for {build_id}: {enabled_defines}")
         self.logger.info(f"Disabled defines for {build_id}: {enabled_defines}")
 
+        custom_defines = build_info.custom_defines
+
         with open(self.__get_path_to_extra_hwdef(build_id), "w") as f:
             # Undefine all defines at the beginning
             for define in all_defines:
@@ -129,6 +139,10 @@ class Builder:
             # Disable the remaining defines
             for define in disabled_defines:
                 f.write(f"define {define} 0\n")
+            for define, value in custom_defines:
+                if value is None:
+                    value = ""
+                f.write(f"define {define} {value}\n")
 
     def __ensure_remote_added(self, remote_info: RemoteInfo) -> None:
         """

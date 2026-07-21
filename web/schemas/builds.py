@@ -31,6 +31,9 @@ class BuildRequest(BaseModel):
         default_factory=list,
         description="Feature IDs to enable for this build"
     )
+    custom_defines: str = Field(
+        ...,  description="Custom defines to pass to this build"
+    )
 
 
 # --- Build Submit Response ---
