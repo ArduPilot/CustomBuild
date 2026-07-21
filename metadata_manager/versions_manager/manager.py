@@ -15,7 +15,7 @@ REMOTES_SCHEMA_PATH = Path(__file__).resolve().parent.parent / "remotes.schema.j
 
 
 def _release_type_dedup_priority(release_type: str) -> int:
-    """Lower value wins when multiple releases share the same version_id."""
+    """Lower value wins when multiple releases collide on a dedup key."""
     match release_type:
         case "stable":
             return 0
@@ -27,6 +27,19 @@ def _release_type_dedup_priority(release_type: str) -> int:
             return 3
         case _:
             return 99
+
+
+def _version_dedup_key(version: VersionInfo) -> str:
+    """
+    Collapse releases that share a real version number (e.g. stable+beta 4.7.0).
+
+    Placeholder numbers like "NA" (latest/dev) keep identity by version_id so
+    unrelated entries are not merged.
+    """
+    number = (version.version_number or "").strip()
+    if number and number.upper() != "NA":
+        return f"num:{number}"
+    return f"id:{version.version_id}"
 
 
 class VersionsManager:
@@ -104,18 +117,19 @@ class VersionsManager:
         if vehicle is None:
             raise ValueError(f"Invalid vehicle ID '{vehicle_id}'.")
 
-        by_version_id: dict[str, VersionInfo] = {}
+        by_key: dict[str, VersionInfo] = {}
         for provider in self._providers:
             for version in provider.get_versions(vehicle_id):
-                existing = by_version_id.get(version.version_id)
+                key = _version_dedup_key(version)
+                existing = by_key.get(key)
                 if existing is None:
-                    by_version_id[version.version_id] = version
+                    by_key[key] = version
                     continue
                 if _release_type_dedup_priority(version.release_type) < (
                     _release_type_dedup_priority(existing.release_type)
                 ):
-                    by_version_id[version.version_id] = version
-        return list(by_version_id.values())
+                    by_key[key] = version
+        return list(by_key.values())
 
     def is_version_listed(self, vehicle_id: str, version_id: str) -> bool:
         if vehicle_id is None:
