@@ -226,7 +226,9 @@ class Builder:
             build_id (str): Unique identifier for the build.
         """
         build_info = bm.get_singleton().get_build_info(build_id)
-        archive_path = bm.get_singleton().get_build_archive_path(build_id)
+        archive_path = bm.get_singleton().get_build_archive_path(
+            build_id, build_info.vehicle_id, build_info.board
+        )
 
         files_to_include = []
 
@@ -261,10 +263,11 @@ class Builder:
         )
         files_to_include.append(extra_hwdef_path_abs)
 
-        # create archive
+        # create archive (inner folder matches download basename)
+        folder_name = Path(archive_path).name.removesuffix(".tar.gz")
         with tarfile.open(archive_path, "w:gz") as tar:
             for file in files_to_include:
-                arcname = f"{build_id}/{os.path.basename(file)}"
+                arcname = f"{folder_name}/{os.path.basename(file)}"
                 self.logger.debug(f"Added {file} as {arcname}")
                 tar.add(file, arcname=arcname)
         self.logger.info(f"Generated {archive_path}.")
