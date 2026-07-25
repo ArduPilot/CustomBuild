@@ -79,7 +79,7 @@ def make_build_info(
         remote_info=ManagerRemoteInfo(name=remote_name, url=remote_url),
         git_hash=git_hash,
         board=board,
-        selected_features=selected_features or set(),
+        selected_features=set(selected_features) if selected_features is not None else set(),
     )
     info.progress = bm.BuildProgress(state=state, percent=percent)
     return info
@@ -242,17 +242,12 @@ class TestBuildsService:
         with pytest.raises(ValueError, match="Invalid board for this version"):
             service.create_build(request)
 
-    def test_create_build_maps_feature_labels_to_defines(
+    def test_create_build_stores_feature_labels(
         self,
         service,
-        mock_ap_src_metadata_fetcher,
         mock_build_manager,
     ):
-        """Selected feature labels are translated to defines before build submission."""
-        opt = Mock()
-        opt.label = "HAL_LOGGING_ENABLED"
-        opt.define = "HAL_LOGGING_ENABLED_DEFINE"
-        mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt]
+        """Selected feature labels are stored on BuildInfo as-is."""
         request = BuildRequest(
             vehicle_id="copter",
             board_id="MatekH743",
@@ -263,37 +258,14 @@ class TestBuildsService:
         service.create_build(request)
 
         submitted: bm.BuildInfo = mock_build_manager.submit_build.call_args[1]["build_info"]
-        assert "HAL_LOGGING_ENABLED_DEFINE" in submitted.selected_features
+        assert submitted.selected_features == {"HAL_LOGGING_ENABLED"}
 
-    def test_create_build_ignores_unknown_feature_labels(
-        self,
-        service,
-        mock_ap_src_metadata_fetcher,
-        mock_build_manager,
-    ):
-        """Unknown feature labels are silently skipped (not added to defines set)."""
-        opt = Mock()
-        opt.label = "HAL_LOGGING_ENABLED"
-        opt.define = "HAL_LOGGING_ENABLED_DEFINE"
-        mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt]
-        request = BuildRequest(
-            vehicle_id="copter",
-            board_id="MatekH743",
-            version_id="copter-4.5.0-stable",
-            selected_features=["COMPLETELY_UNKNOWN_FEATURE"],
-        )
-
-        service.create_build(request)
-
-        submitted: bm.BuildInfo = mock_build_manager.submit_build.call_args[1]["build_info"]
-        assert len(submitted.selected_features) == 0
-
-    def test_create_build_no_features_submits_empty_set(
+    def test_create_build_no_features_submits_empty_list(
         self,
         service,
         mock_build_manager,
     ):
-        """When selected_features is empty, build is submitted with an empty set."""
+        """When selected_features is empty, build is submitted with an empty list."""
         request = BuildRequest(
             vehicle_id="copter",
             board_id="MatekH743",
@@ -304,7 +276,7 @@ class TestBuildsService:
         service.create_build(request)
 
         submitted: bm.BuildInfo = mock_build_manager.submit_build.call_args[1]["build_info"]
-        assert len(submitted.selected_features) == 0
+        assert submitted.selected_features == set()
 
     # Tests for list_builds
 
@@ -546,40 +518,20 @@ class TestBuildsService:
         assert result.vehicle.id == "plane"
         assert result.board.id == "CubeOrange"
 
-    def test_get_build_maps_feature_defines_to_labels(
-        self,
-        service,
-        mock_build_manager,
-        mock_ap_src_metadata_fetcher,
-    ):
-        """Feature defines in BuildInfo are mapped back to labels in the output."""
-        mock_build_manager.build_exists.return_value = True
-        mock_build_manager.get_build_info.return_value = make_build_info(
-            selected_features={"HAL_LOGGING_ENABLED_DEFINE"}
-        )
-        opt = Mock()
-        opt.define = "HAL_LOGGING_ENABLED_DEFINE"
-        opt.label = "HAL_LOGGING_ENABLED"
-        mock_ap_src_metadata_fetcher.get_build_options_at_commit.return_value = [opt]
-
-        result = service.get_build("build-abc123")
-
-        assert "HAL_LOGGING_ENABLED" in result.selected_features
-
-    def test_get_build_falls_back_to_define_when_label_not_found(
+    def test_get_build_uses_stored_feature_labels(
         self,
         service,
         mock_build_manager,
     ):
-        """When a define has no matching label, the define itself is used as fallback."""
+        """API output uses feature labels stored on BuildInfo at submit time."""
         mock_build_manager.build_exists.return_value = True
         mock_build_manager.get_build_info.return_value = make_build_info(
-            selected_features={"ORPHANED_DEFINE"}
+            selected_features=["HAL_LOGGING_ENABLED"],
         )
 
         result = service.get_build("build-abc123")
 
-        assert "ORPHANED_DEFINE" in result.selected_features
+        assert result.selected_features == ["HAL_LOGGING_ENABLED"]
 
     def test_get_build_no_selected_features_returns_empty_list(
         self,
@@ -589,7 +541,7 @@ class TestBuildsService:
         """When a build has no selected features, the output list is empty."""
         mock_build_manager.build_exists.return_value = True
         mock_build_manager.get_build_info.return_value = make_build_info(
-            selected_features=set()
+            selected_features=[],
         )
 
         result = service.get_build("build-abc123")
