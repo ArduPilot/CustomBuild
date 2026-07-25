@@ -200,13 +200,12 @@ class BuildManager:
             build_info (BuildInfo): The build information object.
 
         Returns:
-            str: The generated build ID (64 characters).
+            str: The generated build ID (8 characters).
         """
         h = hashlib.md5(
             f"{build_info}-{time.time_ns()}".encode()
-        ).hexdigest()
-        bid = f"{build_info.vehicle_id}-{build_info.board}-{h}"
-        return bid
+        ).hexdigest()[:8]
+        return h
 
     def submit_build(self,
                      build_info: BuildInfo) -> str:
@@ -460,19 +459,23 @@ class BuildManager:
             'build.log'
         )
 
-    def get_build_archive_path(self, build_id: str) -> str:
+    def get_build_archive_path(
+        self, build_id: str, vehicle_id: str, board: str
+    ) -> str:
         """
         Return the path to the build archive.
 
         Parameters:
             build_id (str): The ID of the build.
+            vehicle_id (str): The vehicle identifier.
+            board (str): The board identifier.
 
         Returns:
             str: The path to the build archive.
         """
         return os.path.join(
             self.get_build_artifacts_dir_path(build_id),
-            f"{build_id}.tar.gz"
+            f"{vehicle_id}-{board}-{build_id}.tar.gz"
         )
 
     @staticmethod
