@@ -1,0 +1,184 @@
+#!/usr/bin/env python3
+
+"""
+Main FastAPI application entry point.
+"""
+from contextlib import asynccontextmanager
+from pathlib import Path
+import threading
+import os
+import argparse
+
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+
+from backend.api.v1 import router as v1_router
+from backend.ui import router as ui_router
+
+from backend.core.config import get_settings
+from backend.core.startup import initialize_application
+from backend.core.logging_config import setup_logging
+from backend.core.limiter import limiter, rate_limit_exceeded_handler
+
+import ap_git
+import build_manager
+from metadata_manager import (
+    APSourceMetadataFetcher,
+    FeaturesTxtClient,
+    ManifestJSON,
+    VehiclesManager,
+    VersionsManager,
+)
+
+setup_logging()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan context manager for startup and shutdown events.
+    """
+    # Startup
+    settings = get_settings()
+
+    initialize_application(settings.base_dir)
+
+    repo = ap_git.GitRepo.clone_if_needed(
+        source=settings.ap_git_url,
+        dest=settings.source_dir,
+        recurse_submodules=True,
+    )
+
+    vehicles_manager = VehiclesManager()
+
+    manifest_json = ManifestJSON(
+        url=settings.ap_firmware_manifest_url,
+        cache_dir=settings.manifest_cache_dir,
+    )
+
+    ap_src_metadata_fetcher = APSourceMetadataFetcher(
+        ap_repo=repo,
+        caching_enabled=True,
+        redis_host=settings.redis_host,
+        redis_port=settings.redis_port,
+    )
+
+    features_txt_client = FeaturesTxtClient(
+        redis_host=settings.redis_host,
+        redis_port=settings.redis_port,
+        caching_enabled=True,
+    )
+
+    versions_manager = VersionsManager(
+        ap_repo=repo,
+        remotes_json_path=settings.remotes_json_path,
+        manifest_json=manifest_json,
+    )
+    versions_manager.refresh_all()
+
+    build_mgr = build_manager.BuildManager(
+        outdir=settings.outdir_parent,
+        redis_host=settings.redis_host,
+        redis_port=settings.redis_port
+    )
+
+    cleaner = build_manager.BuildArtifactsCleaner()
+    progress_updater = build_manager.BuildProgressUpdater()
+
+    inbuilt_builder = None
+    inbuilt_builder_thread = None
+    if settings.enable_inbuilt_builder:
+        from builder.builder import Builder  # noqa: E402
+        inbuilt_builder = Builder(
+            workdir=settings.workdir_parent,
+            source_repo=repo
+        )
+        inbuilt_builder_thread = threading.Thread(
+            target=inbuilt_builder.run,
+            daemon=True
+        )
+        inbuilt_builder_thread.start()
+
+    versions_manager.start()
+    cleaner.start()
+    progress_updater.start()
+
+    app.state.repo = repo
+    app.state.ap_src_metadata_fetcher = ap_src_metadata_fetcher
+    app.state.manifest_json = manifest_json
+    app.state.features_txt_client = features_txt_client
+    app.state.versions_manager = versions_manager
+    app.state.vehicles_manager = vehicles_manager
+    app.state.build_manager = build_mgr
+    app.state.inbuilt_builder = inbuilt_builder
+    app.state.inbuilt_builder_thread = inbuilt_builder_thread
+    app.state.limiter = limiter
+
+    yield
+
+    # Shutdown
+    versions_manager.stop()
+    cleaner.stop()
+    progress_updater.stop()
+    if inbuilt_builder is not None:
+        inbuilt_builder.shutdown()
+        if (inbuilt_builder_thread is not None and
+                inbuilt_builder_thread.is_alive()):
+            inbuilt_builder_thread.join()
+
+
+# Create FastAPI application
+app = FastAPI(
+    title="CustomBuild API",
+    description="API for ArduPilot Custom Firmware Builder",
+    version="1.0.0",
+    openapi_url="/api/openapi.json",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    lifespan=lifespan,
+)
+
+# SlowAPIMiddleware is used for rate limiting
+app.add_middleware(SlowAPIMiddleware)
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
+# Mount static files
+WEB_ROOT = Path(__file__).resolve().parent
+app.mount(
+    "/static",
+    StaticFiles(directory=str(WEB_ROOT / "static")),
+    name="static"
+)
+
+# Include API v1 router
+app.include_router(v1_router, prefix="/api")
+
+# Include Web UI router
+app.include_router(ui_router)
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy"}
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="CustomBuild API Server")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.getenv("BACKEND_PORT", 8080)),
+        help="Port to run the server on (default: 8080 or BACKEND_PORT env var)"
+    )
+    args = parser.parse_args()
+
+    import uvicorn
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=args.port,
+        reload=True
+    )
