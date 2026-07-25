@@ -48,7 +48,11 @@ class BuildInfo:
                  remote_info: RemoteInfo,
                  git_hash: str,
                  board: str,
-                 selected_features: set) -> None:
+                 selected_features: set,
+                 vehicle_name: str,
+                 board_name: str,
+                 version_name: str,
+                 version_type: str) -> None:
         """
         Initialize build information object including vehicle,
         remote, git hash, selected features, and progress of the build.
@@ -62,6 +66,10 @@ class BuildInfo:
             git_hash (str): The git commit hash to build on.
             board (str): Board to build for.
             selected_features (set): Set of feature API labels/IDs for the build.
+            vehicle_name (str): Display name for rebuild config YAML.
+            board_name (str): Display name for rebuild config YAML.
+            version_name (str): Display name for rebuild config YAML.
+            version_type (str): Release type for rebuild config YAML.
         """
         self.vehicle_id = vehicle_id
         self.version_id = version_id
@@ -69,6 +77,10 @@ class BuildInfo:
         self.git_hash = git_hash
         self.board = board
         self.selected_features = selected_features
+        self.vehicle_name = vehicle_name
+        self.board_name = board_name
+        self.version_name = version_name
+        self.version_type = version_type
         self.progress = BuildProgress(
             state=BuildState.PENDING,
             percent=0
@@ -84,9 +96,13 @@ class BuildInfo:
             'git_hash': self.git_hash,
             'board': self.board,
             'selected_features': list(self.selected_features),
+            'vehicle_name': self.vehicle_name,
+            'board_name': self.board_name,
+            'version_name': self.version_name,
+            'version_type': self.version_type,
             'progress': self.progress.to_dict(),
             'time_created': self.time_created,
-            'time_started': getattr(self, 'time_started', None),
+            'time_started': self.time_started,
         }
 
 
