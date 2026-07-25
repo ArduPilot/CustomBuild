@@ -282,7 +282,9 @@ class BuildsService:
         ]:
             return None
 
-        artifact_path = self.manager.get_build_archive_path(build_id)
+        artifact_path = self.manager.get_build_archive_path(
+            build_id, build_info.vehicle_id, build_info.board
+        )
         if os.path.exists(artifact_path):
             return artifact_path
 
