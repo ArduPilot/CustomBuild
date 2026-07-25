@@ -1,7 +1,7 @@
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
-from web.schemas.vehicles import VehicleBase, BoardBase, RemoteInfo
+from web.schemas.vehicles import VehicleBase, BoardBase, RemoteInfo, VersionType
 
 
 # --- Build Progress ---
@@ -47,6 +47,10 @@ class BuildSubmitResponse(BaseModel):
 class BuildVersionInfo(BaseModel):
     """Version information for a build."""
     id: str = Field(..., description="Version ID used for this build")
+    name: Optional[str] = Field(None, description="Version display name")
+    type: Optional[VersionType] = Field(
+        None, description="Version type classification"
+    )
     remote_info: RemoteInfo = Field(
         ..., description="Source repository information"
     )

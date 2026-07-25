@@ -9,7 +9,7 @@ from fastapi import (
     Depends,
     Request
 )
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 
 from web.schemas import (
     BuildRequest,
@@ -221,4 +221,52 @@ async def download_artifact(
         path=artifact_path,
         media_type='application/gzip',
         filename=os.path.basename(artifact_path)
+    )
+
+
+@router.get(
+    "/{build_id}/config",
+    responses={
+        404: {
+            "description": (
+                "Build not found or config could not be generated"
+            )
+        }
+    }
+)
+async def download_config(
+    build_id: str = Path(..., description="Unique build identifier"),
+    service: BuildsService = Depends(get_builds_service)
+):
+    """
+    Download the CustomBuild config YAML for a build.
+
+    Generated from build metadata via the shared build_config module
+    (same shape as the YAML packed into the archive by Builder).
+
+    Args:
+        build_id: The unique build identifier
+
+    Returns:
+        YAML config file
+
+    Raises:
+        404: Build not found or config could not be generated
+    """
+    result = service.get_build_config_yaml(build_id)
+    if not result:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Config not available for build '{build_id}'. "
+                "Build may not exist or metadata is incomplete."
+            )
+        )
+    yaml_text, filename = result
+    return Response(
+        content=yaml_text,
+        media_type="application/yaml",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        },
     )
