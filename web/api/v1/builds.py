@@ -1,3 +1,4 @@
+import os
 from typing import List, Optional
 from fastapi import (
     APIRouter,
@@ -219,5 +220,5 @@ async def download_artifact(
     return FileResponse(
         path=artifact_path,
         media_type='application/gzip',
-        filename=f"{build_id}.tar.gz"
+        filename=os.path.basename(artifact_path)
     )
