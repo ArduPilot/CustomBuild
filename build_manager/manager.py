@@ -61,7 +61,7 @@ class BuildInfo:
             source commit to build on.
             git_hash (str): The git commit hash to build on.
             board (str): Board to build for.
-            selected_features (set): Set of features selected for the build.
+            selected_features (set): Set of feature API labels/IDs for the build.
         """
         self.vehicle_id = vehicle_id
         self.version_id = version_id
