@@ -17,6 +17,27 @@ from pathlib import Path
 CBS_BUILD_TIMEOUT_SEC = int(os.getenv('CBS_BUILD_TIMEOUT_SEC', 900))
 
 
+def resolve_feature_defines(selected_labels, all_features):
+    """
+    Map API feature labels to preprocessor defines for extra_hwdef.
+
+    Returns:
+        tuple: (enabled_defines, disabled_defines, all_defines, unknown_labels)
+    """
+    label_to_define = {
+        feature.label: feature.define for feature in all_features
+    }
+    all_defines = set(label_to_define.values())
+    selected = set(selected_labels)
+    known = set(label_to_define)
+    unknown_labels = selected.difference(known)
+    enabled_defines = {
+        label_to_define[label] for label in known.intersection(selected)
+    }
+    disabled_defines = all_defines.difference(enabled_defines)
+    return enabled_defines, disabled_defines, all_defines, unknown_labels
+
+
 class Builder:
     """
     Processes build requests, perform builds and ship build artifacts
@@ -102,22 +123,24 @@ class Builder:
             )
 
         build_info = bm.get_singleton().get_build_info(build_id)
-        selected_features = build_info.selected_features
+        selected_labels = build_info.selected_features
         self.logger.debug(
-            f"Selected features for {build_id}: {selected_features}"
+            f"Selected feature labels for {build_id}: {selected_labels}"
         )
         all_features = apfetch.get_singleton().get_build_options_at_commit(
             remote=build_info.remote_info.name,
             commit_ref=build_info.git_hash,
         )
-        all_defines = {
-            feature.define
-            for feature in all_features
-        }
-        enabled_defines = selected_features.intersection(all_defines)
-        disabled_defines = all_defines.difference(enabled_defines)
+        enabled_defines, disabled_defines, all_defines, unknown_labels = (
+            resolve_feature_defines(selected_labels, all_features)
+        )
+        if unknown_labels:
+            self.logger.warning(
+                f"Unknown feature labels not found in build options; "
+                f"skipping: {sorted(unknown_labels)}"
+            )
         self.logger.info(f"Enabled defines for {build_id}: {enabled_defines}")
-        self.logger.info(f"Disabled defines for {build_id}: {enabled_defines}")
+        self.logger.info(f"Disabled defines for {build_id}: {disabled_defines}")
 
         with open(self.__get_path_to_extra_hwdef(build_id), "w") as f:
             # Undefine all defines at the beginning
