@@ -48,10 +48,12 @@ To minimize setup overhead and enhance ease of use, running this application in 
    sudo docker compose up -d
    ```
 
+   This starts Redis, the backend API, the builder, and the frontend. Only the frontend is published on the host; nginx serves the UI and proxies `/api` to the backend.
+
    **Note:** When starting the application for the first time, it takes some time to initialize the ArduPilot Git repositories at the backend. This process also involves populating the list of available versions and releases using the GitHub API, so please be patient.
 
 5. **Access the Web Interface:** 
-   The application binds to port 11080 on your host machine by default. Open your web browser and go to `http://localhost:11080` to interact with the web interface. To change the port, set the `WEB_PORT` environment variable in the .env file mentioned in the _Configure Environment Variables_ section.
+   The frontend binds to port 11080 on your host machine by default. Open your web browser and go to `http://localhost:11080` to interact with the web interface. To change the port, set the `WEB_PORT` environment variable in the `.env` file mentioned in the _Configure Environment Variables_ section.
 
 6. **Stopping the Application:**
    To stop the application, you can use the following command:
@@ -61,7 +63,7 @@ To minimize setup overhead and enhance ease of use, running this application in 
    This will stop and remove the containers, but it will not delete any built images or volumes, preserving your data for future use.
 
 ## Running Locally Without Docker on Ubuntu
-To run the ArduPilot Custom Firmware Builder locally without Docker, ensure you have an environment capable of building ArduPilot. Refer to the [ArduPilot Environment Setup Guide](https://ardupilot.org/dev/docs/building-setup-linux.html) if necessary.
+This setup is intended for **local development** only, not production. Ensure you have an environment capable of building ArduPilot. Refer to the [ArduPilot Environment Setup Guide](https://ardupilot.org/dev/docs/building-setup-linux.html) if necessary.
 
 1. **Clone the Custom-Build Repository:**
    ```bash
@@ -86,7 +88,7 @@ To run the ArduPilot Custom Firmware Builder locally without Docker, ensure you 
 
 3. **Install Dependencies:**
    ```bash
-   pip install -r web/requirements.txt -r builder/requirements.txt
+   pip install -r backend/requirements.txt -r builder/requirements.txt
    ```
 
    If pip is not installed, run:
@@ -104,38 +106,37 @@ To run the ArduPilot Custom Firmware Builder locally without Docker, ensure you 
    sudo systemctl status redis-server
    ```
 
-5. **Execute the Application:**
-   - For a development environment with auto-reload, run:
-     ```bash
-     python3 web/main.py
-     ```
-     To change the port, use the `--port` argument:
-     ```bash
-     python3 web/main.py --port 9000
-     ```
-   - For a production environment, use:
-     ```bash
-     uvicorn web.main:app --host 0.0.0.0 --port 8080
-     ```
+5. **Start the Backend and Frontend:**
+   In one terminal, start the API (listens on port 8080 by default):
+   ```bash
+   python3 backend/main.py
+   ```
+   To use a different port, pass `--port` or set `BACKEND_PORT`. If you change it, update the Vite proxy target in `frontend/vite.config.ts` to match.
 
-    During the coding and testing phases, use the development environment to easily debug and make changes with auto-reload enabled. When deploying the app for end users, use the production environment to ensure better performance, scalability, and security.
+   In another terminal, start the UI:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
 
-    The application will automatically set up the required base directory at `./base` upon first execution. You may customize this path by setting the `CBS_BASEDIR` environment variable.
+   The application will automatically set up the required base directory at `./base` upon first execution. You may customize this path by setting the `CBS_BASEDIR` environment variable.
 
 6. **Access the Web Interface:**
 
-   Once the application is running, you can access the interface in your web browser at http://localhost:8080.
-   
-   The default port is 8080, or the value of the `WEB_PORT` environment variable if set. You can override this by passing the `--port` argument when running the application directly (e.g., `python3 web/main.py --port 9000`) or when using uvicorn (e.g., `uvicorn web.main:app --port 5000`). Refer to the [uvicorn documentation](https://www.uvicorn.org/) for additional configuration options.
+   Open `http://localhost:5173` in your browser. Vite proxies `/api` requests to the backend, so you do not need nginx for local development.
 
 ## Directory Structure
 The default directory structure is established as follows:
 ```
 /home/<username>
 └── CustomBuild
+    ├── schemas
+    │   └── config
+    │       └── 0.0.1.json   (shared CustomBuild YAML schema)
     └── base
-        ├── ardupilot            (used by the web component)
-        ├── artifacts
+        ├── ardupilot            (used by the backend)
+        ├── artifacts            (build bundles include custombuild.yaml)
         ├── configs
         |   └── remotes.json     (optional, see examples/remotes.json.sample)
         ├── secrets
@@ -143,7 +144,7 @@ The default directory structure is established as follows:
         ├── tmp
             └── ardupilot        (used by the builder component)
 ```
-The build artifacts are organized under the `base/artifacts` subdirectory.
+The build artifacts are organized under the `base/artifacts` subdirectory. Each completed build archive (`.tar.gz`) includes firmware binaries, `build.log`, `extra_hwdef.dat`, and a Builder-generated `custombuild.yaml` for rebuilding. Config schemas live under `schemas/config/` at the repo root (consumed by Builder, backend, and frontend).
 
 ## Acknowledgements
 This project includes many valuable contributions made during the Google Summer of Code 2021. For more information, please see the [GSOC 2021 Blog Post](https://discuss.ardupilot.org/t/gsoc-2021-custom-firmware-builder/74946).
