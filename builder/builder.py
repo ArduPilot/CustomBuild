@@ -13,6 +13,11 @@ from metadata_manager import (
     VehiclesManager as vehm
 )
 from pathlib import Path
+from build_config import (
+    CONFIG_FILENAME,
+    config_dict_from_build_info,
+    write_config_yaml,
+)
 
 CBS_BUILD_TIMEOUT_SEC = int(os.getenv('CBS_BUILD_TIMEOUT_SEC', 900))
 
@@ -285,6 +290,17 @@ class Builder:
             self.__get_path_to_extra_hwdef(build_id)
         )
         files_to_include.append(extra_hwdef_path_abs)
+
+        # include rebuild config YAML (Builder is sole canonical author)
+        config_path = Path(
+            self.__get_path_to_build_dir(build_id)
+        ) / CONFIG_FILENAME
+
+        try:
+            write_config_yaml(config_path, config_dict_from_build_info(build_info))
+            files_to_include.append(str(config_path.resolve()))
+        except Exception:
+            self.logger.exception(f"Could not write {CONFIG_FILENAME} for {build_id}")
 
         # create archive (inner folder matches download basename)
         folder_name = Path(archive_path).name.removesuffix(".tar.gz")
