@@ -136,3 +136,12 @@ dump.rdb
 
 # base directory
 base
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Node / frontend build artifacts
+node_modules/
+
+# Generated from repo-root schemas/config by Vite
+frontend/public/schemas/
