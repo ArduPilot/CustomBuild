@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BuildConfig",
+  "description": "CustomBuild configuration file schema v0.0.1",
+  "type": "object",
+  "required": ["config_version", "vehicle", "version", "board", "selected_features"],
+  "additionalProperties": false,
+  "properties": {
+    "config_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semver config format version"
+    },
+    "vehicle": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id":   { "type": "string" },
+        "name": { "type": "string" }
+      }
+    },
+    "version": {
+      "type": "object",
+      "required": ["id", "name", "type", "remote_name"],
+      "additionalProperties": false,
+      "properties": {
+        "id":          { "type": "string" },
+        "name":        { "type": "string" },
+        "type":        { "type": "string" },
+        "remote_name": { "type": "string" }
+      }
+    },
+    "board": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id":   { "type": "string" },
+        "name": { "type": "string" }
+      }
+    },
+    "selected_features": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "use_default_features": {
+      "type": "boolean"
+    }
+  }
+}
