@@ -103,38 +103,6 @@ class BuildsService:
             commit_ref=commit_ref
         )
 
-        # Map feature labels (IDs from API) to defines
-        # (required by build manager)
-        selected_feature_defines = set()
-        if build_request.selected_features:
-            # Get build options to map labels to defines
-            with self.repo.get_checkout_lock():
-                options = (
-                    self.ap_src_metadata_fetcher
-                    .get_build_options_at_commit(
-                        remote=remote_name,
-                        commit_ref=commit_ref
-                    )
-                )
-
-            # Create label to define mapping
-            label_to_define = {
-                option.label: option.define for option in options
-            }
-
-            # Map each selected feature label to its define
-            for feature_label in build_request.selected_features:
-                if feature_label in label_to_define:
-                    selected_feature_defines.add(
-                        label_to_define[feature_label]
-                    )
-                else:
-                    logger.warning(
-                        f"Feature label '{feature_label}' not found in "
-                        f"build options for {vehicle_id} {remote_name} "
-                        f"{commit_ref}"
-                    )
-
         # Create build info
         build_info = build_manager.BuildInfo(
             vehicle_id=vehicle_id,
@@ -142,7 +110,7 @@ class BuildsService:
             remote_info=remote_info,
             git_hash=git_hash,
             board=board_name,
-            selected_features=selected_feature_defines
+            selected_features=set(build_request.selected_features),
         )
 
         # Submit build
@@ -317,49 +285,6 @@ class BuildsService:
             url=build_info.remote_info.url
         )
 
-        # Map feature defines back to labels for API response
-        selected_feature_labels = []
-        if build_info.selected_features:
-            try:
-                # Get build options to map defines back to labels
-                with self.repo.get_checkout_lock():
-                    options = (
-                        self.ap_src_metadata_fetcher
-                        .get_build_options_at_commit(
-                            remote=build_info.remote_info.name,
-                            commit_ref=build_info.git_hash
-                        )
-                    )
-
-                # Create define to label mapping
-                define_to_label = {
-                    option.define: option.label for option in options
-                }
-
-                # Map each selected feature define to its label
-                for feature_define in build_info.selected_features:
-                    if feature_define in define_to_label:
-                        selected_feature_labels.append(
-                            define_to_label[feature_define]
-                        )
-                    else:
-                        # Fallback: use define if label not found
-                        logger.warning(
-                            f"Feature define '{feature_define}' not "
-                            f"found in build options for build "
-                            f"{build_id}"
-                        )
-                        selected_feature_labels.append(feature_define)
-            except Exception as e:
-                logger.error(
-                    f"Error mapping feature defines to labels for "
-                    f"build {build_id}: {e}"
-                )
-                # Fallback: use defines as-is
-                selected_feature_labels = list(
-                    build_info.selected_features
-                )
-
         vehicle = self.vehicles_manager.get_vehicle_by_id(
             build_info.vehicle_id
         )
@@ -379,7 +304,7 @@ class BuildsService:
                 remote_info=remote_info,
                 git_hash=build_info.git_hash
             ),
-            selected_features=selected_feature_labels,
+            selected_features=list(build_info.selected_features),
             progress=progress,
             time_created=build_info.time_created,
         )
