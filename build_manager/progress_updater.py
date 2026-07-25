@@ -186,7 +186,9 @@ class BuildProgressUpdater:
         # Builder ships the archive post completion
         # This is irrespective of SUCCESS or FAILURE
         if not os.path.exists(
-            bm.get_singleton().get_build_archive_path(build_id)
+            bm.get_singleton().get_build_archive_path(
+                build_id, build_info.vehicle_id, build_info.board
+            )
         ):
             return BuildState.RUNNING
 
