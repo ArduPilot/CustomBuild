@@ -80,10 +80,16 @@ class VehiclesService:
                 remote = version_info.remote_info.name
                 title = f"{rel_type} {ver_num} ({remote})"
 
+            _KNOWN_TYPES = {"beta", "stable", "latest", "tag"}
+            release_type = (
+                version_info.release_type
+                if version_info.release_type in _KNOWN_TYPES
+                else "custom"
+            )
             versions.append(VersionOut(
                 id=version_info.version_id,
                 name=title,
-                type=version_info.release_type,
+                type=release_type,
                 remote=RemoteInfo(
                     name=version_info.remote_info.name,
                     url=version_info.remote_info.url,
