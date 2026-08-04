@@ -4,18 +4,15 @@
 Main FastAPI application entry point.
 """
 from contextlib import asynccontextmanager
-from pathlib import Path
 import threading
 import os
 import argparse
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from backend.api.v1 import router as v1_router
-from backend.ui import router as ui_router
 
 from backend.core.config import get_settings
 from backend.core.startup import initialize_application
@@ -144,19 +141,8 @@ app = FastAPI(
 app.add_middleware(SlowAPIMiddleware)
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
-# Mount static files
-WEB_ROOT = Path(__file__).resolve().parent
-app.mount(
-    "/static",
-    StaticFiles(directory=str(WEB_ROOT / "static")),
-    name="static"
-)
-
 # Include API v1 router
 app.include_router(v1_router, prefix="/api")
-
-# Include Web UI router
-app.include_router(ui_router)
 
 
 @app.get("/health")
