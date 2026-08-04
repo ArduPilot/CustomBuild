@@ -11,4 +11,5 @@ exclude =
     env,
     base/,
     redis_data/,
-    .vagrant/
+    .vagrant/,
+    frontend/node_modules/

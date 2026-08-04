@@ -8,10 +8,10 @@ services:
       - ./redis_data:/data:rw
     command: redis-server
 
-  app:
+  backend:
     build:
       context: .
-      dockerfile: ./web/Dockerfile
+      dockerfile: ./backend/Dockerfile
     restart: always
     environment:
       CBS_REDIS_HOST: redis
@@ -28,8 +28,6 @@ services:
       - ./base:/base:rw
     depends_on:
       - redis
-    ports:
-      - "127.0.0.1:${WEB_PORT:-8080}:8080"
 
   builder:
     build:
@@ -48,3 +46,13 @@ services:
       - ./base:/base:rw
     depends_on:
       - redis
+
+  frontend:
+    build:
+      context: .
+      dockerfile: ./frontend/Dockerfile
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "${WEB_PORT:-11080}:80"

@@ -3,3 +3,4 @@ redis==5.2.1
 dill==0.3.8
 requests==2.31.0
 packaging==25.0
+PyYAML==6.0.2
