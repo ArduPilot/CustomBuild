@@ -15,6 +15,7 @@ from web.schemas import (
     BuildVersionInfo,
 )
 from web.schemas.vehicles import VehicleBase, BoardBase
+from build_config import config_dict_from_build_info, dump_config_yaml
 
 # Import external modules
 # pylint: disable=wrong-import-position
@@ -65,6 +66,10 @@ class BuildsService:
         if not vehicle_id:
             raise ValueError("vehicle_id is required")
 
+        vehicle = self.vehicles_manager.get_vehicle_by_id(vehicle_id)
+        if vehicle is None:
+            raise ValueError("Invalid vehicle_id")
+
         # Get version info using version_id
         version_info = self.versions_manager.get_version_info(
             vehicle_id=vehicle_id,
@@ -103,6 +108,11 @@ class BuildsService:
             commit_ref=commit_ref
         )
 
+        if version_info.release_type == "latest":
+            version_display_name = "master"
+        else:
+            version_display_name = version_info.version_number
+
         # Create build info
         build_info = build_manager.BuildInfo(
             vehicle_id=vehicle_id,
@@ -111,6 +121,10 @@ class BuildsService:
             git_hash=git_hash,
             board=board_name,
             selected_features=set(build_request.selected_features),
+            vehicle_name=vehicle.name,
+            board_name=board_name,
+            version_name=version_display_name,
+            version_type=version_info.release_type,
         )
 
         # Submit build
@@ -258,6 +272,37 @@ class BuildsService:
 
         return None
 
+    def get_build_config_yaml(self, build_id: str) -> Optional[tuple]:
+        """
+        Generate custombuild.yaml from BuildInfo.
+
+        Args:
+            build_id: The unique build identifier
+
+        Returns:
+            (yaml_text, download_filename) or None if unavailable
+        """
+        if not self.manager.build_exists(build_id):
+            return None
+
+        build_info = self.manager.get_build_info(build_id)
+        if build_info is None:
+            return None
+
+        try:
+            yaml_text = dump_config_yaml(config_dict_from_build_info(build_info))
+        except Exception as e:
+            logger.error(
+                f"Error generating config YAML for build {build_id}: {e}"
+            )
+            return None
+
+        filename = (
+            f"custombuild-{build_info.vehicle_id}-"
+            f"{build_info.board}-{build_id}.yaml"
+        )
+        return yaml_text, filename
+
     def _build_info_to_output(
         self,
         build_id: str,
@@ -288,19 +333,39 @@ class BuildsService:
         vehicle = self.vehicles_manager.get_vehicle_by_id(
             build_info.vehicle_id
         )
+        if vehicle is not None:
+            vehicle_name = vehicle.name
+        else:
+            vehicle_name = build_info.vehicle_name or ""
+
+        v_info = self.versions_manager.get_version_info(
+            vehicle_id=build_info.vehicle_id,
+            version_id=build_info.version_id
+        )
+        if v_info is not None:
+            version_type = v_info.release_type
+            if v_info.release_type == "latest":
+                version_name = "master"
+            else:
+                version_name = v_info.version_number
+        else:
+            version_name = build_info.version_name
+            version_type = build_info.version_type
 
         return BuildOut(
             build_id=build_id,
             vehicle=VehicleBase(
                 id=build_info.vehicle_id,
-                name=vehicle.name
+                name=vehicle_name
             ),
             board=BoardBase(
                 id=build_info.board,
-                name=build_info.board  # Board name is same as board ID for now
+                name=build_info.board_name
             ),
             version=BuildVersionInfo(
                 id=build_info.version_id,
+                name=version_name,
+                type=version_type,
                 remote_info=remote_info,
                 git_hash=build_info.git_hash
             ),

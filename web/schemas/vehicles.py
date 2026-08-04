@@ -17,11 +17,14 @@ class RemoteInfo(BaseModel):
     url: str = Field(..., description="Git repository URL")
 
 
+VersionType = Literal["beta", "stable", "latest", "tag", "custom"]
+
+
 # --- Versions ---
 class VersionBase(BaseModel):
     id: str = Field(..., description="Unique version identifier")
     name: str = Field(..., description="Version display name")
-    type: Literal["beta", "stable", "latest", "tag", "custom"] = Field(
+    type: VersionType = Field(
         ..., description="Version type classification"
     )
     remote: RemoteInfo = Field(

@@ -70,6 +70,10 @@ def make_build_info(
     git_hash="abc123def456",
     board="MatekH743",
     selected_features=None,
+    vehicle_name=None,
+    board_name=None,
+    version_name="4.5.0",
+    version_type="stable",
     state=bm.BuildState.PENDING,
     percent=0,
 ):
@@ -80,6 +84,10 @@ def make_build_info(
         git_hash=git_hash,
         board=board,
         selected_features=set(selected_features) if selected_features is not None else set(),
+        vehicle_name=vehicle_name or vehicle_id.capitalize(),
+        board_name=board_name or board,
+        version_name=version_name,
+        version_type=version_type,
     )
     info.progress = bm.BuildProgress(state=state, percent=percent)
     return info
@@ -161,6 +169,21 @@ class TestBuildsService:
         with pytest.raises(ValueError, match="vehicle_id is required"):
             service.create_build(request)
 
+    def test_create_build_raises_value_error_for_invalid_vehicle(
+        self, service, mock_vehicles_manager
+    ):
+        """ValueError is raised when vehicle_id is not a known vehicle."""
+        mock_vehicles_manager.get_vehicle_by_id.return_value = None
+        request = BuildRequest(
+            vehicle_id="unknown-vehicle",
+            board_id="MatekH743",
+            version_id="copter-4.5.0-stable",
+            selected_features=[],
+        )
+
+        with pytest.raises(ValueError, match="Invalid vehicle_id"):
+            service.create_build(request)
+
     def test_create_build_raises_value_error_for_missing_board_id(
         self, service
     ):
@@ -216,9 +239,9 @@ class TestBuildsService:
         """ValueError is raised when the remote is not found."""
         mock_versions_manager.get_remote_info.return_value = None
         request = BuildRequest(
-            vehicle_id="some-vehicle",
-            board_id="some-board",
-            version_id="some-version",
+            vehicle_id="copter",
+            board_id="MatekH743",
+            version_id="copter-4.5.0-stable",
             selected_features=[],
         )
 
@@ -725,3 +748,135 @@ class TestBuildsService:
         service.get_artifact_path("my-target-build")
 
         mock_build_manager.build_exists.assert_called_once_with("my-target-build")
+
+    def test_get_build_includes_version_name_and_type(
+        self,
+        service,
+        mock_build_manager,
+        mock_versions_manager,
+    ):
+        """version.name and version.type come from versions_manager."""
+        mock_build_manager.build_exists.return_value = True
+        mock_build_manager.get_build_info.return_value = make_build_info()
+        mock_versions_manager.get_version_info.return_value = make_version_info(
+            release_type="stable",
+            version_number="4.5.0",
+        )
+
+        result = service.get_build("build-abc123")
+
+        assert result.version.name == "4.5.0"
+        assert result.version.type == "stable"
+        mock_versions_manager.get_version_info.assert_called_with(
+            vehicle_id="copter",
+            version_id="copter-4.5.0-stable",
+        )
+
+    def test_get_build_maps_latest_version_name_to_master(
+        self,
+        service,
+        mock_build_manager,
+        mock_versions_manager,
+    ):
+        """latest release_type is exposed as display name 'master'."""
+        mock_build_manager.build_exists.return_value = True
+        mock_build_manager.get_build_info.return_value = make_build_info(
+            version_id="copter-latest",
+        )
+        mock_versions_manager.get_version_info.return_value = make_version_info(
+            release_type="latest",
+            version_number="NA",
+        )
+
+        result = service.get_build("build-abc123")
+
+        assert result.version.name == "master"
+        assert result.version.type == "latest"
+
+    def test_get_build_falls_back_to_stored_version_when_unknown(
+        self,
+        service,
+        mock_build_manager,
+        mock_versions_manager,
+    ):
+        """Missing live version info uses names stored on BuildInfo."""
+        mock_build_manager.build_exists.return_value = True
+        mock_build_manager.get_build_info.return_value = make_build_info(
+            version_name="4.5.0",
+            version_type="stable",
+        )
+        mock_versions_manager.get_version_info.return_value = None
+
+        result = service.get_build("build-abc123")
+
+        assert result.version.name == "4.5.0"
+        assert result.version.type == "stable"
+
+    def test_get_build_falls_back_to_stored_vehicle_name_when_unknown(
+        self,
+        service,
+        mock_build_manager,
+        mock_vehicles_manager,
+    ):
+        """Missing live vehicle uses display name stored on BuildInfo, not id."""
+        mock_build_manager.build_exists.return_value = True
+        mock_build_manager.get_build_info.return_value = make_build_info(
+            vehicle_id="retired-vehicle",
+            vehicle_name="Retired Vehicle",
+        )
+        mock_vehicles_manager.get_vehicle_by_id.side_effect = lambda _vid: None
+
+        result = service.get_build("build-abc123")
+
+        assert result.vehicle.id == "retired-vehicle"
+        assert result.vehicle.name == "Retired Vehicle"
+
+    def test_get_build_config_yaml_generates_from_build_info(
+        self,
+        service,
+        mock_build_manager,
+    ):
+        mock_build_manager.build_exists.return_value = True
+        mock_build_manager.get_build_info.return_value = make_build_info(
+            state=bm.BuildState.SUCCESS,
+            vehicle_id="copter",
+            board="MatekH743",
+            vehicle_name="Copter",
+            selected_features=["HAL_LOGGING_ENABLED"],
+        )
+
+        result = service.get_build_config_yaml("build-abc123")
+
+        assert result is not None
+        yaml_text, filename = result
+        assert "HAL_LOGGING_ENABLED" in yaml_text
+        assert filename.endswith(".yaml")
+
+    def test_get_build_config_yaml_returns_none_when_build_missing(
+        self, service, mock_build_manager
+    ):
+        mock_build_manager.build_exists.return_value = False
+        assert service.get_build_config_yaml("missing") is None
+
+    def test_get_build_config_yaml_returns_none_when_info_missing(
+        self, service, mock_build_manager
+    ):
+        mock_build_manager.build_exists.return_value = True
+        mock_build_manager.get_build_info.return_value = None
+        assert service.get_build_config_yaml("build-abc123") is None
+
+    def test_create_build_stores_display_metadata(
+        self, service, mock_build_manager
+    ):
+        service.create_build(
+            BuildRequest(
+                vehicle_id="copter",
+                board_id="MatekH743",
+                version_id="copter-4.5.0-stable",
+                selected_features=["HAL_LOGGING_ENABLED"],
+            )
+        )
+        submitted: bm.BuildInfo = mock_build_manager.submit_build.call_args[1]["build_info"]
+        assert submitted.selected_features == {"HAL_LOGGING_ENABLED"}
+        assert submitted.vehicle_name == "Copter"
+        assert submitted.version_type == "stable"

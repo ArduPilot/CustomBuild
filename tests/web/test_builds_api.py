@@ -444,3 +444,34 @@ class TestBuildsAPI:
         for method in [client.post, client.put, client.patch, client.delete]:
             response = method("/api/v1/builds/build-abc123/artifact")
             assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+
+    def test_get_config_returns_200_when_available(self, client):
+        """Returns YAML when the service provides packaged config."""
+        mock_service = Mock()
+        mock_service.get_build_config_yaml.return_value = (
+            "config_version: \"0.0.1\"\nvehicle:\n  id: copter\n  name: Copter\n",
+            "custombuild-copter-MatekH743-build-abc123.yaml",
+        )
+        with self.override_builds_service(client, mock_service):
+            response = client.get("/api/v1/builds/build-abc123/config")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert "copter" in response.text
+        assert "attachment" in response.headers.get("content-disposition", "")
+
+    def test_get_config_returns_404_when_not_available(self, client):
+        mock_service = Mock()
+        mock_service.get_build_config_yaml.return_value = None
+        with self.override_builds_service(client, mock_service):
+            response = client.get("/api/v1/builds/some-build-id/config")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert "some-build-id" in response.json()["detail"]
+
+    def test_get_config_service_called_with_correct_build_id(self, client):
+        mock_service = Mock()
+        mock_service.get_build_config_yaml.return_value = None
+        with self.override_builds_service(client, mock_service):
+            client.get("/api/v1/builds/target-build/config")
+
+        mock_service.get_build_config_yaml.assert_called_once_with("target-build")
