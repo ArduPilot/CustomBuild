@@ -472,7 +472,20 @@ function FeatureRow({ feature, checked, onToggle, catHighlighted, innerRef, pend
                     : checked ? 'bg-yellow-400/5' : 'bg-transparent hover:bg-hover',
             )}
         >
-            <label className="flex items-start gap-3 px-5 py-3 cursor-pointer">
+            <div
+                role="checkbox"
+                aria-checked={checked}
+                aria-label={feature.name}
+                tabIndex={0}
+                className="flex items-start gap-3 px-5 py-3 cursor-pointer"
+                onKeyDown={e => {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        if (!e.repeat) onToggle(feature.id);
+                    }
+                }}
+                onClick={() => onToggle(feature.id)}
+            >
                 <div
                     className={clsx(
                         'w-4 h-4 rounded border mt-0.5 flex items-center justify-center shrink-0 transition-colors',
@@ -480,12 +493,11 @@ function FeatureRow({ feature, checked, onToggle, catHighlighted, innerRef, pend
                             ? 'dep-warn-check'
                             : checked ? 'bg-yellow-400 border-yellow-400' : 'border-surface-4',
                     )}
-                    onClick={e => { e.preventDefault(); onToggle(feature.id); }}
+                    aria-hidden
                 >
                     {checked && !pendingUncheck && <Check className="w-3 h-3 text-black" />}
                     {pendingUncheck && <Minus className="w-3 h-3 dep-warn-icon" />}
                 </div>
-                <input type="checkbox" className="sr-only" checked={checked} onChange={() => onToggle(feature.id)} />
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-medium text-gray-200">{feature.name}</span>
@@ -508,7 +520,7 @@ function FeatureRow({ feature, checked, onToggle, catHighlighted, innerRef, pend
                         <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{feature.description}</p>
                     )}
                 </div>
-            </label>
+            </div>
 
             {pendingUncheck && activeDependents && activeDependents.length > 0 && (
                 <div className="dep-warn mx-5 mb-3 rounded-lg border overflow-hidden">
